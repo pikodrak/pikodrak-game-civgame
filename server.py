@@ -227,6 +227,10 @@ def diplomacy(game_id: int, req: DiplomacyRequest):
         game.declare_war(0, req.target_player)
     elif req.action == "peace":
         game.make_peace(0, req.target_player)
+    elif req.action == "alliance":
+        game.form_alliance(0, req.target_player)
+    elif req.action == "break_alliance":
+        game.break_alliance(0, req.target_player)
     return {"ok": True, "state": game.to_dict(for_player=0)}
 
 

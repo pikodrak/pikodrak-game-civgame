@@ -657,16 +657,16 @@ class GameState:
         if unit["moves_left"] < move_cost and unit["moves_left"] < unit["mov"]:
             return {"ok": False, "msg": "Not enough movement"}
 
-        # Territory check — entering foreign territory without peace = war
+        # Territory check — only alliance allows passage, everything else = war
         territory_owner = self.get_tile_owner(target_q, target_r)
         if territory_owner is not None and territory_owner != unit["player"]:
             rel = self.players[unit["player"]]["diplomacy"].get(territory_owner, "peace")
-            if rel == "war":
-                pass  # at war, can enter
-            elif rel == "peace":
-                pass  # peace treaty allows passage
+            if rel == "alliance":
+                pass  # allied, free passage
+            elif rel == "war":
+                pass  # already at war, enter to fight
             else:
-                # neutral — entering territory is act of war
+                # peace or neutral — entering territory is act of war
                 self.declare_war(unit["player"], territory_owner)
                 self._log_ai(unit["player"], f"DIPLO: entered {self.players[territory_owner]['name']} territory — WAR!")
 
@@ -998,6 +998,23 @@ class GameState:
         cd_b = self.players[player_b].get("diplo_cooldown", {}).get(player_a, 0)
         if cd_a > 0 or cd_b > 0:
             return  # can't make peace yet
+        self.players[player_a]["diplomacy"][player_b] = "peace"
+        self.players[player_b]["diplomacy"][player_a] = "peace"
+        cd = GAME_CONFIG.get("diplo_peace_cooldown", 15)
+        self.players[player_a].setdefault("diplo_cooldown", {})[player_b] = cd
+        self.players[player_b].setdefault("diplo_cooldown", {})[player_a] = cd
+
+    def form_alliance(self, player_a, player_b):
+        """Form alliance — mutual free passage + shared vision."""
+        # Must be at peace first
+        rel_a = self.players[player_a]["diplomacy"].get(player_b, "peace")
+        if rel_a == "war":
+            return
+        self.players[player_a]["diplomacy"][player_b] = "alliance"
+        self.players[player_b]["diplomacy"][player_a] = "alliance"
+
+    def break_alliance(self, player_a, player_b):
+        """Break alliance — reverts to peace."""
         self.players[player_a]["diplomacy"][player_b] = "peace"
         self.players[player_b]["diplomacy"][player_a] = "peace"
         cd = GAME_CONFIG.get("diplo_peace_cooldown", 15)
@@ -1390,6 +1407,25 @@ class GameState:
                 if rel != "war" and random.random() < gang_chance:
                     self.declare_war(pid, leader["id"])
                     self._log_ai(pid, f"DIPLO: gang-up WAR on leader {leader['name']} (score {leader['score']} vs my {player['score']})")
+
+        # Alliance AI — loyal/peaceful civs seek alliances against common enemies
+        for other in self.players:
+            if other["id"] == pid or not other["alive"]:
+                continue
+            rel = player["diplomacy"].get(other["id"], "peace")
+            # Form alliance: both at peace AND share a common enemy
+            if rel == "peace" and loyalty > 0.5:
+                common_enemy = any(
+                    player["diplomacy"].get(e["id"]) == "war" and other["diplomacy"].get(e["id"]) == "war"
+                    for e in self.players if e["id"] != pid and e["id"] != other["id"] and e["alive"]
+                )
+                if common_enemy and random.random() < loyalty * 0.2:
+                    self.form_alliance(pid, other["id"])
+                    self._log_ai(pid, f"DIPLO: ALLIANCE with {other['name']} (common enemy, loyalty={loyalty})")
+            # Break alliance if disloyal and strong enough
+            elif rel == "alliance" and random.random() < (1 - loyalty) * aggression * 0.02:
+                self.break_alliance(pid, other["id"])
+                self._log_ai(pid, f"DIPLO: broke alliance with {other['name']} (disloyal)")
 
         # Research: strategy-weighted tech selection
         if not player["researching"]:

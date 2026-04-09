@@ -4,6 +4,14 @@
 
 ### Latest Changes
 
+**Alliance & Territory System**
+- 4 diplomatic states: **war** / **peace** / **alliance** / neutral
+- Alliance = mutual free passage through territory + formed against common enemies
+- Loyal civs (loyalty > 0.5) form alliances when sharing enemy
+- Disloyal civs may break alliances
+- UI: Alliance/Break buttons in Diplomacy panel
+- AI forms ~3 alliances per game, territory violations trigger ~8 wars
+
 **Territory System**
 - `get_tile_owner(q,r)` returns which player controls a tile via city borders
 - Entering foreign territory (neutral) auto-declares war
