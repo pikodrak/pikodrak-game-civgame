@@ -557,19 +557,28 @@ function render(){
         if(sx<-pad||sx>W/camZoom+pad||sy<-pad||sy>H/camZoom+pad)continue;
         // Tinted fill
         ctx.save();ctx.globalAlpha=.08;hexP(ctx,sx,sy,S);ctx.fillStyle=pc;ctx.fill();ctx.restore();
-        // Check each edge — draw border if neighbor in that direction is NOT same player
-        // Edge i goes from vertex i to vertex i+1 (clockwise from top)
-        // hNb order: [NW=0, NE=1, E=2, SE=3, SW=4, W=5]
-        // Edge→neighbor mapping: edge0→NE(1), edge1→E(2), edge2→SE(3), edge3→SW(4), edge4→W(5), edge5→NW(0)
+        // Draw border: for each neighbor, if not same player, draw the shared edge
         const nb=hNb(q,r);
-        const edgeToNb=[1,2,3,4,5,0];  // edge i corresponds to neighbor edgeToNb[i]
-        for(let i=0;i<6;i++){const ni=edgeToNb[i];const[nq,nr]=nb[ni];const nk=`${nq},${nr}`;
+        for(let ni=0;ni<6;ni++){
+            const[nq,nr]=nb[ni];const nk=`${nq},${nr}`;
             const neighborSame=terrMap[nk]&&terrMap[nk].player===pid;
-            if(!neighborSame){
-                const a1=Math.PI/3*i-Math.PI/2,a2=Math.PI/3*(i+1)-Math.PI/2;
-                ctx.save();ctx.globalAlpha=.65;ctx.strokeStyle=pc;ctx.lineWidth=2.5;ctx.lineCap='round';
-                ctx.beginPath();ctx.moveTo(sx+S*.96*Math.cos(a1),sy+S*.96*Math.sin(a1));
-                ctx.lineTo(sx+S*.96*Math.cos(a2),sy+S*.96*Math.sin(a2));ctx.stroke();ctx.restore()}}}
+            if(neighborSame)continue;
+            // Find the two vertices shared between this hex and neighbor ni
+            // Neighbor ni center
+            const[np,npy]=h2p(nq,nr);const nsx=np-ox,nsy=npy-oy;
+            // Shared edge = two vertices closest to midpoint between hex centers
+            const mx=(sx+nsx)/2,my=(sy+nsy)/2;
+            // Find 2 vertices of THIS hex closest to midpoint
+            const verts=[];
+            for(let v=0;v<6;v++){
+                const a=Math.PI/3*v-Math.PI/2;
+                verts.push({x:sx+S*.96*Math.cos(a),y:sy+S*.96*Math.sin(a),
+                    d:Math.hypot(sx+S*Math.cos(a)-mx,sy+S*Math.sin(a)-my)});
+            }
+            verts.sort((a,b)=>a.d-b.d);
+            ctx.save();ctx.globalAlpha=.7;ctx.strokeStyle=pc;ctx.lineWidth=2.5;ctx.lineCap='round';
+            ctx.beginPath();ctx.moveTo(verts[0].x,verts[0].y);ctx.lineTo(verts[1].x,verts[1].y);
+            ctx.stroke();ctx.restore();}}
 
     // SELECTION
     if(selectedUnit){const u=state.units.find(u=>u.id===selectedUnit);if(u){const[px,py]=h2p(u.q,u.r),sx=px-ox,sy=py-oy;ctx.save();ctx.globalAlpha=.1+Math.sin(T*5)*.07;hexP(ctx,sx,sy,S+3);ctx.strokeStyle='#fff';ctx.lineWidth=3;ctx.stroke();hexP(ctx,sx,sy,S);ctx.fillStyle='#fff';ctx.fill();ctx.restore();if(u.moves_left>0)for(const[nq,nr]of hNb(u.q,u.r)){const k=`${nq},${nr}`;if(!tiles[k])continue;const t=tiles[k];if((t==='water'||t==='coast')&&u.cat!=='naval'&&u.cat!=='air')continue;if(t==='mountain'&&u.cat!=='air')continue;const[np,ny]=h2p(nq,nr),nx=np-ox,ns=ny-oy;const en=state.units.some(x=>x.q===nq&&x.r===nr&&x.player!==0)||state.cities.some(c=>c.q===nq&&c.r===nr&&c.player!==0);ctx.save();ctx.globalAlpha=.15+Math.sin(T*3)*.05;hexP(ctx,nx,ns,S);ctx.fillStyle=en?'#ff3030':'#30ff70';ctx.fill();ctx.globalAlpha=.5;hexP(ctx,nx,ns,S);ctx.strokeStyle=en?'#ff3030':'#30ff70';ctx.lineWidth=2;ctx.setLineDash([5,4]);ctx.stroke();ctx.setLineDash([]);ctx.restore()}}}
