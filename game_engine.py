@@ -912,18 +912,24 @@ class GameState:
             if hex_distance(c["q"], c["r"], unit["q"], unit["r"]) < 3:
                 return {"ok": False, "msg": "Too close to another city"}
 
-        # Cannot found city in or adjacent to foreign territory
+        # Cannot found city in foreign territory or too close to foreign cities
         territory_owner = self.get_tile_owner(unit["q"], unit["r"])
         if territory_owner is not None and territory_owner != unit["player"]:
             return {"ok": False, "msg": "Cannot found city in foreign territory"}
-        # Check if any neighbor hex is foreign territory
+        # Check proximity to foreign cities — can't settle within their potential border growth
+        for c in self.cities.values():
+            if c["player"] != unit["player"]:
+                d = hex_distance(c["q"], c["r"], unit["q"], unit["r"])
+                max_border = max(c.get("border_radius", 1) + 1, 3)  # at least 3
+                if d <= max_border:
+                    return {"ok": False, "msg": f"Too close to {c['name']} (foreign city)"}
+        # Check if near foreign territory — provocation
         for nq, nr in hex_neighbors(unit["q"], unit["r"]):
             nowner = self.get_tile_owner(nq, nr)
             if nowner is not None and nowner != unit["player"]:
-                # Provocation! This angers the neighbor
                 self.players[nowner]["relations"].setdefault(unit["player"], 0)
                 self.players[nowner]["relations"][unit["player"]] -= 30
-                self._log_ai(nowner, f"PROVOKED: {self.players[unit['player']]['name']} founded city near our border! (relations -{30})")
+                self._log_ai(nowner, f"PROVOKED: {self.players[unit['player']]['name']} founded city near our border!")
                 break
 
         terrain = self.tiles.get((unit["q"], unit["r"]))

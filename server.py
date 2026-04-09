@@ -494,6 +494,7 @@ def api_rules():
                 "min_distance": 3,
                 "forbidden_terrain": ["water", "coast", "mountain"],
                 "forbidden_in_foreign_territory": True,
+                "min_distance_from_foreign_city": "max(border_radius + 1, 3) hexes from any foreign city",
                 "provocation": "Founding near foreign border: -30 relations with neighbor",
             },
             "growth": {
