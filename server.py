@@ -375,7 +375,223 @@ def spectate_analysis(game_id: int, request: Request):
     return summary
 
 
-from game_engine import hex_neighbors, hex_distance, Terrain, IMPROVEMENTS, TERRAIN_YIELDS
+from game_engine import hex_neighbors, hex_distance, Terrain, IMPROVEMENTS, TERRAIN_YIELDS, TECHNOLOGIES, UNIT_TYPES, BUILDINGS, GAME_CONFIG, CITY_NAMES
+
+
+@app.get("/api/rules")
+def api_rules():
+    """Complete game rules, mechanics, formulas — everything AI needs to understand the game."""
+    return {
+        "overview": {
+            "description": "Turn-based civilization strategy game on hex grid",
+            "objective": "Achieve victory through Space, Culture, Domination, or Score",
+            "turn_flow": [
+                "1. Move units (click adjacent hex or set goto for multi-turn movement)",
+                "2. Found cities with settlers (min 3 hex distance from other cities, not in foreign territory)",
+                "3. Set city production (units or buildings)",
+                "4. Set research (one tech at a time)",
+                "5. Manage diplomacy (war/peace/alliance)",
+                "6. End turn — AI players act, yields processed, production/research advance",
+            ],
+            "hex_grid": "Odd-row offset coordinates (pointy-top hexagons)",
+        },
+
+        "victory_conditions": {
+            "space": {
+                "description": "Research 3 end-game techs and accumulate production",
+                "required_techs": ["space_program", "rocketry", "nuclear_fission"],
+                "production_needed": GAME_CONFIG.get("space_victory_production", 5000),
+                "how": "After all 3 techs researched, each turn your total city production accumulates. Reach threshold to win.",
+            },
+            "culture": {
+                "description": "Accumulate culture points",
+                "threshold": GAME_CONFIG.get("culture_victory_threshold", 8000),
+                "how": "Culture from cities (base 1 + buildings + trait bonuses) accumulates each turn in culture_pool.",
+            },
+            "domination": {
+                "description": "Control majority of all cities",
+                "percent_needed": GAME_CONFIG.get("domination_city_percent", 0.75),
+                "how": "Own 75%+ of all cities on map (including captured ones). Min 4 total cities required.",
+            },
+            "score": {
+                "description": "Highest score when turn limit reached (fallback)",
+                "formula": "cities * 100 + total_population * 20 + techs * 30 + culture_pool / 10",
+            },
+        },
+
+        "combat": {
+            "formula": {
+                "attack_strength": "unit.atk * (unit.hp / 100) * trait_bonus",
+                "defense_strength": "unit.def * (unit.hp / 100) * (1 + terrain_defense / 100) * fortify_bonus",
+                "damage_to_defender": "50 * atk_roll / (atk_roll + def_roll) + 15",
+                "damage_to_attacker": "40 * def_roll / (atk_roll + def_roll) + 10",
+                "random_factor": "strength * (0.8 + random * 0.4)",
+            },
+            "trait_bonuses": {
+                "aggressive": "+15% attack strength",
+                "protective": "+15% defense when near own city (within 3 hexes)",
+            },
+            "fortify_bonus": "+25% defense when fortified",
+            "terrain_defense": {k.value: v for k, v in game_engine.TERRAIN_DEFENSE.items()},
+            "unit_hp": 100,
+            "healing": {
+                "in_own_city": "+15 hp/turn",
+                "fortified": "+10 hp/turn",
+                "in_field": "+5 hp/turn",
+            },
+            "city_attack": {
+                "damage_to_city": "25 * atk_roll / (atk_roll + def_roll + 1) + 5",
+                "damage_to_attacker": "15 * def_roll / (atk_roll + def_roll + 1) + 3",
+                "city_captured_when": "city.hp <= 0 (population -1, hp reset to half)",
+            },
+        },
+
+        "terrain": {
+            t.value: {
+                "yields": TERRAIN_YIELDS.get(t, {}),
+                "move_cost": game_engine.TERRAIN_MOVE_COST.get(t, 1),
+                "defense_bonus": game_engine.TERRAIN_DEFENSE.get(t, 0),
+                "passable": t not in (Terrain.MOUNTAIN, Terrain.WATER, Terrain.COAST),
+                "naval_only": t in (Terrain.WATER, Terrain.COAST),
+            } for t in Terrain
+        },
+
+        "units": {
+            name: {
+                **data,
+                "upgrade_to": {
+                    "warrior": "swordsman", "swordsman": "musketman", "musketman": "rifleman",
+                    "rifleman": "infantry", "spearman": "musketman", "archer": "musketman",
+                    "horseman": "knight", "knight": "tank", "catapult": "artillery",
+                    "galley": "caravel", "caravel": "ironclad",
+                }.get(name),
+                "upgrade_cost": "half of target unit cost",
+            } for name, data in UNIT_TYPES.items()
+        },
+
+        "buildings": BUILDINGS,
+        "technologies": TECHNOLOGIES,
+        "improvements": IMPROVEMENTS,
+
+        "city_mechanics": {
+            "founding": {
+                "min_distance": 3,
+                "forbidden_terrain": ["water", "coast", "mountain"],
+                "forbidden_in_foreign_territory": True,
+                "provocation": "Founding near foreign border: -30 relations with neighbor",
+            },
+            "growth": {
+                "food_needed": "10 + population * 5",
+                "food_surplus": "city food yield - population * 2",
+                "starvation": "If food_store < 0 and population > 1: lose 1 pop",
+            },
+            "production": {
+                "how": "Each turn, city prod yield added to prod_progress. When >= cost, item completed.",
+                "auto_queue": "AI cities auto-pick next production via scoring system.",
+            },
+            "culture_borders": {
+                "thresholds": {"radius_2": 10, "radius_3": 50, "radius_4": 150, "radius_5": 400},
+                "culture_per_turn": "Base 1 + building bonuses + trait bonuses",
+            },
+            "defense": "Base 10 + building defense bonuses. City heals +10 hp/turn.",
+        },
+
+        "diplomacy": {
+            "states": ["peace", "war", "alliance"],
+            "default": "peace (all start at peace)",
+            "cooldown": {
+                "after_war_declaration": f"{GAME_CONFIG.get('diplo_war_cooldown', 10)} turns",
+                "after_peace_treaty": f"{GAME_CONFIG.get('diplo_peace_cooldown', 15)} turns",
+                "effect": "Cannot change diplomatic status during cooldown",
+            },
+            "territory": {
+                "entering_non_allied_territory": "Triggers war declaration (human gets confirmation prompt)",
+                "only_alliance_allows_passage": True,
+            },
+            "relations": {
+                "range": "-100 (hostile) to +100 (friendly)",
+                "city_near_border": "-30",
+                "war_declaration": "-50",
+                "drift": "+1 or -1 per turn toward 0",
+            },
+            "alliance": {
+                "requires": "Both at peace first",
+                "effect": "Free passage through territory",
+                "auto_war": "If ally is attacked, all alliance members auto-declare war on attacker",
+            },
+            "gang_up": {
+                "trigger": f"Leader has {GAME_CONFIG.get('gang_up_score_ratio', 1.2)}x your score and > {GAME_CONFIG.get('gang_up_min_score', 500)}",
+                "chance": f"{GAME_CONFIG.get('gang_up_chance', 0.25) * 100}% per turn",
+            },
+        },
+
+        "economy": {
+            "gold": {
+                "income": "Sum of city gold yields + trade",
+                "maintenance": f"({GAME_CONFIG.get('unit_maintenance_cost', 2)} gold per unit, first {GAME_CONFIG.get('unit_maintenance_free', 2)} free)",
+                "bankruptcy": f"If gold < {GAME_CONFIG.get('bankruptcy_threshold', -50)}: AI disbands weakest units",
+            },
+            "science": {
+                "per_city": "population + building bonuses",
+                "research": "Each turn, total science added to researching tech progress",
+            },
+        },
+
+        "special_units": {
+            "settler": {
+                "cost": UNIT_TYPES.get("settler", {}).get("cost", 60),
+                "action": "found_city — creates new city, settler consumed",
+                "restrictions": "Min 3 hex from other cities, not in foreign territory, not on water/mountain",
+            },
+            "worker": {
+                "cost": UNIT_TYPES.get("worker", {}).get("cost", 25),
+                "action": "Build improvements on tiles (farm, mine, road, railroad, lumber_mill, trading_post)",
+                "build_time": "3-5 turns per improvement",
+                "auto_build": "Can be set to auto-build mode (explores and improves near cities)",
+            },
+            "spy": {
+                "cost": UNIT_TYPES.get("spy", {}).get("cost", 40),
+                "action": "Move to enemy city. 30% chance/turn: steal tech or sabotage (-10 prod). 40% chance caught and killed.",
+            },
+            "caravan": {
+                "cost": UNIT_TYPES.get("caravan", {}).get("cost", 30),
+                "action": "Move to foreign non-enemy city. Delivers trade gold (8g), consumed on delivery.",
+            },
+        },
+
+        "leader_traits": {
+            "aggressive": {"yield_bonus": "+1 production", "combat": "+15% attack", "ai": "Needs fewer military for war"},
+            "creative": {"yield_bonus": "+4 culture/city", "combat": None, "ai": "Pursues culture victory"},
+            "expansive": {"yield_bonus": "+1 food/city", "combat": None, "ai": "More settlers, more cities"},
+            "financial": {"yield_bonus": "+33% gold", "combat": None, "ai": "Trade focus"},
+            "industrious": {"yield_bonus": "+20% production", "combat": None, "ai": "Fast space victory"},
+            "protective": {"yield_bonus": "+20% science", "combat": "+15% defense near cities", "ai": "Turtle strategy"},
+        },
+
+        "api_reference": {
+            "game_state": "GET /api/game/{id}/ai/state — complete state, no fog",
+            "possible_actions": "GET /api/game/{id}/ai/actions/{player} — all possible actions",
+            "map_data": "GET /api/game/{id}/ai/map — terrain/improvements/roads/territory",
+            "move": "POST /api/game/{id}/move {unit_id, q, r}",
+            "found_city": "POST /api/game/{id}/found_city {unit_id, name}",
+            "production": "POST /api/game/{id}/production {city_id, item_type, item_name}",
+            "research": "POST /api/game/{id}/research {tech_name}",
+            "diplomacy": "POST /api/game/{id}/diplomacy {target_player, action: war|peace|alliance|break_alliance}",
+            "end_turn": "POST /api/game/{id}/end_turn",
+            "fortify": "POST /api/game/{id}/fortify/{unit_id}",
+            "sentry": "POST /api/game/{id}/sentry/{unit_id}",
+            "explore": "POST /api/game/{id}/explore/{unit_id}",
+            "goto": "POST /api/game/{id}/goto {unit_id, q, r}",
+            "worker_build": "POST /api/game/{id}/worker_build {unit_id, improvement}",
+            "auto_worker": "POST /api/game/{id}/auto_worker/{unit_id}",
+            "skip": "POST /api/game/{id}/skip/{unit_id}",
+            "disband": "POST /api/game/{id}/disband/{unit_id}",
+            "save": "POST /api/user/save",
+        },
+    }
+
+
+import game_engine
 
 # ---- SPECTATOR MODE (admin only) ----
 
