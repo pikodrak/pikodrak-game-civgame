@@ -4,6 +4,15 @@
 
 ### Latest Changes
 
+**AI Fixes Based on Log Analysis (7 problems fixed)**
+1. **Economy disaster** (gold -1206): aggressive bankruptcy — disband multiple units at once based on debt depth
+2. **Settler stuck** (109 events → 0): settlers now try settling at current location when stuck, or random move to get unstuck
+3. **Buildings never built**: building scores increased with game phase multiplier (1.0→1.5x), gold buildings extra bonus when bankrupt
+4. **Income flat**: workers build trading_posts (+2g) when gold negative, gold buildings scored higher
+5. **Peace spam** (294→36): AI respects diplomacy cooldowns in decision loop
+6. **Worker imbalance**: increased worker target to 1 per city (max 4), was 1 per 2 cities
+7. **Military when bankrupt**: -30 score penalty for military production when gold < -30
+
 **Enhanced Simulation Logging**
 - Per-turn economy: income, maintenance, net profit
 - Per-turn yields: food, prod, science, culture totals

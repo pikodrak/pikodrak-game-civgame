@@ -1265,15 +1265,19 @@ class GameState:
         total_gold -= maintenance
         player["gold"] += total_gold
 
-        # Bankruptcy — disband units if gold negative
+        # Bankruptcy — disband units aggressively when gold negative
         if player["gold"] < GAME_CONFIG.get("bankruptcy_threshold", -50) and not player["is_human"]:
             mil_units = [u for u in self.units.values()
                          if u["player"] == pid and u["cat"] != "civilian"]
-            if mil_units:
-                weakest = min(mil_units, key=lambda u: u["hp"])
-                del self.units[weakest["id"]]
-                player["gold"] += 20  # recoup some
-                events.append(f"Disbanded {weakest['type']} (bankrupt, gold={player['gold']})")
+            # Disband multiple units if deeply in debt
+            disband_count = max(1, abs(player["gold"]) // 50)
+            mil_units.sort(key=lambda u: u["hp"])
+            for i in range(min(disband_count, len(mil_units))):
+                u = mil_units[i]
+                if u["id"] in self.units:
+                    del self.units[u["id"]]
+                    player["gold"] += 20
+                    events.append(f"Disbanded {u['type']} (bankrupt)")
 
         # Research
         if player["researching"]:
@@ -1402,12 +1406,15 @@ class GameState:
         aggression = player.get("aggression", 0.5)
         loyalty = player.get("loyalty", 0.5)
 
-        # Diplomacy AI — personality-driven
+        # Diplomacy AI — personality-driven (respect cooldowns)
         for other in self.players:
             if other["id"] == pid or not other["alive"]:
                 continue
-            rel = player["diplomacy"].get(other["id"], "neutral")
+            rel = player["diplomacy"].get(other["id"], "peace")
             other_military = len([u for u in self.units.values() if u["player"] == other["id"] and u["cat"] != "civilian"])
+            cd = player.get("diplo_cooldown", {}).get(other["id"], 0)
+            if cd > 0:
+                continue  # skip — cooldown active
 
             if rel == "war":
                 if len(my_military) < 2 and random.random() > loyalty:
@@ -1547,8 +1554,8 @@ class GameState:
 
         # --- UNITS ---
 
-        # Worker
-        needed_workers = max(1, len(my_cities) // 2)
+        # Worker — 1 per city, max 4
+        needed_workers = min(4, max(1, len(my_cities)))
         if len(my_workers) < needed_workers:
             urgency = 80 if len(my_workers) == 0 else 40
             candidates.append((urgency, "unit", "worker", f"need workers ({len(my_workers)}/{needed_workers})"))
@@ -1595,6 +1602,9 @@ class GameState:
         # Diminishing returns: strong penalty when already have lots of units
         if len(my_military) > len(my_cities) * 3:
             mil_score -= (len(my_military) - len(my_cities) * 3) * 8
+        # Don't build military when bankrupt
+        if player["gold"] < -30:
+            mil_score -= 30
         if mil_score > 0:
             candidates.append((mil_score, "unit", best_mil, f"military (ratio={mil_ratio:.1f}/{desired_ratio:.1f}, war={at_war})"))
 
@@ -1632,39 +1642,44 @@ class GameState:
             score = 0
             reason_parts = []
 
+            # Base: buildings get bonus in mid/late game
+            phase_mult = 1.0 + game_phase * 0.5  # 1.0 early → 1.5 late
             # Food buildings — more valuable when city is small
             if bdata["food"] > 0:
-                score += bdata["food"] * (8 if city["population"] < 5 else 4)
+                score += int(bdata["food"] * (10 if city["population"] < 5 else 5) * phase_mult)
                 reason_parts.append(f"+{bdata['food']}f")
             # Production buildings
             if bdata["prod"] > 0:
-                score += bdata["prod"] * 5
+                score += int(bdata["prod"] * 7 * phase_mult)
                 if trait == "industrious":
                     score += bdata["prod"] * 3
                 reason_parts.append(f"+{bdata['prod']}p")
-            # Gold buildings
+            # Gold buildings — critical for economy
             if bdata["gold"] > 0:
-                score += bdata["gold"] * 4
+                score += int(bdata["gold"] * 6 * phase_mult)
                 if trait == "financial":
-                    score += bdata["gold"] * 3
+                    score += bdata["gold"] * 4
+                # Extra bonus if gold is negative
+                if player["gold"] < 0:
+                    score += bdata["gold"] * 5
                 reason_parts.append(f"+{bdata['gold']}g")
             # Science buildings
             if bdata["science"] > 0:
-                score += bdata["science"] * 5
+                score += int(bdata["science"] * 7 * phase_mult)
                 reason_parts.append(f"+{bdata['science']}s")
             # Culture buildings
             if bdata["culture"] > 0:
-                score += bdata["culture"] * 3
+                score += int(bdata["culture"] * 5 * phase_mult)
                 if trait == "creative":
-                    score += bdata["culture"] * 3
+                    score += bdata["culture"] * 4
                 reason_parts.append(f"+{bdata['culture']}c")
             # Defense buildings — more valuable when threatened
             if bdata["defense"] > 0:
-                score += bdata["defense"] // 10
+                score += bdata["defense"] // 8
                 if at_war or nearby_enemies > 0:
-                    score += bdata["defense"] // 5
+                    score += bdata["defense"] // 4
                 if trait == "protective":
-                    score += bdata["defense"] // 8
+                    score += bdata["defense"] // 6
                 reason_parts.append(f"+{bdata['defense']}def")
             # Happiness
             if bdata["happiness"] < 0:
@@ -1881,6 +1896,9 @@ class GameState:
 
     def _ai_pick_improvement(self, terrain_val, player):
         """Pick the best improvement for a terrain type."""
+        # If gold is negative, prefer trading posts on suitable terrain
+        if player["gold"] < -20 and terrain_val in ("grass", "plains", "forest") and "currency" in player["techs"]:
+            return "trading_post"
         options = {
             "grass": "farm", "plains": "farm", "desert": "farm",
             "hills": "mine", "forest": "lumber_mill",
@@ -1924,8 +1942,22 @@ class GameState:
                 old_q, old_r = unit["q"], unit["r"]
                 self._ai_step_toward(unit, target[0], target[1])
                 if unit["q"] == old_q and unit["r"] == old_r:
-                    self._log_ai(pid, f"SETTLER: stuck at ({unit['q']},{unit['r']}), target=({target[0]},{target[1]})")
-                    break  # stuck
+                    # Stuck — try settling here if possible
+                    terrain_here = self.tiles.get((unit["q"], unit["r"]))
+                    too_close = any(hex_distance(c["q"], c["r"], unit["q"], unit["r"]) < 3 for c in self.cities.values())
+                    if not too_close and terrain_here and terrain_here not in (Terrain.WATER, Terrain.COAST, Terrain.MOUNTAIN):
+                        # Settle here instead of target
+                        self._log_ai(pid, f"SETTLER: stuck, settling here instead at ({unit['q']},{unit['r']})")
+                    else:
+                        # Try random adjacent move to get unstuck
+                        neighbors = hex_neighbors(unit["q"], unit["r"])
+                        valid = [(nq, nr) for nq, nr in neighbors
+                                 if self.tiles.get((nq, nr)) not in (None, Terrain.WATER, Terrain.COAST, Terrain.MOUNTAIN)]
+                        if valid:
+                            nq, nr = random.choice(valid)
+                            self.current_player = pid
+                            self.move_unit(unit["id"], nq, nr)
+                    break
             else:
                 break
 
