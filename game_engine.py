@@ -403,19 +403,21 @@ class GameState:
                 "alive": True,
                 "score": 0,
                 "is_human": (i == 0),
-                "diplomacy": {},  # player_id -> "peace"/"war"/"neutral"
-                "diplo_cooldown": {},  # player_id -> turns until can change again
+                "diplomacy": {},  # player_id -> "peace"/"war"/"neutral"/"alliance"
+                "diplo_cooldown": {},
+                "relations": {},  # player_id -> opinion score (-100 hostile to +100 friendly)
                 "trait": CIVILIZATIONS[civ].get("trait", "aggressive"),
                 "aggression": CIVILIZATIONS[civ].get("aggression", 0.5),
                 "loyalty": CIVILIZATIONS[civ].get("loyalty", 0.5),
                 "strategy": CIVILIZATIONS[civ].get("strategy", "balanced"),
             })
 
-        # Init diplomacy
+        # Init diplomacy + relations
         for p in self.players:
             for other in self.players:
                 if p["id"] != other["id"]:
                     p["diplomacy"][other["id"]] = "peace"
+                    p["relations"][other["id"]] = 0  # neutral opinion
 
         self.units = {}   # unit_id -> unit dict
         self.cities = {}  # city_id -> city dict
@@ -895,10 +897,19 @@ class GameState:
             if hex_distance(c["q"], c["r"], unit["q"], unit["r"]) < 3:
                 return {"ok": False, "msg": "Too close to another city"}
 
-        # Cannot found city in foreign territory
+        # Cannot found city in or adjacent to foreign territory
         territory_owner = self.get_tile_owner(unit["q"], unit["r"])
         if territory_owner is not None and territory_owner != unit["player"]:
             return {"ok": False, "msg": "Cannot found city in foreign territory"}
+        # Check if any neighbor hex is foreign territory
+        for nq, nr in hex_neighbors(unit["q"], unit["r"]):
+            nowner = self.get_tile_owner(nq, nr)
+            if nowner is not None and nowner != unit["player"]:
+                # Provocation! This angers the neighbor
+                self.players[nowner]["relations"].setdefault(unit["player"], 0)
+                self.players[nowner]["relations"][unit["player"]] -= 30
+                self._log_ai(nowner, f"PROVOKED: {self.players[unit['player']]['name']} founded city near our border! (relations -{30})")
+                break
 
         terrain = self.tiles.get((unit["q"], unit["r"]))
         if terrain in (Terrain.WATER, Terrain.COAST, Terrain.MOUNTAIN):
@@ -1102,6 +1113,21 @@ class GameState:
         cd = GAME_CONFIG.get("diplo_war_cooldown", 10)
         self.players[player_a].setdefault("diplo_cooldown", {})[player_b] = cd
         self.players[player_b].setdefault("diplo_cooldown", {})[player_a] = cd
+        # Relations drop
+        self.players[player_a].setdefault("relations", {})[player_b] = \
+            min(-50, self.players[player_a].get("relations", {}).get(player_b, 0) - 50)
+        self.players[player_b].setdefault("relations", {})[player_a] = \
+            min(-50, self.players[player_b].get("relations", {}).get(player_a, 0) - 50)
+        # Alliance auto-war: all allies of player_b declare war on player_a
+        for p in self.players:
+            if p["id"] == player_a or p["id"] == player_b or not p["alive"]:
+                continue
+            if p["diplomacy"].get(player_b) == "alliance" and p["diplomacy"].get(player_a) != "war":
+                p["diplomacy"][player_a] = "war"
+                self.players[player_a]["diplomacy"][p["id"]] = "war"
+                p.setdefault("diplo_cooldown", {})[player_a] = cd
+                self.players[player_a].setdefault("diplo_cooldown", {})[p["id"]] = cd
+                self._log_ai(p["id"], f"ALLIANCE WAR: joined war against {self.players[player_a]['name']} (ally {self.players[player_b]['name']} attacked)")
 
     def make_peace(self, player_a, player_b):
         # Check cooldown
