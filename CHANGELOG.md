@@ -4,6 +4,11 @@
 
 ### Latest Changes
 
+**Territory border rendering**
+- Thick colored border (lineWidth=3, alpha 55%) only on edges facing outside territory
+- No more full hex outlines — just clean border segments where territory ends
+- Light fill inside territory preserved
+
 **Gameplay Fixes (user-reported bugs)**
 - Goto: hold left mouse button 400ms to set (was single click distant hex)
 - Goto units skipped in unit cycling (like fortify/sentry)

@@ -292,8 +292,16 @@ function render(){
     // FOG OF WAR - darken explored but not currently visible tiles
     if(state.visible){const vs=new Set(state.visible);for(const k in tiles){if(vs.has(k))continue;const[q,r]=k.split(',').map(Number);const[px,py]=h2p(q,r),sx=px-ox,sy=py-oy;if(sx<-pad||sx>W/camZoom+pad||sy<-pad||sy>H/camZoom+pad)continue;ctx.save();ctx.globalAlpha=.55;hexP(ctx,sx,sy,S);ctx.fillStyle='#000';ctx.fill();ctx.restore()}}
 
-    // TERRITORY (dynamic border_radius from culture)
-    for(const city of state.cities){const pc=state.players.find(p=>p.id===city.player)?.color||'#888';const br=city.border_radius||1;for(let dq=-br;dq<=br;dq++)for(let dr=-br;dr<=br;dr++){const d=hD(city.q,city.r,city.q+dq,city.r+dr);if(d>br||!tiles[`${city.q+dq},${city.r+dr}`])continue;const[px,py]=h2p(city.q+dq,city.r+dr),sx=px-ox,sy=py-oy;if(sx<-pad||sx>W/camZoom+pad||sy<-pad||sy>H/camZoom+pad)continue;ctx.save();ctx.globalAlpha=d===br?.04:.07;hexP(ctx,sx,sy,S);ctx.fillStyle=pc;ctx.fill();ctx.restore();if(d===br){ctx.save();ctx.globalAlpha=.2;hexP(ctx,sx,sy,S);ctx.strokeStyle=pc;ctx.lineWidth=2;ctx.stroke();ctx.restore()}}}
+    // TERRITORY — fill + thick border line at edge
+    for(const city of state.cities){const pc=state.players.find(p=>p.id===city.player)?.color||'#888';const br=city.border_radius||1;for(let dq=-br;dq<=br;dq++)for(let dr=-br;dr<=br;dr++){const d=hD(city.q,city.r,city.q+dq,city.r+dr);if(d>br||!tiles[`${city.q+dq},${city.r+dr}`])continue;const[px,py]=h2p(city.q+dq,city.r+dr),sx=px-ox,sy=py-oy;if(sx<-pad||sx>W/camZoom+pad||sy<-pad||sy>H/camZoom+pad)continue;
+        // Light fill
+        ctx.save();ctx.globalAlpha=d===br?.05:.08;hexP(ctx,sx,sy,S);ctx.fillStyle=pc;ctx.fill();ctx.restore();
+        // Thick border on edge hexes — draw only edges that face outside territory
+        if(d===br){const nb=hNb(city.q+dq,city.r+dr);for(let i=0;i<6;i++){const[nq,nr]=nb[i];const nd=hD(city.q,city.r,nq,nr);if(nd>br||!tiles[`${nq},${nr}`]){
+            // This edge faces outside — draw thick line
+            const a1=Math.PI/3*i-Math.PI/2,a2=Math.PI/3*(i+1)-Math.PI/2;
+            ctx.save();ctx.globalAlpha=.55;ctx.strokeStyle=pc;ctx.lineWidth=3;ctx.lineCap='round';
+            ctx.beginPath();ctx.moveTo(sx+S*Math.cos(a1),sy+S*Math.sin(a1));ctx.lineTo(sx+S*Math.cos(a2),sy+S*Math.sin(a2));ctx.stroke();ctx.restore()}}}}}
 
     // SELECTION
     if(selectedUnit){const u=state.units.find(u=>u.id===selectedUnit);if(u){const[px,py]=h2p(u.q,u.r),sx=px-ox,sy=py-oy;ctx.save();ctx.globalAlpha=.1+Math.sin(T*5)*.07;hexP(ctx,sx,sy,S+3);ctx.strokeStyle='#fff';ctx.lineWidth=3;ctx.stroke();hexP(ctx,sx,sy,S);ctx.fillStyle='#fff';ctx.fill();ctx.restore();if(u.moves_left>0)for(const[nq,nr]of hNb(u.q,u.r)){const k=`${nq},${nr}`;if(!tiles[k])continue;const t=tiles[k];if((t==='water'||t==='coast')&&u.cat!=='naval'&&u.cat!=='air')continue;if(t==='mountain'&&u.cat!=='air')continue;const[np,ny]=h2p(nq,nr),nx=np-ox,ns=ny-oy;const en=state.units.some(x=>x.q===nq&&x.r===nr&&x.player!==0)||state.cities.some(c=>c.q===nq&&c.r===nr&&c.player!==0);ctx.save();ctx.globalAlpha=.15+Math.sin(T*3)*.05;hexP(ctx,nx,ns,S);ctx.fillStyle=en?'#ff3030':'#30ff70';ctx.fill();ctx.globalAlpha=.5;hexP(ctx,nx,ns,S);ctx.strokeStyle=en?'#ff3030':'#30ff70';ctx.lineWidth=2;ctx.setLineDash([5,4]);ctx.stroke();ctx.setLineDash([]);ctx.restore()}}}
