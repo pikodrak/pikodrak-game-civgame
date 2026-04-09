@@ -1,0 +1,78 @@
+# CivGame AI Development Changelog
+
+## Session: 2026-04-09 | 400+ simulations total
+
+---
+
+### Phase 1-3: Core Features ✅
+- Workers + 7 tile improvements
+- Spy (tech theft/sabotage) + Caravan (trade gold)
+- 6 leader traits with combat/yield bonuses
+- Personality-driven diplomacy (aggression/loyalty)
+
+### Phase 4: Score-Based Production ✅
+- Contextual scoring replaces rigid priority list
+- Every option scored by: military ratio, war status, game phase, trait, strategy
+- Diminishing military returns above 3x cities
+
+### Phase 5: Unique Leader Strategies ✅
+
+| Civ | Strategy | Trait | Aggr | Loyal | Typical Victory |
+|-----|----------|-------|------|-------|-----------------|
+| Rome | builder | industrious | 0.5 | 0.7 | Space/Domination |
+| Egypt | culturalist | creative | 0.3 | 0.8 | Culture |
+| Greece | conqueror | aggressive | 0.8 | 0.5 | Domination |
+| China | expansionist | expansive | 0.3 | 0.7 | Space/Domination |
+| Persia | builder | financial | 0.5 | 0.5 | Space |
+| Aztec | conqueror | aggressive | 0.85 | 0.35 | Domination |
+| Japan | turtle | protective | 0.4 | 0.9 | Space |
+| Mongol | conqueror | aggressive | 1.0 | 0.2 | Domination |
+
+Strategy affects: research priorities, production scoring, building preferences
+
+### Phase 6: 3 Victory Conditions ✅
+- **Space**: 3 end-game techs + accumulate 2000 production
+- **Culture**: accumulate 3000 culture points
+- **Domination**: control 60%+ of all cities
+
+### Phase 7: Diplomacy & Economy Fixes ✅
+- **Diplomacy cooldown**: 10 turns minimum war, 15 turns peace treaty
+  - Eliminated war/peace spam (570→213 diplo events/game)
+- **Bankruptcy system**: AI disbands weakest unit when gold < -50
+  - Average 100 disbanded/game, prevents -1000 gold spirals
+- **Strategy-weighted research**: conqueror→military techs, turtle→space techs, culturalist→culture techs
+- **Gang-up on leader**: AI declares war when someone has 1.3x their score
+
+### Final Balance (20-sim batch, latest code):
+
+**Victory distribution:**
+- Domination: 56% (conquest is king)
+- Space: 22% (tech race)
+- Culture: 22% (peaceful path)
+
+**Strategy wins:**
+- Expansionist (China): 8 — many cities, flexible victory
+- Culturalist (Egypt): 5 — culture victory specialist
+- Conqueror (Greece/Aztec/Mongol): 3 — military conquest
+- Builder (Rome/Persia): 2 — production/space race
+
+**Key metrics:**
+- Avg game length: 110 turns
+- Avg city captures: 9/game
+- Avg player eliminations: 1.4/game
+- Avg unit disbands (bankruptcy): 100/game
+- 18/20 games produced winner
+
+---
+
+### All AI Fixes Applied:
+1. Settler spam → capped by map size + free spot check
+2. IDLE cities → immediate re-queue after production
+3. City capture → _ai_step_toward d==0 fix
+4. Worker AI → auto-improve near cities
+5. Diplomacy cooldown → 10t war / 15t peace minimum
+6. Bankruptcy → disband weakest unit at gold < -50
+7. Gang-up mechanic → AI targets 1.3x score leader
+8. Combat bonuses → aggressive +15% atk, protective +15% def
+9. Research priorities → strategy-weighted tech path
+10. Score-based production → contextual with diminishing returns
