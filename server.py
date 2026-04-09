@@ -492,6 +492,7 @@ def api_rules():
             "culture_borders": {
                 "thresholds": {"radius_2": 10, "radius_3": 50, "radius_4": 150, "radius_5": 400},
                 "culture_per_turn": "Base 1 + building bonuses + trait bonuses",
+                "culture_pressure": "When two cities' borders overlap, tile belongs to city with higher culture/distance ratio. Build temples/monasteries to push borders.",
             },
             "defense": "Base 10 + building defense bonuses. City heals +10 hp/turn.",
         },
@@ -510,14 +511,23 @@ def api_rules():
             },
             "relations": {
                 "range": "-100 (hostile) to +100 (friendly)",
-                "city_near_border": "-30",
-                "war_declaration": "-50",
-                "drift": "+1 or -1 per turn toward 0",
+                "events": {
+                    "city_near_border": "-30 (provocation when founding near foreign border)",
+                    "war_declaration": "-50",
+                    "drift": "+1 or -1 per turn toward 0 (slowly normalize)",
+                },
+                "ai_behavior": "AI declares war when opinion drops below -30 (conqueror) or -50 (others) and has military advantage",
             },
             "alliance": {
                 "requires": "Both at peace first",
                 "effect": "Free passage through territory",
-                "auto_war": "If ally is attacked, all alliance members auto-declare war on attacker",
+                "auto_war": "If ally is attacked, ALL alliance members auto-declare war on attacker",
+                "break": "Breaking alliance sets peace + cooldown",
+            },
+            "war_mobilization": {
+                "description": "During war, ALL military units march toward nearest enemy city",
+                "behavior": "No patrolling — full offensive push",
+                "explore_cancel": "Military units stop exploring during war (should fight, not wander)",
             },
             "gang_up": {
                 "trigger": f"Leader has {GAME_CONFIG.get('gang_up_score_ratio', 1.2)}x your score and > {GAME_CONFIG.get('gang_up_min_score', 500)}",
