@@ -129,7 +129,7 @@ const UNIT_NAMES=['warrior','spearman','archer','swordsman','horseman','knight',
 const TERR_NAMES=['grass','plains','forest','hills','mountain','desert','water','coast'];
 const BLD_NAMES=['palace','granary','library','walls','marketplace','aqueduct','temple','monastery','castle','university','bank','observatory','factory','power_plant','nuclear_plant'];
 for(const n of UNIT_NAMES){const i=new Image();i.src=`/static/img/units/${n}.png`;unitImgs[n]=i}
-for(const n of TERR_NAMES){const i=new Image();i.src=`/static/img/terrain/${n}.png`;terrImgs[n]=i}
+for(const n of TERR_NAMES)for(let v=0;v<4;v++){const i=new Image();i.src=`/static/img/terrain/${n}_${v}.png`;terrImgs[`${n}_${v}`]=i}
 for(const n of BLD_NAMES){const i=new Image();i.src=`/static/img/buildings/${n}.png`;bldImgs[n]=i}
 const S=28,S3=Math.sqrt(3),canvas=document.getElementById('game-canvas'),ctx=canvas.getContext('2d'),miniC=document.getElementById('minimap'),miniX=miniC.getContext('2d');
 const tileCache={};
@@ -394,26 +394,20 @@ const TPAL={
 };
 
 function renderTile(c,type,q,r){
-    const tImg=terrImgs[type];
+    const variant=((q*7+r*13)&3);  // 0-3 based on position
+    const tImg=terrImgs[`${type}_${variant}`]||terrImgs[type];
     const h1=Hf(q,r),h2=Hf(q+999,r+777),h3=Hf(q+333,r+555);
     if(tImg&&tImg.complete&&tImg.naturalWidth>0){
         hexP(c,0,0,S);c.save();c.clip();
-        // Offset + scale variation so tiles don't repeat identically
-        c.save();
-        const ox=(h1-.5)*S*.4, oy=(h2-.5)*S*.4, sc=1.0+h3*.15;
-        c.translate(ox,oy);c.scale(sc,sc);
-        const rot=((q*7+r*13)%6)*Math.PI/3;
-        c.rotate(rot);
+        // Draw tile image centered, NO rotation/scale — just fill the hex
         c.drawImage(tImg,-S,-S,S*2,S*2);
-        c.restore();  // undo translate/scale/rotate
-        // Brightness variation
-        const bright=(h1-.5)*0.12;
-        c.globalAlpha=Math.abs(bright);
-        c.fillStyle=bright>0?'rgba(255,250,220,.3)':'rgba(0,0,20,.25)';
-        c.fillRect(-S,-S,S*2,S*2);
-        c.restore();  // undo clip
-        // Hex border
-        hexP(c,0,0,S);c.strokeStyle='rgba(30,25,10,.18)';c.lineWidth=.8;c.stroke();
+        // Subtle per-tile color variation only (no geometric transforms)
+        const bright=(h1-.5)*0.08;
+        if(bright>0){c.globalAlpha=bright;c.fillStyle='rgba(255,250,230,.25)';c.fillRect(-S,-S,S*2,S*2)}
+        else{c.globalAlpha=-bright;c.fillStyle='rgba(0,5,20,.2)';c.fillRect(-S,-S,S*2,S*2)}
+        c.restore();
+        // Clean hex border
+        hexP(c,0,0,S);c.strokeStyle='rgba(20,15,5,.15)';c.lineWidth=.7;c.stroke();
         return;
     }
     // Fallback procedural rendering

@@ -4,6 +4,15 @@
 
 ### Latest Changes
 
+**Critical fixes from screenshot analysis**
+- FIXED: Terrain rendering was catastrophically broken (rotation/offset/scale removed)
+- 4 variants per terrain type — position-based selection, no two adjacent hexes identical
+- Subtle brightness-only variation (no geometric transforms)
+- FIXED: Explore BFS — finds nearest REACHABLE unexplored tile via pathfinding
+  - Old: random sampling got stuck behind mountains
+  - New: BFS from unit, first unexplored passable tile = target
+- JS syntax validation added after every change (node --check)
+
 **Major visual overhaul (based on screenshot analysis)**
 - Terrain variation: each hex rotated, offset, scaled differently — no two identical tiles
 - Brightness variation per tile (warm/cool tint)

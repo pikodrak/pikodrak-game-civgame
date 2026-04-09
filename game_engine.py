@@ -2222,52 +2222,56 @@ class GameState:
                     self.move_unit(unit["id"], nq, nr)
 
     def _auto_explore_step(self, unit, pid):
-        """Move exploring unit one step toward unexplored territory."""
+        """BFS explore — find nearest REACHABLE unexplored tile and move toward it."""
         if unit["id"] not in self.units:
             return
-        # Use explored (ever-seen) tiles, not just currently visible
+        from collections import deque
         explored = self.explored.get(pid, set())
+        is_naval = unit["cat"] == "naval"
+        is_air = unit["cat"] == "air"
+        start = (unit["q"], unit["r"])
 
-        # Sample random tiles to find nearest never-explored land
-        best_target = None
-        best_dist = 999
-        for _ in range(200):
-            q = random.randint(0, self.width - 1)
-            r = random.randint(0, self.height - 1)
-            if (q, r) not in explored:
-                d = hex_distance(unit["q"], unit["r"], q, r)
-                if d < best_dist:
-                    best_dist = d
-                    best_target = (q, r)
+        # BFS from unit position — first unexplored reachable tile is target
+        visited = {start}
+        queue = deque([(start, [start])])
+        target_path = None
+        max_search = min(500, self.width * self.height // 2)
+        steps = 0
 
-        if not best_target:
+        while queue and steps < max_search:
+            (cq, cr), path = queue.popleft()
+            steps += 1
+
+            # Is this tile unexplored?
+            if (cq, cr) not in explored and (cq, cr) != start:
+                target_path = path
+                break
+
+            for nq, nr in hex_neighbors(cq, cr):
+                if (nq, nr) in visited:
+                    continue
+                t = self.tiles.get((nq, nr))
+                if t is None:
+                    continue
+                if not is_air:
+                    if is_naval and t not in (Terrain.WATER, Terrain.COAST):
+                        continue
+                    if not is_naval and t == Terrain.MOUNTAIN:
+                        continue
+                    if not is_naval and t in (Terrain.WATER, Terrain.COAST):
+                        continue
+                visited.add((nq, nr))
+                queue.append(((nq, nr), path + [(nq, nr)]))
+
+        if not target_path or len(target_path) < 2:
             unit["exploring"] = False
             return
 
-        # Pick best adjacent tile toward target
-        best = None
-        best_d = best_dist
-        for nq, nr in hex_neighbors(unit["q"], unit["r"]):
-            t = self.tiles.get((nq, nr))
-            if t is None or t == Terrain.MOUNTAIN:
-                continue
-            if t in (Terrain.WATER, Terrain.COAST) and unit["cat"] not in ("naval", "air"):
-                continue
-            # Avoid tiles with friendly units
-            if any(u["q"] == nq and u["r"] == nr and u["player"] == pid for u in self.units.values()):
-                continue
-            d = hex_distance(nq, nr, best_target[0], best_target[1])
-            if d < best_d:
-                best_d = d
-                best = (nq, nr)
-
-        if best:
-            result = self.move_unit(unit["id"], best[0], best[1])
-            # Stop exploring on combat
-            if result.get("combat") and unit["id"] in self.units:
-                self.units[unit["id"]]["exploring"] = False
-        else:
-            unit["exploring"] = False
+        # Move to next hex in path
+        next_hex = target_path[1]
+        result = self.move_unit(unit["id"], next_hex[0], next_hex[1])
+        if result.get("combat") and unit["id"] in self.units:
+            self.units[unit["id"]]["exploring"] = False
 
     def _find_path_next(self, unit, tq, tr):
         """BFS pathfinding — returns next hex to move to, or None."""
