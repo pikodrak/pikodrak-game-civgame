@@ -4,6 +4,13 @@
 
 ### Latest Changes
 
+**Production modal (center screen)**
+- Build menu opens as centered modal instead of tiny right panel
+- Two-column layout: Units | Buildings with icons (36x36 / 32x32)
+- Shows estimated turns for each item
+- Opens automatically for idle cities at start of turn
+- Escape closes modal
+
 **Active unit highlight & end-turn idle selection**
 - Active unit: pulsing golden hex highlight + thick gold ring + inner white ring + glow shadow
 - End turn with idle units: selects and centers on first idle unit before confirm dialog
