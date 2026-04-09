@@ -23,27 +23,28 @@ body{background:#1a1408;color:#e0e0e0;font-family:'Inter',system-ui,sans-serif;o
 .btn-secondary{background:rgba(255,255,255,.06);color:#8090b0;border:1px solid rgba(255,255,255,.1);width:100%;margin-top:.5rem;font-family:'Inter',sans-serif;font-size:.9rem;letter-spacing:1px}
 .btn-secondary:hover{background:rgba(255,255,255,.1)}
 #game-screen{display:none;height:100vh}
-#top-bar{height:52px;background:linear-gradient(180deg,rgba(35,25,12,.97),rgba(25,18,8,.99));border-bottom:1px solid rgba(255,195,0,.2);display:flex;align-items:center;padding:0 1rem;gap:1.2rem;font-size:.88rem;z-index:10}
-.resource-item{display:flex;align-items:center;gap:.35rem;padding:.3rem .7rem;background:rgba(255,255,255,.04);border-radius:6px;border:1px solid rgba(255,255,255,.06)}
-.resource-icon{font-size:1rem}.resource-val{font-weight:600;color:#fff;font-size:.9rem}
-#turn-info{margin-left:auto;color:#8090b0;font-family:'Cinzel',serif;font-size:.95rem}
-.top-btn{padding:.4rem .9rem;border:1px solid;border-radius:7px;cursor:pointer;font-size:.82rem;font-weight:500;transition:all .15s;background:transparent;font-family:inherit}
-#btn-end-turn{padding:.45rem 1.3rem;background:linear-gradient(135deg,#c8960c,#ffd700);color:#1a1000;border:none;border-radius:8px;cursor:pointer;font-weight:700;font-size:.88rem;font-family:'Cinzel',serif;letter-spacing:1px}
-#game-area{display:flex;height:calc(100vh - 52px)}
+#top-bar{height:48px;background:linear-gradient(180deg,rgba(30,22,10,.98),rgba(20,15,6,.99));border-bottom:2px solid rgba(200,150,0,.25);display:flex;align-items:center;padding:0 .8rem;gap:.6rem;font-size:.85rem;z-index:10}
+.resource-item{display:flex;align-items:center;gap:.3rem;padding:.25rem .5rem;background:rgba(255,255,255,.05);border-radius:5px;border:1px solid rgba(255,255,255,.08)}
+.resource-icon{font-size:.95rem}.resource-val{font-weight:700;color:#fff;font-size:.88rem;min-width:24px;text-align:right}
+.resource-label{font-size:.65rem;color:#6a7a9a;text-transform:uppercase;letter-spacing:.5px}
+#turn-info{margin-left:auto;color:#a0a8c0;font-family:'Cinzel',serif;font-size:.9rem;white-space:nowrap}
+.top-btn{padding:.35rem .7rem;border:1px solid;border-radius:6px;cursor:pointer;font-size:.78rem;font-weight:500;transition:all .15s;background:transparent;font-family:inherit;white-space:nowrap}
+#btn-end-turn{padding:.4rem 1.1rem;background:linear-gradient(135deg,#c8960c,#ffd700);color:#1a1000;border:none;border-radius:7px;cursor:pointer;font-weight:700;font-size:.85rem;font-family:'Cinzel',serif;letter-spacing:1px}
+#game-area{display:flex;height:calc(100vh - 48px)}
 #map-container{flex:1;position:relative;overflow:hidden;background:#0a1520}
 #game-canvas{position:absolute;top:0;left:0;cursor:grab}#game-canvas:active{cursor:grabbing}
-#minimap-container{position:absolute;bottom:12px;left:12px;border:2px solid rgba(255,215,0,.2);border-radius:8px;background:rgba(0,0,0,.7);z-index:5;overflow:hidden}
+#minimap-container{position:absolute;bottom:10px;left:10px;border:2px solid rgba(200,150,0,.25);border-radius:6px;background:rgba(0,0,0,.75);z-index:5;overflow:hidden}
 #minimap{display:block}
-#right-panel{width:310px;background:linear-gradient(180deg,rgba(35,25,12,.98),rgba(25,18,8,.98));border-left:1px solid rgba(255,195,0,.12);overflow-y:auto;padding:.8rem;font-size:.85rem}
-.panel-section{background:rgba(255,220,150,.03);border:1px solid rgba(255,195,0,.1);border-radius:10px;padding:.8rem;margin-bottom:.6rem}
-.panel-section h3{font-family:'Cinzel',serif;color:#ffd700;font-size:.92rem;margin-bottom:.5rem;border-bottom:1px solid rgba(255,215,0,.15);padding-bottom:.4rem}
-.info-row{display:flex;justify-content:space-between;padding:.2rem 0}.info-label{color:#6070a0;font-size:.83rem}.info-value{color:#d0d8f0;font-weight:500}
+#right-panel{width:300px;background:linear-gradient(180deg,rgba(30,22,10,.98),rgba(20,15,6,.99));border-left:2px solid rgba(200,150,0,.15);overflow-y:auto;padding:.6rem;font-size:.82rem}
+.panel-section{background:rgba(255,220,150,.04);border:1px solid rgba(200,150,0,.12);border-radius:8px;padding:.7rem;margin-bottom:.5rem}
+.panel-section h3{font-family:'Cinzel',serif;color:#e8c040;font-size:.88rem;margin-bottom:.4rem;border-bottom:1px solid rgba(200,150,0,.2);padding-bottom:.35rem}
+.info-row{display:flex;justify-content:space-between;padding:.2rem 0;align-items:center}.info-label{color:#7888b0;font-size:.8rem}.info-value{color:#e0e8ff;font-weight:600;font-size:.85rem}
 .prod-list{max-height:300px;overflow-y:auto}
-.prod-item{padding:.55rem;margin:.25rem 0;background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06);border-radius:8px;cursor:pointer;transition:all .15s}
-.prod-item:hover{background:rgba(255,195,80,.1);border-color:rgba(255,195,0,.3);transform:translateX(2px)}
-.prod-name{font-weight:600;color:#d0d8f0}.prod-stats{font-size:.78rem;color:#5060a0;margin-top:.15rem}
-.action-btn{padding:.4rem .8rem;margin:.2rem;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);border-radius:7px;color:#c0c8e0;cursor:pointer;font-size:.83rem;font-family:inherit}
-.action-btn:hover{background:rgba(255,215,0,.1);border-color:rgba(255,215,0,.3)}
+.prod-item{padding:.5rem .6rem;margin:.2rem 0;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:6px;cursor:pointer;transition:all .12s}
+.prod-item:hover{background:rgba(200,150,0,.12);border-color:rgba(200,150,0,.35);transform:translateX(3px)}
+.prod-name{font-weight:600;color:#d8e0f0;font-size:.84rem}.prod-stats{font-size:.75rem;color:#6878a8;margin-top:.1rem}
+.action-btn{padding:.35rem .65rem;margin:.15rem;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);border-radius:6px;color:#c8d0e8;cursor:pointer;font-size:.8rem;font-family:inherit;transition:all .12s}
+.action-btn:hover{background:rgba(200,150,0,.15);border-color:rgba(200,150,0,.4);color:#fff}
 #events-log{position:absolute;bottom:14px;left:50%;transform:translateX(-50%);z-index:5;display:flex;flex-direction:column;align-items:center;gap:5px;pointer-events:none}
 .event-msg{background:rgba(5,10,25,.92);padding:.5rem 1.2rem;border-radius:8px;font-size:.85rem;color:#ffd700;border:1px solid rgba(255,215,0,.2);animation:fadeUp 4s forwards;pointer-events:none}
 @keyframes fadeUp{0%{opacity:0;transform:translateY(10px)}10%{opacity:1;transform:translateY(0)}70%{opacity:1}100%{opacity:0;transform:translateY(-20px)}}
@@ -77,7 +78,7 @@ body{background:#1a1408;color:#e0e0e0;font-family:'Inter',system-ui,sans-serif;o
 <body>
 <div id="menu-screen"><canvas id="menu-bg"></canvas><h1>CIVGAME</h1><p class="subtitle">Turn-Based Strategy</p>
 <div class="menu-panel">
-<label>Civilization</label><select id="menu-civ"><option value="rome">Rome +15% Production</option><option value="egypt">Egypt +15% Culture</option><option value="greece">Greece +15% Science</option><option value="china">China +15% Food</option><option value="persia">Persia +15% Gold</option><option value="aztec">Aztec +15% Military</option><option value="japan">Japan +15% Defense</option><option value="mongol">Mongol +15% Movement</option></select>
+<label>Civilization</label><select id="menu-civ"><option value="rome">Rome +15% Production</option><option value="egypt">Egypt +15% Culture</option><option value="greece">Greece +15% Science</option><option value="china">China +15% Food</option><option value="persia">Persia +15% Gold</option><option value="aztec">Aztec +15% Military</option><option value="japan">Japan +15% Defense</option><option value="czech">Czech +20% Prod & Science</option><option value="mongol">Mongol +15% Movement</option></select>
 <label>Map</label><select id="menu-mapsize"><option value="30,20">Small</option><option value="40,30" selected>Medium</option><option value="55,40">Large</option><option value="130,95">Huge (10x)</option></select>
 <label>Opponents</label><select id="menu-players"><option value="2">1</option><option value="3">2</option><option value="4" selected>3</option><option value="5">4</option><option value="6">5</option></select>
 <button class="btn btn-primary" onclick="startGame()">New Game</button><button class="btn btn-secondary" onclick="openLoadDialog()">Load Game</button><div style="margin-top:.8rem;border-top:1px solid rgba(255,128,96,.15);padding-top:.8rem">
@@ -95,14 +96,16 @@ body{background:#1a1408;color:#e0e0e0;font-family:'Inter',system-ui,sans-serif;o
 </div>
 </div></div>
 <div id="game-screen"><div id="top-bar">
-<div class="resource-item"><span class="resource-icon" style="color:#ffd700">&#9733;</span><span class="resource-val" id="res-gold">0</span></div>
-<div class="resource-item"><span class="resource-icon" style="color:#60a0ff">&#9881;</span><span class="resource-val" id="res-science">--</span></div>
-<div class="resource-item"><span class="resource-icon" style="color:#c490ff">&#9829;</span><span class="resource-val" id="res-culture">0</span></div>
-<div class="resource-item"><span class="resource-icon" style="color:#ff6060">&#9876;</span><span class="resource-val" id="res-military">0</span></div>
+<div class="resource-item"><span class="resource-icon" style="color:#ffd700">&#9733;</span><div><span class="resource-val" id="res-gold">0</span><div class="resource-label">Gold</div></div></div>
+<div class="resource-item"><span class="resource-icon" style="color:#60a0ff">&#9881;</span><div><span class="resource-val" id="res-science">--</span><div class="resource-label">Science</div></div></div>
+<div class="resource-item"><span class="resource-icon" style="color:#c490ff">&#9829;</span><div><span class="resource-val" id="res-culture">0</span><div class="resource-label">Culture</div></div></div>
+<div class="resource-item"><span class="resource-icon" style="color:#ff6060">&#9876;</span><div><span class="resource-val" id="res-military">0</span><div class="resource-label">Army</div></div></div>
+<div style="display:flex;gap:4px">
 <button class="top-btn" style="color:#60a0ff;border-color:rgba(96,160,255,.3)" onclick="openTechTree()">Research</button>
 <button class="top-btn" style="color:#c490ff;border-color:rgba(196,144,255,.3)" onclick="openDiplomacy()">Diplomacy</button>
 <button class="top-btn" style="color:#60c080;border-color:rgba(96,192,128,.3)" onclick="saveGame()">Save</button>
 <button class="top-btn" style="color:#e07050;border-color:rgba(224,112,80,.3)" onclick="quitGame()">Quit</button>
+</div>
 <span id="turn-info">Turn 1</span><button id="btn-end-turn" onclick="endTurn()">End Turn</button>
 </div><div id="game-area"><div id="map-container"><canvas id="game-canvas"></canvas><div id="minimap-container"><canvas id="minimap" width="200" height="150"></canvas></div><div id="events-log"></div></div>
 <div id="right-panel"><div id="panel-content"><div class="panel-section"><h3>Welcome</h3><p style="color:#4060a0">Click a unit or city</p></div></div></div></div></div>
@@ -218,7 +221,8 @@ function isM(){return['tech-modal','diplo-modal','load-modal'].some(id=>document
 function handleClick(q,r,right){if(!state)return;if(selectedUnit&&!right){const u=state.units.find(u=>u.id===selectedUnit);if(u){const adj=hNb(u.q,u.r).some(([a,b])=>a===q&&b===r);if(adj&&u.moves_left>0){moveUnit(selectedUnit,q,r);return}if(!adj&&!(u.q===q&&u.r===r)){gotoUnit(selectedUnit,q,r);return}}}const cu=state.units.find(u=>u.q===q&&u.r===r&&u.player===0);if(cu){selectedUnit=cu.id;selectedCity=null;updatePanel();return}const cc=state.cities.find(c=>c.q===q&&c.r===r&&c.player===0);if(cc){selectedCity=cc.id;selectedUnit=null;updatePanel();return}selectedUnit=selectedCity=null;updatePanel()}
 
 async function moveUnit(uid,q,r){const d=await api(`/api/game/${gameId}/move`,'POST',{unit_id:uid,q,r});if(d.needs_war){if(confirm(d.msg)){await api(`/api/game/${gameId}/diplomacy`,'POST',{target_player:d.war_target,action:'war'});const d2=await api(`/api/game/${gameId}/move`,'POST',{unit_id:uid,q,r});if(d2.ok){state=d2.state;if(d2.combat)showEvent(d2.msg);const u=state.units.find(u=>u.id===uid);if(!u||u.moves_left<=0){selectedUnit=null;selectNextUnit()}}else showEvent(d2.msg)}updateUI();updatePanel();drawMini();return}if(d.ok){state=d.state;if(d.combat)showEvent(d.msg);const u=state.units.find(u=>u.id===uid);if(!u||u.moves_left<=0){selectedUnit=null;selectNextUnit()}}else showEvent(d.msg);updateUI();updatePanel();drawMini()}
-async function endTurn(){const d=await api(`/api/game/${gameId}/end_turn`,'POST');state=d.state;selectedUnit=selectedCity=null;d.events?.forEach(e=>showEvent(e));updateUI();updatePanel();drawMini();autoSave();if(state.game_over){showGameOver();return}const me=state.players.find(p=>p.id===0);if(me&&!me.researching&&state.cities.some(c=>c.player===0)){showEvent('Choose research!');openTechTree();return}const idle=state.cities.find(c=>c.player===0&&!c.producing);if(idle){selectedCity=idle.id;selectedUnit=null;showEvent(`${idle.name} needs production!`);centerOnTile(idle.q,idle.r);updatePanel();return}selectNextUnit()}
+async function endTurn(){const d=await api(`/api/game/${gameId}/end_turn`,'POST');state=d.state;selectedUnit=selectedCity=null;d.events?.forEach(e=>showEvent(e));updateUI();updatePanel();drawMini();autoSave();if(state.game_over){showGameOver();return}const me=state.players.find(p=>p.id===0);if(me&&!me.researching&&state.cities.some(c=>c.player===0)){showEvent('Choose research!');openTechTree();return}focusNextNeed()}
+function focusNextNeed(){const idle=state.cities.find(c=>c.player===0&&!c.producing);if(idle){selectedCity=idle.id;selectedUnit=null;showEvent(`${idle.name} needs production!`);centerOnTile(idle.q,idle.r);updatePanel();return}selectNextUnit()}
 async function fortifyUnit(){if(!selectedUnit)return;const d=await api(`/api/game/${gameId}/fortify/${selectedUnit}`,'POST');if(d.ok){state=d.state;showEvent(d.msg)}selectedUnit=null;selectNextUnit();updateUI();updatePanel()}
 async function exploreUnit(){if(!selectedUnit)return;const d=await api(`/api/game/${gameId}/explore/${selectedUnit}`,'POST');if(d.ok){state=d.state;showEvent(d.msg)}selectedUnit=null;selectNextUnit();updateUI();updatePanel()}
 async function gotoUnit(uid,q,r){const d=await api(`/api/game/${gameId}/goto`,'POST',{unit_id:uid,q,r});if(d.ok){state=d.state;showEvent(d.msg)}selectedUnit=null;selectNextUnit();updateUI();updatePanel()}
@@ -233,7 +237,7 @@ async function loadGame(fn){const d=await api(`/api/load/${fn}`,'POST');gameId=d
 function openCityDialog(){const u=state.units.find(u=>u.id===selectedUnit);if(!u||u.type!=='settler')return;pendingSettler=selectedUnit;document.getElementById('city-name-dialog').style.display='block';const inp=document.getElementById('city-name-input'),names=['Roma','Athena','Memphis','Babylon','Persepolis','Kyoto','Tenochtitlan','Carthago','Sparta','Troy','Delhi','Constantinople','Alexandria','Corinth','Thebes'],used=new Set(state.cities.map(c=>c.name));inp.value=names.find(n=>!used.has(n))||`City`;inp.focus();inp.select()}
 function closeCityDialog(){document.getElementById('city-name-dialog').style.display='none';pendingSettler=null}
 async function confirmFoundCity(){if(!pendingSettler)return;const n=document.getElementById('city-name-input').value.trim()||'City',d=await api(`/api/game/${gameId}/found_city`,'POST',{unit_id:pendingSettler,name:n});closeCityDialog();if(d.ok){state=d.state;selectedUnit=null;showEvent(d.msg);autoSave()}else showEvent(d.msg);updateUI();updatePanel();drawMini()}
-async function setProduction(cid,t,n){const d=await api(`/api/game/${gameId}/production`,'POST',{city_id:cid,item_type:t,item_name:n});if(d.ok){state=d.state;showEvent(d.msg)}else showEvent(d.msg);updatePanel()}
+async function setProduction(cid,t,n){const d=await api(`/api/game/${gameId}/production`,'POST',{city_id:cid,item_type:t,item_name:n});if(d.ok){state=d.state;showEvent(d.msg);focusNextNeed()}else{showEvent(d.msg);updatePanel()}}
 async function setResearch(tn){const d=await api(`/api/game/${gameId}/research`,'POST',{tech_name:tn});if(d.ok){state=d.state;showEvent(d.msg);closeTechTree()}else showEvent(d.msg);updateUI()}
 async function doDiplomacy(tp,a){const d=await api(`/api/game/${gameId}/diplomacy`,'POST',{target_player:tp,action:a});state=d.state;openDiplomacy()}
 function showEvent(m){const l=document.getElementById('events-log'),d=document.createElement('div');d.className='event-msg';d.textContent=m;l.appendChild(d);setTimeout(()=>d.remove(),4000)}

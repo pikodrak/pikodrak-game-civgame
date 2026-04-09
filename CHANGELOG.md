@@ -4,6 +4,22 @@
 
 ### Latest Changes
 
+**Czech Kingdom Civilization**
+- Leader: Jan Zizka (Hussite Wars)
+- Trait: industrious (+20% production)
+- Bonus: science
+- Strategy: turtle (defense + science → space victory)
+- Aggression 0.35 (peaceful), Loyalty 0.85 (reliable ally)
+- Inspired by: Charles University, Hussite war wagons, Czech industry (Skoda)
+
+**GUI Improvements**
+- Top bar: resource labels (Gold, Science, Culture, Army) under values
+- Buttons grouped compactly, better spacing
+- Panel: better contrast, larger fonts for values
+- Production items: clearer hover, better readability
+- Action buttons: better hover effect with gold accent
+- After setting production → auto-jumps to next idle city or next unit
+
 **War Confirmation Popup**
 - Human player entering foreign territory → confirm dialog "This means WAR!"
 - Attacking non-war unit/city → same confirm dialog

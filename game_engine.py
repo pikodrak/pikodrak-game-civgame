@@ -191,6 +191,9 @@ CIVILIZATIONS = {
     "japan":    {"name": "Japan",            "color": "#ecf0f1", "bonus": "defense",  "leader": "Tokugawa",
                  "trait": "protective", "aggression": 0.4, "loyalty": 0.9,
                  "strategy": "turtle"},        # focus: defense, walls, castles, tech
+    "czech":    {"name": "Czech Kingdom",    "color": "#d35400", "bonus": "science",  "leader": "Jan Zizka",
+                 "trait": "industrious", "aggression": 0.35, "loyalty": 0.85,
+                 "strategy": "turtle"},        # focus: defense (Hussite wagons), science, industry
     "mongol":   {"name": "Mongol Empire",    "color": "#1abc9c", "bonus": "movement", "leader": "Genghis Khan",
                  "trait": "aggressive", "aggression": 1.0, "loyalty": 0.2,
                  "strategy": "conqueror"},     # focus: fast units, conquest, nomadic
