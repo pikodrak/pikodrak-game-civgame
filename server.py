@@ -344,6 +344,30 @@ def ai_map_info(game_id: int):
     return {"width": game.width, "height": game.height, "tiles": tiles}
 
 
+@app.get("/api/spectate/analysis/{game_id}")
+def spectate_analysis(game_id: int, request: Request):
+    """Analyze game log — summary of AI behavior (admin only)."""
+    user = get_user(request)
+    if not user or not auth.is_admin(user["username"]):
+        raise HTTPException(403, "Admin only")
+    conn = auth.get_db()
+    rows = conn.execute("SELECT * FROM game_logs WHERE game_id = ? ORDER BY id", (game_id,)).fetchall()
+    conn.close()
+
+    summary = {"total_actions": len(rows), "by_action": {}, "ai_decisions": [], "turns": 0}
+    for r in rows:
+        action = r["action"]
+        summary["by_action"][action] = summary["by_action"].get(action, 0) + 1
+        if r["turn"] and r["turn"] > summary["turns"]:
+            summary["turns"] = r["turn"]
+        if action == "ai" and r["detail"]:
+            summary["ai_decisions"].append({"turn": r["turn"], "detail": r["detail"]})
+
+    # Limit AI decisions to last 200
+    summary["ai_decisions"] = summary["ai_decisions"][-200:]
+    return summary
+
+
 from game_engine import hex_neighbors, hex_distance, Terrain, IMPROVEMENTS, TERRAIN_YIELDS
 
 # ---- SPECTATOR MODE (admin only) ----
@@ -654,7 +678,13 @@ def end_turn(game_id: int):
     if not game:
         raise HTTPException(404, "Game not found")
     result = game.end_turn()
+    # Log player end_turn + all AI decisions
     auth.log_action(game_id, game.turn, 0, "end_turn", {"events": result.get("events", [])[:10]})
+    # Log AI decisions collected during _run_ai (called from _advance_turn inside end_turn)
+    if hasattr(game, 'ai_log') and game.ai_log:
+        for ai_entry in game.ai_log[-100:]:
+            auth.log_action(game_id, game.turn, None, "ai", ai_entry)
+        game.ai_log = []  # clear after logging
     auth.update_active_game(game_id, game.turn)
     # Auto-save to DB every 5 turns
     if game.turn % 5 == 0:
