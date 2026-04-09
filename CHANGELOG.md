@@ -4,6 +4,11 @@
 
 ### Latest Changes
 
+**Bug fixes: naval, disband, borders**
+- Naval units only buildable in coastal cities (adjacent water required)
+- Disband button (Del key) — delete unit with confirmation
+- Territory border edges fixed — correct hex edge mapping for border segments
+
 **Production modal (center screen)**
 - Build menu opens as centered modal instead of tiny right panel
 - Two-column layout: Units | Buildings with icons (36x36 / 32x32)

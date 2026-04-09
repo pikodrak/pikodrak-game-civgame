@@ -138,6 +138,16 @@ def found_city(game_id: int, req: FoundCityRequest):
     return result
 
 
+@app.post("/api/game/{game_id}/disband/{unit_id}")
+def disband(game_id: int, unit_id: int):
+    game = games.get(game_id)
+    if not game:
+        raise HTTPException(404, "Game not found")
+    result = game.disband_unit(unit_id)
+    result["state"] = game.to_dict(for_player=0)
+    return result
+
+
 @app.post("/api/game/{game_id}/auto_worker/{unit_id}")
 def auto_worker(game_id: int, unit_id: int):
     game = games.get(game_id)

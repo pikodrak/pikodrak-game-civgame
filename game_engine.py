@@ -966,6 +966,15 @@ class GameState:
         unit["moves_left"] = 0
         return {"ok": True, "msg": f"Building {improvement_type} ({imp['turns']} turns)"}
 
+    def disband_unit(self, unit_id):
+        """Disband (delete) a unit."""
+        unit = self.units.get(unit_id)
+        if not unit or unit["player"] != self.current_player:
+            return {"ok": False, "msg": "Not your unit"}
+        utype = unit["type"]
+        del self.units[unit_id]
+        return {"ok": True, "msg": f"{utype} disbanded"}
+
     def auto_worker(self, unit_id):
         """Set worker to auto-build mode."""
         unit = self.units.get(unit_id)
@@ -2381,9 +2390,16 @@ class GameState:
 
         player = self.players[city["player"]]
 
+        # Check if city has adjacent water (for naval units)
+        has_water = any(self.tiles.get((nq, nr)) in (Terrain.WATER, Terrain.COAST)
+                        for nq, nr in hex_neighbors(city["q"], city["r"]))
+
         units = []
         for uname, udata in UNIT_TYPES.items():
             if not udata["tech"] or udata["tech"] in player["techs"]:
+                # Naval units only in coastal cities
+                if udata["cat"] == "naval" and not has_water:
+                    continue
                 units.append({"name": uname, "cost": udata["cost"], "atk": udata["atk"],
                             "def": udata["def"], "mov": udata["mov"], "cat": udata["cat"]})
 
