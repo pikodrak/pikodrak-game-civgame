@@ -1621,8 +1621,11 @@ class GameState:
             if strategy in ("conqueror",) and domin_pct >= 0.3:
                 mil_score += 20  # conquerors push earlier for domination
         # Diminishing returns: strong penalty when already have lots of units
-        if len(my_military) > len(my_cities) * 3:
-            mil_score -= (len(my_military) - len(my_cities) * 3) * 8
+        mil_per_city = len(my_military) / max(1, len(my_cities))
+        if mil_per_city > 3:
+            mil_score -= int((mil_per_city - 3) * 12)
+        if mil_per_city > 5:
+            mil_score -= int((mil_per_city - 5) * 20)  # very harsh above 5 per city
         # Don't build military when bankrupt
         if player["gold"] < -30:
             mil_score -= 30
@@ -1713,13 +1716,22 @@ class GameState:
 
             # Strategy bonuses for buildings
             if strategy == "builder" and bdata["prod"] > 0:
-                score += 10  # Rome loves production buildings
+                score += 10
             if strategy == "culturalist" and bdata["culture"] > 0:
-                score += 12  # Egypt loves culture buildings
+                score += 12
             if strategy == "turtle" and bdata["defense"] > 0:
-                score += 15  # Japan loves defensive buildings
+                score += 15
             if strategy == "economist" and bdata["gold"] > 0:
-                score += 10  # Persia loves gold buildings
+                score += 10
+            # ALL strategies: core infrastructure is essential
+            if bname == "granary":
+                score += 25 if city["population"] < 5 else 10
+            elif bname == "library":
+                score += 20
+            elif bname == "marketplace":
+                score += 18
+            elif bname == "walls" and (at_war or nearby_enemies > 0):
+                score += 20
 
             if score > 0:
                 candidates.append((score, "building", bname, " ".join(reason_parts)))

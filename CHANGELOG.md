@@ -4,6 +4,14 @@
 
 ### Latest Changes
 
+**AI Iteration 4: Infrastructure & Military Balance**
+- Core buildings (granary+25, library+20, marketplace+18) scored much higher
+- Walls get +20 bonus when at war or enemies nearby
+- Military diminishing returns: harsh penalty above 5 units/city
+- Aztec buildings: 2-3 → 7-15 per game
+- Greece military: 62 → 9 (capped by diminishing returns)
+- All civs now build infrastructure alongside military
+
 **High-Quality Graphics Upgrade**
 - All sprites upgraded to 128x128 resolution (from 64x64)
 - Units: detailed body proportions, armor, weapons, shadows, layered shading
