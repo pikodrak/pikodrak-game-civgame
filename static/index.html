@@ -238,9 +238,12 @@ function handleClick(q,r,right){if(!state)return;if(selectedUnit&&!right){const 
 
 async function moveUnit(uid,q,r){const d=await api(`/api/game/${gameId}/move`,'POST',{unit_id:uid,q,r});if(d.needs_war){if(confirm(d.msg)){await api(`/api/game/${gameId}/diplomacy`,'POST',{target_player:d.war_target,action:'war'});const d2=await api(`/api/game/${gameId}/move`,'POST',{unit_id:uid,q,r});if(d2.ok){state=d2.state;if(d2.combat)showEvent(d2.msg);const u=state.units.find(u=>u.id===uid);if(!u||u.moves_left<=0){selectedUnit=null;selectNextUnit()}}else showEvent(d2.msg)}updateUI();updatePanel();drawMini();return}if(d.ok){state=d.state;if(d.combat)showEvent(d.msg);const u=state.units.find(u=>u.id===uid);if(!u||u.moves_left<=0){selectedUnit=null;selectNextUnit()}}else showEvent(d.msg);updateUI();updatePanel();drawMini()}
 async function endTurn(){
-    // Check for units without orders
+    // Check for units without orders — select first idle one
     if(state){const idle=state.units.filter(u=>u.player===0&&u.moves_left>0&&!u.fortified&&!u.sentry&&!u.exploring&&!u.goto);
-    if(idle.length>0&&!confirm(`${idle.length} unit(s) without orders. End turn?`))return}
+    if(idle.length>0){
+        selectedUnit=idle[0].id;selectedCity=null;centerOnTile(idle[0].q,idle[0].r);updatePanel();
+        showEvent(`${idle.length} unit(s) without orders!`);
+        if(!confirm(`${idle.length} unit(s) without orders. End turn anyway?`))return}}
     const d=await api(`/api/game/${gameId}/end_turn`,'POST');state=d.state;selectedUnit=selectedCity=null;d.events?.forEach(e=>showEvent(e));updateUI();updatePanel();drawMini();autoSave();if(state.game_over){showGameOver();return}const me=state.players.find(p=>p.id===0);if(me&&!me.researching&&state.cities.some(c=>c.player===0)){showEvent('Choose research!');openTechTree();return}focusNextNeed()}
 function focusNextNeed(){const idle=state.cities.find(c=>c.player===0&&!c.producing);if(idle){selectedCity=idle.id;selectedUnit=null;showEvent(`${idle.name} needs production!`);centerOnTile(idle.q,idle.r);updatePanel();return}selectNextUnit()}
 async function fortifyUnit(){if(!selectedUnit)return;const d=await api(`/api/game/${gameId}/fortify/${selectedUnit}`,'POST');if(d.ok){state=d.state;showEvent(d.msg)}selectedUnit=null;selectNextUnit();updateUI();updatePanel()}
@@ -520,7 +523,18 @@ function drawUnit(sx,sy,unit,col,sel){
     const bob=Math.sin(T*1.8+unit.id)*.8;const uy=sy-2+bob;
     ctx.save();
     ctx.fillStyle='rgba(0,0,0,.15)';ctx.beginPath();ctx.ellipse(sx,sy+3,S*.32,S*.1,0,0,6.3);ctx.fill();
-    if(sel){ctx.save();const glow=.6+Math.sin(T*4)*.25;ctx.shadowColor=`rgba(255,215,0,${glow})`;ctx.shadowBlur=18;ctx.strokeStyle=`rgba(255,215,0,${glow})`;ctx.lineWidth=2.5;ctx.beginPath();ctx.arc(sx,sy-2,S*.44,0,6.3);ctx.stroke();ctx.restore();ctx.shadowColor=`rgba(255,215,0,${glow*.5})`;ctx.shadowBlur=10}
+    if(sel){
+        // Pulsing hex highlight under unit
+        ctx.save();const glow=.5+Math.sin(T*4)*.3;
+        ctx.globalAlpha=.12+Math.sin(T*3)*.06;hexP(ctx,sx,sy,S);ctx.fillStyle='#ffd700';ctx.fill();
+        // Thick golden ring
+        ctx.globalAlpha=glow;ctx.shadowColor='rgba(255,200,0,.8)';ctx.shadowBlur=22;
+        ctx.strokeStyle=`rgba(255,215,0,${glow})`;ctx.lineWidth=3.5;
+        ctx.beginPath();ctx.arc(sx,sy-1,S*.48,0,6.3);ctx.stroke();
+        // Inner white ring
+        ctx.shadowBlur=0;ctx.globalAlpha=glow*.4;ctx.strokeStyle='#fff';ctx.lineWidth=1.5;
+        ctx.beginPath();ctx.arc(sx,sy-1,S*.42,0,6.3);ctx.stroke();
+        ctx.restore()}
     ctx.fillStyle=col;ctx.beginPath();ctx.ellipse(sx,sy+1,S*.3,S*.08,0,0,6.3);ctx.fill();
     ctx.strokeStyle=dk(col,40);ctx.lineWidth=.8;ctx.stroke();ctx.shadowBlur=0;
     // Draw unit — PNG sprite or fallback to canvas

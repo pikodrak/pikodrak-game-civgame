@@ -4,6 +4,11 @@
 
 ### Latest Changes
 
+**Active unit highlight & end-turn idle selection**
+- Active unit: pulsing golden hex highlight + thick gold ring + inner white ring + glow shadow
+- End turn with idle units: selects and centers on first idle unit before confirm dialog
+- Camera pans to idle unit so player can see what needs orders
+
 **Territory border rendering**
 - Thick colored border (lineWidth=3, alpha 55%) only on edges facing outside territory
 - No more full hex outlines — just clean border segments where territory ends
