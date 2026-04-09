@@ -1526,35 +1526,48 @@ class GameState:
         aggression = player.get("aggression", 0.5)
         loyalty = player.get("loyalty", 0.5)
 
-        # Diplomacy AI — personality-driven (respect cooldowns)
+        # Diplomacy — power-based + personality (respect cooldowns)
         for other in self.players:
             if other["id"] == pid or not other["alive"]:
                 continue
             rel = player["diplomacy"].get(other["id"], "peace")
-            other_military = len([u for u in self.units.values() if u["player"] == other["id"] and u["cat"] != "civilian"])
+            opinion = player.get("relations", {}).get(other["id"], 0)
             cd = player.get("diplo_cooldown", {}).get(other["id"], 0)
             if cd > 0:
-                continue  # skip — cooldown active
+                continue
+
+            # Power score: military * tech * cities
+            other_mil = len([u for u in self.units.values() if u["player"] == other["id"] and u["cat"] != "civilian"])
+            other_cities = len([c for c in self.cities.values() if c["player"] == other["id"]])
+            other_techs = len(other.get("techs", []))
+            my_power = len(my_military) * (1 + len(player.get("techs", [])) / 10) * (1 + len(my_cities) / 5)
+            other_power = other_mil * (1 + other_techs / 10) * (1 + other_cities / 5)
+            power_ratio = my_power / max(1, other_power)
 
             if rel == "war":
-                if len(my_military) < 2 and random.random() > loyalty:
+                # Peace if clearly losing
+                if power_ratio < 0.5:
                     self.make_peace(pid, other["id"])
-                    self._log_ai(pid, f"DIPLO: peace with {other['name']} (too weak, mil={len(my_military)})")
-                elif other_military > len(my_military) * 1.5 and random.random() > loyalty * 0.7:
+                    self._log_ai(pid, f"DIPLO: peace with {other['name']} (power {my_power:.0f} vs {other_power:.0f})")
+                elif len(my_military) < 2:
                     self.make_peace(pid, other["id"])
-                    self._log_ai(pid, f"DIPLO: peace with {other['name']} (outmatched {len(my_military)} vs {other_military})")
-            elif rel == "neutral":
-                war_chance = aggression * 0.08
-                if player.get("strategy") == "conqueror":
-                    war_chance = aggression * 0.15  # conquerors are more warlike
-                if len(my_military) > other_military * 1.3 and random.random() < war_chance:
+                    self._log_ai(pid, f"DIPLO: peace with {other['name']} (no army)")
+            elif rel in ("neutral", "peace"):
+                # War only if STRONGER + angry
+                war_threshold = -30 if player.get("strategy") == "conqueror" else -50
+                if power_ratio > 1.3 and opinion <= war_threshold and random.random() < aggression * 0.2:
                     self.declare_war(pid, other["id"])
-                    self._log_ai(pid, f"DIPLO: WAR on {other['name']} (stronger {len(my_military)} vs {other_military}, aggr={aggression})")
-            elif rel == "peace":
-                if random.random() < aggression * (1 - loyalty) * 0.03:
-                    if len(my_military) > other_military * 1.5:
+                    self._log_ai(pid, f"DIPLO: WAR on {other['name']} (power {power_ratio:.1f}x, opinion={opinion})")
+                elif rel == "peace" and power_ratio > 2.0 and opinion < -20:
+                    if random.random() < aggression * (1 - loyalty) * 0.02:
                         self.declare_war(pid, other["id"])
-                        self._log_ai(pid, f"DIPLO: BETRAYAL of {other['name']}! (aggr={aggression}, loyal={loyalty})")
+                        self._log_ai(pid, f"DIPLO: BETRAYAL of {other['name']}! (power {power_ratio:.1f}x)")
+
+            # Relations drift
+            if opinion > 0:
+                player.setdefault("relations", {})[other["id"]] = opinion - 1
+            elif opinion < 0:
+                player.setdefault("relations", {})[other["id"]] = opinion + 1
 
         # Gang up on the leader — if someone is way ahead, declare war
         alive_players = [p for p in self.players if p["alive"] and p["id"] != pid]
@@ -2058,22 +2071,41 @@ class GameState:
                     elif needs_rr:
                         candidates.append((d + 20, tq, tr, "railroad"))
 
-        # Task 2: Build road connecting two cities
+        # Task 2: Build road connecting cities — find first tile without road on BFS path
         if len(my_cities) >= 2:
+            from collections import deque
             for i, c1 in enumerate(my_cities):
                 for c2 in my_cities[i+1:]:
-                    # Check if cities are already connected (road exists on path between them)
                     dist = hex_distance(c1["q"], c1["r"], c2["q"], c2["r"])
-                    if dist > 15:
+                    if dist > 12:
                         continue
-                    # Find midpoint — crude but effective
-                    mid_q = (c1["q"] + c2["q"]) // 2
-                    mid_r = (c1["r"] + c2["r"]) // 2
-                    if (mid_q, mid_r) not in self.roads:
-                        t = self.tiles.get((mid_q, mid_r))
-                        if t and t not in (Terrain.WATER, Terrain.COAST, Terrain.MOUNTAIN):
-                            d = hex_distance(unit["q"], unit["r"], mid_q, mid_r)
-                            candidates.append((d + 8, mid_q, mid_r, "connect"))
+                    # BFS from c1 to c2, find first tile on path without road
+                    visited = {(c1["q"], c1["r"])}
+                    queue = deque([((c1["q"], c1["r"]), [(c1["q"], c1["r"])])])
+                    found_unroaded = None
+                    while queue and not found_unroaded:
+                        (cq, cr), path = queue.popleft()
+                        if cq == c2["q"] and cr == c2["r"]:
+                            # Found path — check for unroaded tiles
+                            for pq, pr in path:
+                                t = self.tiles.get((pq, pr))
+                                if t and t not in (Terrain.WATER, Terrain.COAST, Terrain.MOUNTAIN) and (pq, pr) not in self.roads:
+                                    found_unroaded = (pq, pr)
+                                    break
+                            break
+                        for nq, nr in hex_neighbors(cq, cr):
+                            if (nq, nr) in visited:
+                                continue
+                            t = self.tiles.get((nq, nr))
+                            if not t or t in (Terrain.WATER, Terrain.COAST, Terrain.MOUNTAIN):
+                                continue
+                            visited.add((nq, nr))
+                            if len(visited) > 100:
+                                break
+                            queue.append(((nq, nr), path + [(nq, nr)]))
+                    if found_unroaded:
+                        d = hex_distance(unit["q"], unit["r"], found_unroaded[0], found_unroaded[1])
+                        candidates.append((d + 5, found_unroaded[0], found_unroaded[1], f"connect {c1['name']}-{c2['name']}"))
 
         if not candidates:
             return None

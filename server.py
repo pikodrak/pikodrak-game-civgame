@@ -516,7 +516,13 @@ def api_rules():
                     "war_declaration": "-50",
                     "drift": "+1 or -1 per turn toward 0 (slowly normalize)",
                 },
-                "ai_behavior": "AI declares war when opinion drops below -30 (conqueror) or -50 (others) and has military advantage",
+                "cpu_war_decision": {
+                    "power_score": "military * (1 + techs/10) * (1 + cities/5)",
+                    "requirements": "Must be 1.3x stronger AND opinion below threshold",
+                    "threshold": "-30 for conquerors, -50 for others",
+                    "weaker_never_attacks": "CPU with power_ratio < 1.3 will NEVER declare war",
+                    "peace_when_losing": "CPU sues for peace when power_ratio < 0.5",
+                },
             },
             "alliance": {
                 "requires": "Both at peace first",
