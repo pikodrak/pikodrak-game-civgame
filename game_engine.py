@@ -895,6 +895,11 @@ class GameState:
             if hex_distance(c["q"], c["r"], unit["q"], unit["r"]) < 3:
                 return {"ok": False, "msg": "Too close to another city"}
 
+        # Cannot found city in foreign territory
+        territory_owner = self.get_tile_owner(unit["q"], unit["r"])
+        if territory_owner is not None and territory_owner != unit["player"]:
+            return {"ok": False, "msg": "Cannot found city in foreign territory"}
+
         terrain = self.tiles.get((unit["q"], unit["r"]))
         if terrain in (Terrain.WATER, Terrain.COAST, Terrain.MOUNTAIN):
             return {"ok": False, "msg": "Cannot build city here"}
@@ -2090,7 +2095,8 @@ class GameState:
                     # Stuck — try settling here if possible
                     terrain_here = self.tiles.get((unit["q"], unit["r"]))
                     too_close = any(hex_distance(c["q"], c["r"], unit["q"], unit["r"]) < 3 for c in self.cities.values())
-                    if not too_close and terrain_here and terrain_here not in (Terrain.WATER, Terrain.COAST, Terrain.MOUNTAIN):
+                    in_foreign = self.get_tile_owner(unit["q"], unit["r"]) not in (None, pid)
+                    if not too_close and not in_foreign and terrain_here and terrain_here not in (Terrain.WATER, Terrain.COAST, Terrain.MOUNTAIN):
                         # Settle here instead of target
                         self._log_ai(pid, f"SETTLER: stuck, settling here instead at ({unit['q']},{unit['r']})")
                     else:
@@ -2118,6 +2124,10 @@ class GameState:
                 if t in (None, Terrain.WATER, Terrain.COAST, Terrain.MOUNTAIN):
                     continue
                 if any(hex_distance(c["q"], c["r"], q, r) < 4 for c in self.cities.values()):
+                    continue
+                # Cannot settle in foreign territory
+                owner = self.get_tile_owner(q, r)
+                if owner is not None and owner != pid:
                     continue
                 # Avoid spots where another settler is already heading
                 if any(u["player"] == pid and u["type"] == "settler" and u["id"] != unit["id"]
