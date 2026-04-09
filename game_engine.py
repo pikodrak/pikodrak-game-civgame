@@ -966,6 +966,17 @@ class GameState:
         unit["moves_left"] = 0
         return {"ok": True, "msg": f"Building {improvement_type} ({imp['turns']} turns)"}
 
+    def auto_worker(self, unit_id):
+        """Set worker to auto-build mode."""
+        unit = self.units.get(unit_id)
+        if not unit or unit["player"] != self.current_player:
+            return {"ok": False, "msg": "Not your unit"}
+        if unit["type"] != "worker":
+            return {"ok": False, "msg": "Only workers can auto-build"}
+        unit["exploring"] = True  # reuse exploring flag for auto-worker
+        unit["moves_left"] = 0
+        return {"ok": True, "msg": "Worker set to auto-build"}
+
     def fortify_unit(self, unit_id):
         unit = self.units.get(unit_id)
         if not unit or unit["player"] != self.current_player:
@@ -2043,6 +2054,10 @@ class GameState:
                     continue
                 if any(hex_distance(c["q"], c["r"], q, r) < 4 for c in self.cities.values()):
                     continue
+                # Avoid spots where another settler is already heading
+                if any(u["player"] == pid and u["type"] == "settler" and u["id"] != unit["id"]
+                       and hex_distance(u["q"], u["r"], q, r) < 4 for u in self.units.values()):
+                    continue
                 d = hex_distance(unit["q"], unit["r"], q, r)
                 if d > 20:
                     continue
@@ -2093,15 +2108,21 @@ class GameState:
         my_military = [u for u in self.units.values() if u["player"] == pid and u["cat"] != "civilian"]
         my_cities = [c for c in self.cities.values() if c["player"] == pid]
 
-        # Adjacent enemies — always attack (at war or neutral with high aggression)
+        # Adjacent enemies — attack military units, or any unit if at war
         for nq, nr in hex_neighbors(unit["q"], unit["r"]):
             for eu in list(self.units.values()):
                 if eu["player"] != pid and eu["q"] == nq and eu["r"] == nr:
-                    rel = self.players[pid]["diplomacy"].get(eu["player"], "neutral")
-                    if rel == "war" or (rel == "neutral" and random.random() < aggression * 0.5):
-                        if rel != "war":
-                            self.declare_war(pid, eu["player"])
+                    rel = self.players[pid]["diplomacy"].get(eu["player"], "peace")
+                    # Only attack: military units when not at peace, or any unit when at war
+                    if rel == "war":
                         self._log_ai(pid, f"COMBAT: {unit['type']}(hp={unit['hp']}) attacks {eu['type']}(hp={eu['hp']}) at ({nq},{nr})")
+                        self.current_player = pid
+                        self.move_unit(unit["id"], nq, nr)
+                        return
+                    elif eu["cat"] != "civilian" and random.random() < aggression * 0.3:
+                        # Attack enemy military (not civilians) — triggers war
+                        self.declare_war(pid, eu["player"])
+                        self._log_ai(pid, f"COMBAT: {unit['type']} attacks {eu['type']} — WAR declared!")
                         self.current_player = pid
                         self.move_unit(unit["id"], nq, nr)
                         return

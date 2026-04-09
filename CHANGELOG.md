@@ -4,6 +4,15 @@
 
 ### Latest Changes
 
+**Gameplay Fixes (user-reported bugs)**
+- Goto: hold left mouse button 400ms to set (was single click distant hex)
+- Goto units skipped in unit cycling (like fortify/sentry)
+- Worker auto-build button (A key) — sets worker to auto-improve nearby tiles
+- End turn confirmation: warns if units without orders remain
+- Civilian protection: AI won't attack settlers/workers unless at war
+- Settler coordination: won't target spots where another settler is heading
+- Controls panel updated with Auto-Build (A) shortcut
+
 **AI Iteration 4: Infrastructure & Military Balance**
 - Core buildings (granary+25, library+20, marketplace+18) scored much higher
 - Walls get +20 bonus when at war or enemies nearby
