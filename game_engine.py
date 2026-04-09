@@ -638,12 +638,20 @@ class GameState:
     # --------------------------------------------------------
 
     def get_tile_owner(self, q, r):
-        """Return player_id who owns this tile via city border, or None."""
+        """Return player_id who owns this tile. When contested, higher culture + closer city wins."""
+        best_owner = None
+        best_score = -1
         for c in self.cities.values():
             br = c.get("border_radius", 1)
-            if hex_distance(c["q"], c["r"], q, r) <= br:
-                return c["player"]
-        return None
+            dist = hex_distance(c["q"], c["r"], q, r)
+            if dist <= br:
+                # Score: culture / distance (closer + higher culture = stronger claim)
+                culture = c.get("culture", 0) + 1
+                score = culture / max(1, dist)
+                if score > best_score:
+                    best_score = score
+                    best_owner = c["player"]
+        return best_owner
 
     # --------------------------------------------------------
     # VISIBILITY / FOG OF WAR
@@ -2318,7 +2326,19 @@ class GameState:
                     self._ai_step_toward(unit, city["q"], city["r"])
                     return
 
-        # Default: patrol near own cities
+        # WAR MOBILIZATION — during war, march toward enemy border
+        war_enemies = [p for p in self.players if p["alive"] and p["id"] != pid
+                       and player["diplomacy"].get(p["id"]) == "war"]
+        if war_enemies:
+            # Find nearest enemy city and march there
+            enemy_cities = [c for c in self.cities.values()
+                            if any(c["player"] == e["id"] for e in war_enemies)]
+            if enemy_cities:
+                target = min(enemy_cities, key=lambda c: hex_distance(unit["q"], unit["r"], c["q"], c["r"]))
+                self._ai_step_toward(unit, target["q"], target["r"])
+                return
+
+        # Peacetime: patrol near own cities
         if my_cities:
             nearest = min(my_cities, key=lambda c: hex_distance(unit["q"], unit["r"], c["q"], c["r"]))
             d = hex_distance(unit["q"], unit["r"], nearest["q"], nearest["r"])

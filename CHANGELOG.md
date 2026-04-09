@@ -4,6 +4,15 @@
 
 ### Latest Changes
 
+**Advanced Diplomacy Complete**
+- War mobilization: during war ALL military units march toward nearest enemy city
+- Culture pressure: contested tiles won by city with higher culture/distance ratio
+- Relations system: -100 to +100 opinion, city near border = -30 provocation
+- Alliance auto-war: attack ally → all alliance members join defense
+- Declare war respects cooldown (10 turns)
+- Explore cancelled for military during war
+- Menu panel z-index fix for New Game button
+
 **Game Logging + Spectator Mode**
 - All game actions logged to SQLite: move, end_turn, production, research, diplomacy
 - Active games registered in DB with user, size, turn, timestamp
