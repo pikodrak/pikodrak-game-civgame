@@ -918,7 +918,7 @@ class GameState:
 
         # Check no city nearby
         for c in self.cities.values():
-            if hex_distance(c["q"], c["r"], unit["q"], unit["r"]) < 3:
+            if hex_distance(c["q"], c["r"], unit["q"], unit["r"]) < 4:
                 return {"ok": False, "msg": "Too close to another city"}
 
         # Cannot found city in foreign territory or too close to foreign cities
@@ -1922,7 +1922,7 @@ class GameState:
     def _ai_upgrade_units(self, pid):
         """Upgrade obsolete units in cities (costs gold)."""
         player = self.players[pid]
-        if player["gold"] < 50:
+        if player["gold"] < 30:
             return
         upgrade_path = {
             "warrior": "swordsman", "swordsman": "musketman", "musketman": "rifleman",
@@ -2143,9 +2143,23 @@ class GameState:
         return None
 
     def _ai_settler_move(self, unit, pid):
-        """Settler AI: find good spot and settle. Uses all movement."""
+        """Settler AI: find good spot and settle. Flee from enemies."""
         if unit["id"] not in self.units:
             return
+
+        # Flee from adjacent enemies — settlers don't fight
+        for nq, nr in hex_neighbors(unit["q"], unit["r"]):
+            for eu in self.units.values():
+                if eu["player"] != pid and eu["cat"] != "civilian" and eu["q"] == nq and eu["r"] == nr:
+                    # Run away from enemy
+                    flee = [(fq, fr) for fq, fr in hex_neighbors(unit["q"], unit["r"])
+                            if self.tiles.get((fq, fr)) not in (None, Terrain.WATER, Terrain.COAST, Terrain.MOUNTAIN)
+                            and hex_distance(fq, fr, nq, nr) > 1]
+                    if flee:
+                        self.current_player = pid
+                        self.move_unit(unit["id"], flee[0][0], flee[0][1])
+                        self._log_ai(pid, f"SETTLER: fleeing from enemy at ({nq},{nr})")
+                    return
 
         # Find target spot once
         target = self._ai_find_settle_spot(unit, pid)
@@ -2209,7 +2223,7 @@ class GameState:
                 t = self.tiles.get((q, r))
                 if t in (None, Terrain.WATER, Terrain.COAST, Terrain.MOUNTAIN):
                     continue
-                if any(hex_distance(c["q"], c["r"], q, r) < 4 for c in self.cities.values()):
+                if any(hex_distance(c["q"], c["r"], q, r) < 5 for c in self.cities.values()):
                     continue
                 # Cannot settle in foreign territory
                 owner = self.get_tile_owner(q, r)
@@ -2449,13 +2463,15 @@ class GameState:
             self.units[unit["id"]]["exploring"] = False
 
     def _find_path_next(self, unit, tq, tr):
-        """BFS pathfinding — returns next hex to move to, or None."""
+        """BFS pathfinding — avoids foreign territory unless at war."""
         from collections import deque
         start = (unit["q"], unit["r"])
         target = (tq, tr)
         if start == target:
             return None
 
+        pid = unit["player"]
+        player = self.players[pid]
         is_naval = unit["cat"] in ("naval",)
         is_air = unit["cat"] == "air"
 
@@ -2481,6 +2497,13 @@ class GameState:
                         continue
                     if not is_naval and t in (Terrain.WATER, Terrain.COAST):
                         continue
+                # Avoid foreign territory unless at war or target is there
+                if (nq, nr) != (tq, tr):
+                    tile_owner = self.get_tile_owner(nq, nr)
+                    if tile_owner is not None and tile_owner != pid:
+                        rel = player.get("diplomacy", {}).get(tile_owner, "peace")
+                        if rel not in ("war", "alliance"):
+                            continue  # don't enter non-allied foreign territory
                 visited.add((nq, nr))
                 new_path = path + [(nq, nr)]
                 if (nq, nr) == target:
@@ -3008,6 +3031,7 @@ class GameState:
     def load_full(cls, data):
         """Restore game state from saved data."""
         g = cls.__new__(cls)
+        g.ai_log = []  # Must init before anything else
         g.width = data["width"]
         g.height = data["height"]
         g.turn = data["turn"]

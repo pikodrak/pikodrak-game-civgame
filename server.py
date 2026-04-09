@@ -491,7 +491,7 @@ def api_rules():
 
         "city_mechanics": {
             "founding": {
-                "min_distance": 3,
+                "min_distance": 4,
                 "forbidden_terrain": ["water", "coast", "mountain"],
                 "forbidden_in_foreign_territory": True,
                 "min_distance_from_foreign_city": "max(border_radius + 1, 3) hexes from any foreign city",
