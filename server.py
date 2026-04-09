@@ -364,6 +364,24 @@ def spectate_game(game_id: int, request: Request):
     state = game.to_dict(for_player=None)
     state["improvements"] = {f"{q},{r}": v for (q, r), v in game.improvements.items()}
     state["roads"] = {f"{q},{r}": v for (q, r), v in game.roads.items()}
+    # Full player data for spectator
+    state["players"] = []
+    for p in game.players:
+        pd = {
+            "id": p["id"], "name": p["name"], "civ": p["civ"],
+            "color": p["color"], "leader": p["leader"],
+            "alive": p["alive"], "score": p["score"],
+            "gold": p["gold"], "techs": p["techs"],
+            "researching": p["researching"],
+            "diplomacy": {str(k): v for k, v in p["diplomacy"].items()},
+            "culture_pool": p["culture_pool"],
+            "trait": p.get("trait", ""), "strategy": p.get("strategy", ""),
+            "aggression": p.get("aggression", 0), "loyalty": p.get("loyalty", 0),
+            "cities": len([c for c in game.cities.values() if c["player"] == p["id"]]),
+            "units": len([u for u in game.units.values() if u["player"] == p["id"]]),
+            "military": len([u for u in game.units.values() if u["player"] == p["id"] and u["cat"] != "civilian"]),
+        }
+        state["players"].append(pd)
     return state
 
 @app.get("/api/spectate/log/{game_id}")

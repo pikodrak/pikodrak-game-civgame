@@ -273,8 +273,9 @@ async function spectateGame(gid){
     setTimeout(()=>{initCanvas();centerOn();requestAnimationFrame(loop);updateUI();updatePanel();drawMini();showEvent('Spectating game #'+gid)},50);
     // Auto-refresh every 3 seconds
     if(window._spectateInterval)clearInterval(window._spectateInterval);
+    window._spectateMode=true;
     window._spectateInterval=setInterval(async()=>{
-        try{const s=await api(`/api/spectate/game/${gid}`);state=s;for(const k in tileCache)delete tileCache[k];updateUI();drawMini()}catch(e){clearInterval(window._spectateInterval)}
+        try{const s=await api(`/api/spectate/game/${gid}`);state=s;for(const k in tileCache)delete tileCache[k];updateUI();updatePanel();drawMini()}catch(e){clearInterval(window._spectateInterval)}
     },3000);
     }catch(e){alert('Error: '+e.message)}}
 
@@ -456,7 +457,45 @@ ${u.cat!=='civilian'?'<button class="action-btn" onclick="sentryUnit()">Sentry (
 ${u.cat!=='civilian'?`<button class="action-btn" onclick="exploreUnit()">${u.exploring?'Stop':'Explore'} (X)</button>`:''}
 <button class="action-btn" onclick="spaceAction()">Skip</button>
 <button class="action-btn" onclick="disbandUnit()" style="color:#e74c3c">Disband</button>
-</div></div>`}else if(selectedCity)showCityPanel();else{let h='<div class="panel-section"><h3>Civilizations</h3>';for(const p of state.players)h+=`<div class="info-row"><span class="info-label"><span style="color:${p.color}">\u25CF</span> ${p.name}${p.alive?'':' \u2620'}</span><span class="info-value">${p.score}</span></div>`;h+='</div><div class="panel-section"><h3>Controls</h3>';for(const[k,v]of[['Move','Click adjacent'],['Goto','Click distant'],['City','B'],['Fortify','F'],['Sentry','S'],['Explore','X'],['Skip/End','Space'],['End Turn','Enter'],['Zoom','Scroll'],['Save','Ctrl+S']])h+=`<div class="info-row"><span class="info-label">${k}</span><span class="info-value">${v}</span></div>`;P.innerHTML=h+'</div>'}}
+</div></div>`}else if(selectedCity)showCityPanel();else{let h='';
+// Detailed civilizations panel
+for(const p of state.players.sort((a,b)=>b.score-a.score)){
+    const isSpec=window._spectateMode;
+    h+=`<div class="panel-section" style="padding:.5rem">
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:.3rem">
+    <span style="color:${p.color};font-size:1.2rem">\u25CF</span>
+    <div><b style="color:#d0d8f0;font-size:.85rem">${p.name}</b>${p.alive?'':' \u2620'}
+    <div style="font-size:.7rem;color:#6878a8">${p.leader||''} ${p.trait?'| '+p.trait:''} ${p.strategy?'| '+p.strategy:''}</div></div>
+    <span style="margin-left:auto;color:#ffd700;font-weight:700;font-size:1rem">${p.score}</span></div>`;
+    if(isSpec && p.gold!==undefined){
+        h+=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:1px;font-size:.72rem">
+        <div class="info-row"><span class="info-label">Gold</span><span class="info-value" style="color:#ffd700">${p.gold}</span></div>
+        <div class="info-row"><span class="info-label">Culture</span><span class="info-value" style="color:#c490ff">${p.culture_pool||0}</span></div>
+        <div class="info-row"><span class="info-label">Cities</span><span class="info-value">${p.cities||0}</span></div>
+        <div class="info-row"><span class="info-label">Military</span><span class="info-value" style="color:#ff6060">${p.military||0}</span></div>
+        <div class="info-row"><span class="info-label">Units</span><span class="info-value">${p.units||0}</span></div>
+        <div class="info-row"><span class="info-label">Techs</span><span class="info-value" style="color:#60a0ff">${p.techs?.length||0}</span></div>
+        </div>`;
+        if(p.researching)h+=`<div style="font-size:.7rem;color:#60a0ff;margin-top:.2rem">Researching: ${p.researching.name} (${p.researching.progress}/${p.researching.cost})</div>`;
+        // Diplomacy
+        const diplo=Object.entries(p.diplomacy||{}).filter(([k,v])=>v!=='peace').map(([k,v])=>{
+            const other=state.players.find(x=>x.id==k);
+            return `<span style="color:${v==='war'?'#e74c3c':v==='alliance'?'#3498db':'#f1c40f'}">${v} with ${other?.name||k}</span>`;
+        });
+        if(diplo.length)h+=`<div style="font-size:.68rem;margin-top:.2rem">${diplo.join(', ')}</div>`;
+    }
+    h+=`</div>`;
+}
+if(!window._spectateMode){
+    h+='<div class="panel-section"><h3>Controls</h3>';
+    for(const[k,v]of[['Move','Click adjacent'],['Goto','Hold click'],['City','B'],['Fortify','F'],['Sentry','S'],['Explore','X'],['Auto-Build','A'],['Skip/End','Space'],['Next Unit','Tab'],['End Turn','Enter'],['Disband','Del'],['Zoom','Scroll'],['Save','Ctrl+S']])
+        h+=`<div class="info-row"><span class="info-label">${k}</span><span class="info-value">${v}</span></div>`;
+    h+='</div>';
+}else{
+    h+=`<div class="panel-section"><h3>Spectating</h3><p style="font-size:.75rem;color:#6a7a9a">Auto-refresh every 3s</p>
+    <button class="action-btn" onclick="window._spectateMode=false;clearInterval(window._spectateInterval);quitGame()">Stop Watching</button></div>`;
+}
+P.innerHTML=h}}
 async function showCityPanel(){const city=state.cities.find(c=>c.id===selectedCity);if(!city)return;const P=document.getElementById('panel-content');let y;try{y=await api(`/api/game/${gameId}/city/${city.id}/yields`)}catch(e){y={food:0,food_surplus:0,prod:0,gold:0,science:0,culture:0}}const gn=10+city.population*5;const br=city.border_radius||1;const cultureTh=[10,50,150,400];const nextTh=cultureTh.find(t=>t>(city.culture||0));const cultPct=nextTh?Math.min(100,((city.culture||0)/(nextTh)*100)|0):100;let h=`<div class="panel-section"><h3>${city.name}</h3><div class="info-row"><span class="info-label">Pop</span><span class="info-value">${city.population}</span></div><div class="info-row"><span class="info-label">HP</span><span class="info-value">${city.hp}/${city.max_hp}</span></div><div class="hp-bar-bg"><div class="hp-bar-fill" style="width:${city.hp/city.max_hp*100}%;background:${city.hp/city.max_hp>.5?'#2ecc71':'#e74c3c'}"></div></div><div class="info-row"><span class="info-label">Growth</span><span class="info-value">${city.food_store||0}/${gn} (${y.food_surplus>=0?'+':''}${y.food_surplus})</span></div><div class="progress-bar-bg"><div class="progress-bar-fill" style="width:${Math.min(100,(city.food_store||0)/gn*100)}%;background:linear-gradient(90deg,#2ecc71,#27ae60)"></div></div></div><div class="panel-section"><h3>Culture &amp; Borders</h3><div class="info-row"><span class="info-label">Culture</span><span class="info-value" style="color:#c490ff">${city.culture||0}${nextTh?' / '+nextTh:' (MAX)'}</span></div><div class="info-row"><span class="info-label">Border radius</span><span class="info-value">${br}${br<5?' \u2192 '+(br+1)+' at '+nextTh:' (max)'}</span></div><div class="info-row"><span class="info-label">Culture/turn</span><span class="info-value" style="color:#c490ff">+${y.culture}</span></div>${nextTh?`<div class="progress-bar-bg"><div class="progress-bar-fill" style="width:${cultPct}%;background:linear-gradient(90deg,#9060d0,#c490ff)"></div></div>`:''}</div><div class="panel-section"><h3>Yields</h3><div class="info-row"><span class="info-label">Food</span><span class="info-value" style="color:#2ecc71">${y.food}</span></div><div class="info-row"><span class="info-label">Prod</span><span class="info-value" style="color:#e67e22">${y.prod}</span></div><div class="info-row"><span class="info-label">Gold</span><span class="info-value" style="color:#ffd700">${y.gold}</span></div><div class="info-row"><span class="info-label">Science</span><span class="info-value" style="color:#60a0ff">${y.science}</span></div><div class="info-row"><span class="info-label">Culture</span><span class="info-value" style="color:#c490ff">${y.culture}</span></div></div>`;if(city.producing){const pct=Math.min(100,city.prod_progress/city.producing.cost*100|0),tl=Math.max(1,Math.ceil((city.producing.cost-city.prod_progress)/Math.max(1,y.prod)));h+=`<div class="panel-section"><h3>${city.producing.name.replace(/_/g,' ')}</h3><div class="info-row"><span class="info-label">Progress</span><span class="info-value">${city.prod_progress}/${city.producing.cost} (~${tl}t)</span></div><div class="progress-bar-bg"><div class="progress-bar-fill" style="width:${pct}%"></div></div></div>`}if(city.buildings?.length){h+='<div class="panel-section"><h3>Buildings</h3><div style="display:flex;flex-wrap:wrap;gap:4px">';for(const b of city.buildings)h+=`<span style="display:inline-flex;align-items:center;gap:3px;padding:.1rem .35rem;background:rgba(46,204,113,.08);border:1px solid rgba(46,204,113,.2);border-radius:4px;font-size:.72rem;color:#60c080"><img src="/static/img/buildings/${b}.png" width="16" height="16" onerror="this.style.display='none'">${b.replace(/_/g,' ')}</span>`;h+='</div></div>'}h+=`<div class="panel-section"><button class="btn btn-primary" style="width:100%;padding:.6rem;font-size:.9rem" onclick="openProdModal(${city.id})">Change Production</button></div>`;P.innerHTML=h}
 async function openProdModal(cid){const city=state.cities.find(c=>c.id===cid);if(!city)return;document.getElementById('prod-modal-title').textContent=`${city.name} — Build`;const pr=await api(`/api/game/${gameId}/city/${cid}/productions`);let y;try{y=await api(`/api/game/${gameId}/city/${cid}/yields`)}catch(e){y={prod:1}}
 let ph='<div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem"><div><p style="color:#ff8060;font-size:.85rem;font-weight:700;margin-bottom:.4rem">UNITS</p>';
