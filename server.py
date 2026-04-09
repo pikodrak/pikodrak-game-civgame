@@ -320,6 +320,30 @@ from game_engine import hex_neighbors, hex_distance, Terrain, IMPROVEMENTS, TERR
 
 # ---- SPECTATOR MODE (admin only) ----
 
+@app.delete("/api/game/{game_id}")
+def delete_game(game_id: int, request: Request):
+    """Delete a game (owner or admin)."""
+    user = get_user(request)
+    if not user:
+        raise HTTPException(401, "Not authenticated")
+    # Check ownership or admin
+    conn = auth.get_db()
+    row = conn.execute("SELECT user_id FROM active_games WHERE game_id = ?", (game_id,)).fetchone()
+    conn.close()
+    if row and row["user_id"] != user["id"] and not auth.is_admin(user["username"]):
+        raise HTTPException(403, "Not your game")
+    # Remove from memory and DB
+    games.pop(game_id, None)
+    for uid in user_games:
+        user_games[uid].pop(game_id, None)
+    conn = auth.get_db()
+    conn.execute("DELETE FROM active_games WHERE game_id = ?", (game_id,))
+    conn.execute("DELETE FROM game_logs WHERE game_id = ?", (game_id,))
+    conn.commit()
+    conn.close()
+    return {"ok": True, "msg": f"Game {game_id} deleted"}
+
+
 @app.get("/api/spectate/games")
 def spectate_games(request: Request):
     """List active games for spectating (admin only)."""

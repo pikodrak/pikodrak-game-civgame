@@ -259,9 +259,11 @@ async function openSpectator(){
         const age=Math.floor((Date.now()/1000-g.started_at)/60);
         h+=`<div class="save-item"><div><b style="color:#c0c8e0">${g.username||'guest'} — Game #${g.game_id}</b>
         <div style="font-size:.78rem;color:#5a6a8a">${g.width}x${g.height} | ${g.num_players}p | Turn ${g.turn} | ${age}min ago</div></div>
-        <button class="action-btn" onclick="spectateGame(${g.game_id})">Watch</button></div>`}
+        <button class="action-btn" onclick="spectateGame(${g.game_id})">Watch</button>
+        <button class="action-btn" style="color:#e74c3c" onclick="deleteGame(${g.game_id})">Delete</button></div>`}
     document.getElementById('account-content').innerHTML=h+'<br><button class="action-btn" onclick="openAccount()">Back</button>';
     }catch(e){alert('Error: '+e.message)}}
+async function deleteGame(gid){if(!confirm(`Delete game #${gid}?`))return;await api(`/api/game/${gid}`,'DELETE');openSpectator()}
 async function spectateGame(gid){
     try{const d=await api(`/api/spectate/game/${gid}`);
     closeAccount();state=d;gameId=gid;
