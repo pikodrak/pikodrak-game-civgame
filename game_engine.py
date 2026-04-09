@@ -454,6 +454,7 @@ class GameState:
             "sentry": False,
             "building": None,      # {"type": str, "turns_left": int} for workers
             "goto": None,          # {"q": int, "r": int} auto-move target
+            "born_turn": self.turn,
         }
         return uid
 
@@ -759,10 +760,14 @@ class GameState:
 
         result = {"ok": True, "combat": True, "atk_dmg": dmg_to_atk, "def_dmg": dmg_to_def}
 
+        atk_name = self.players[attacker["player"]]["name"]
+        def_name = self.players[defender["player"]]["name"]
+
         if defender["hp"] <= 0:
             result["defender_killed"] = True
             result["msg"] = f"Victory! Enemy {defender['type']} destroyed"
-            # Move attacker to defender position
+            self._log_ai(attacker["player"],
+                f"BATTLE WON: {attacker['type']}(hp={attacker['hp']}) killed {def_name} {defender['type']} | dealt {dmg_to_def} took {dmg_to_atk}")
             attacker["q"] = defender["q"]
             attacker["r"] = defender["r"]
             attacker["xp"] += 5
@@ -770,9 +775,13 @@ class GameState:
         elif attacker["hp"] <= 0:
             result["attacker_killed"] = True
             result["msg"] = f"Defeat! Your {attacker['type']} was destroyed"
+            self._log_ai(defender["player"],
+                f"BATTLE WON: {defender['type']}(hp={defender['hp']}) killed {atk_name} {attacker['type']} | dealt {dmg_to_atk} took {dmg_to_def}")
             del self.units[attacker["id"]]
         else:
             result["msg"] = f"Battle: dealt {dmg_to_def} dmg, took {dmg_to_atk} dmg"
+            self._log_ai(attacker["player"],
+                f"BATTLE DRAW: {attacker['type']}(hp={attacker['hp']}) vs {def_name} {defender['type']}(hp={defender['hp']}) | dealt {dmg_to_def} took {dmg_to_atk}")
 
         self._check_elimination()
         return result
@@ -798,7 +807,7 @@ class GameState:
 
         if city["hp"] <= 0:
             # City captured!
-            old_player = city["player"]
+            old_owner = self.players[city["player"]]["name"]
             city["player"] = attacker["player"]
             city["hp"] = city["max_hp"] // 2
             if city["population"] > 1:
@@ -807,8 +816,12 @@ class GameState:
             attacker["r"] = city["r"]
             result["msg"] = f"City {city['name']} captured!"
             result["captured"] = True
+            self._log_ai(attacker["player"],
+                f"CITY CAPTURED: {city['name']} from {old_owner} by {attacker['type']}(hp={attacker['hp']})")
             self._check_elimination()
         elif attacker["hp"] <= 0:
+            self._log_ai(attacker["player"],
+                f"SIEGE FAILED: {attacker['type']} destroyed attacking {city['name']}(hp={city['hp']}/{city['max_hp']})")
             del self.units[attacker["id"]]
             result["msg"] = f"Attack failed! {attacker['type']} destroyed"
             result["attacker_killed"] = True
@@ -1358,7 +1371,8 @@ class GameState:
             has_settlers = any(u["player"] == p["id"] and u["type"] == "settler" for u in self.units.values())
             if not has_cities and not has_settlers:
                 p["alive"] = False
-                # Remove their units
+                remaining = len([u for u in self.units.values() if u["player"] == p["id"]])
+                self._log_ai(p["id"], f"ELIMINATED: {p['name']} destroyed! (had {remaining} units remaining, turn {self.turn})")
                 to_remove = [uid for uid, u in self.units.items() if u["player"] == p["id"]]
                 for uid in to_remove:
                     del self.units[uid]
@@ -1771,9 +1785,11 @@ class GameState:
                 if not existing_imp:
                     imp_type = self._ai_pick_improvement(terrain.value, player)
                     if imp_type:
+                        idata = IMPROVEMENTS.get(imp_type, {})
+                        bonus = f"+{idata.get('food',0)}f +{idata.get('prod',0)}p +{idata.get('gold',0)}g"
                         self.current_player = pid
                         self.worker_build(unit["id"], imp_type)
-                        self._log_ai(pid, f"WORKER: {imp_type} at ({unit['q']},{unit['r']})")
+                        self._log_ai(pid, f"WORKER: {imp_type} at ({unit['q']},{unit['r']}) [{bonus}] terrain={terrain.value}")
                         return
 
                 # Priority 2: Road
@@ -1899,7 +1915,8 @@ class GameState:
                 used = {c["name"] for c in self.cities.values()}
                 name = next((n for n in city_names if n not in used), f"City {self.next_city_id}")
                 self.current_player = pid
-                self._log_ai(pid, f"SETTLE: founding {name} at ({unit['q']},{unit['r']}) terrain={terrain.value}")
+                wander_turns = self.turn - unit.get("born_turn", self.turn)
+                self._log_ai(pid, f"SETTLE: founding {name} at ({unit['q']},{unit['r']}) terrain={terrain.value} wandered={wander_turns}t")
                 self.found_city(unit["id"], name)
                 return
 
@@ -2279,12 +2296,51 @@ class GameState:
                 pid = p["id"]
                 my_cities = [c for c in game.cities.values() if c["player"] == pid]
                 my_units = [u for u in game.units.values() if u["player"] == pid]
+                # Economy breakdown
+                total_income = sum(game.get_city_yields(c["id"])["gold"] for c in my_cities)
+                unit_count = len(my_units)
+                free = GAME_CONFIG.get("unit_maintenance_free", 2)
+                maint = max(0, unit_count - free) * GAME_CONFIG.get("unit_maintenance_cost", 1)
+                total_prod_out = sum(game.get_city_yields(c["id"])["prod"] for c in my_cities)
+                total_science_out = sum(game.get_city_yields(c["id"])["science"] for c in my_cities)
+                total_culture_out = sum(game.get_city_yields(c["id"])["culture"] for c in my_cities)
+                total_food_out = sum(game.get_city_yields(c["id"])["food"] for c in my_cities)
+
+                # Territory
+                territory = sum(1 for q in range(game.width) for r in range(game.height)
+                                if game.get_tile_owner(q, r) == pid) if game.turn % 10 == 0 else 0
+
+                # Victory progress
+                space_techs = ["space_program", "rocketry", "nuclear_fission"]
+                space_tech_done = sum(1 for t in space_techs if t in p["techs"])
+                space_prog = p.get("space_progress", 0)
+                space_need = GAME_CONFIG.get("space_victory_production", 2000)
+                culture_prog = p["culture_pool"]
+                culture_need = GAME_CONFIG.get("culture_victory_threshold", 3000)
+                total_cities_all = len(game.cities)
+                my_city_count = len(my_cities)
+                domin_pct = my_city_count / max(1, total_cities_all)
+
+                # Improvements on my territory
+                my_imps = sum(1 for pos in game.improvements if game.get_tile_owner(*pos) == pid)
+                my_roads = sum(1 for pos in game.roads if game.get_tile_owner(*pos) == pid)
+
                 plog = {
                     "player": p["name"],
                     "gold": p["gold"],
                     "score": p["score"],
                     "techs": len(p["techs"]),
                     "researching": p["researching"]["name"] if p["researching"] else None,
+                    "economy": {"income": total_income, "maintenance": maint, "net": total_income - maint},
+                    "yields": {"food": total_food_out, "prod": total_prod_out, "science": total_science_out, "culture": total_culture_out},
+                    "victory": {
+                        "space": f"{space_tech_done}/3 techs, {space_prog}/{space_need} prod ({int(space_prog/space_need*100)}%)" if space_tech_done > 0 else "0/3 techs",
+                        "culture": f"{culture_prog}/{culture_need} ({int(culture_prog/culture_need*100)}%)",
+                        "domination": f"{my_city_count}/{total_cities_all} ({int(domin_pct*100)}%)",
+                    },
+                    "territory": territory,
+                    "improvements": my_imps,
+                    "roads": my_roads,
                     "cities": [{
                         "name": c["name"],
                         "pop": c["population"],

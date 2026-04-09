@@ -4,6 +4,20 @@
 
 ### Latest Changes
 
+**Enhanced Simulation Logging**
+- Per-turn economy: income, maintenance, net profit
+- Per-turn yields: food, prod, science, culture totals
+- Victory progress: space (X/3 techs, X/2000 prod, X%), culture (X/3000, X%), domination (X/Y cities, X%)
+- Territory tile count (every 10 turns)
+- Improvement & road count per player
+- Battle results: who won, HP remaining, damage dealt/taken
+- City capture: who captured what from whom, attacker HP
+- Siege failures: unit lost, city HP remaining
+- Settler wander time: how many turns between creation and founding
+- Settler stuck detection: logged when can't move toward target
+- Elimination: player name, remaining units, turn number
+- Worker improvement yields: shows +food/+prod/+gold for each build
+
 **Czech Kingdom Civilization**
 - Leader: Jan Zizka (Hussite Wars)
 - Trait: industrious (+20% production)
