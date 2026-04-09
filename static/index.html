@@ -76,8 +76,21 @@ body{background:#1a1408;color:#e0e0e0;font-family:'Inter',system-ui,sans-serif;o
 </style>
 </head>
 <body>
-<div id="menu-screen"><canvas id="menu-bg"></canvas><h1>CIVGAME</h1><p class="subtitle">Turn-Based Strategy</p>
-<div class="menu-panel">
+<div id="login-screen" style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;background:#1a1408">
+<h1 style="font-family:'Cinzel',serif;font-size:4rem;background:linear-gradient(135deg,#ffd700,#ff8c00,#ffd700);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:1rem">CIVGAME</h1>
+<div class="menu-panel" style="width:340px">
+<div id="login-form">
+<label>Username</label><input id="auth-user" type="text" style="width:100%;padding:.6rem;margin-bottom:.6rem;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:8px;color:#e0e0e0;font-size:1rem">
+<label>Password</label><input id="auth-pass" type="password" style="width:100%;padding:.6rem;margin-bottom:.8rem;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:8px;color:#e0e0e0;font-size:1rem">
+<button class="btn btn-primary" onclick="doLogin()">Login</button>
+<button class="btn btn-secondary" onclick="doRegister()">Register</button>
+<button class="btn btn-secondary" onclick="playAsGuest()" style="margin-top:.3rem;color:#888">Play as Guest</button>
+<div id="auth-error" style="color:#e74c3c;font-size:.85rem;margin-top:.5rem;text-align:center"></div>
+</div>
+</div>
+</div>
+<div id="menu-screen" style="display:none"><canvas id="menu-bg"></canvas><h1>CIVGAME</h1><p class="subtitle">Turn-Based Strategy</p>
+<div class="menu-panel" style="position:relative"><div id="user-info" style="position:absolute;top:-30px;right:0;font-size:.75rem;color:#8090b0"></div>
 <label>Civilization</label><select id="menu-civ"><option value="rome">Rome +15% Production</option><option value="egypt">Egypt +15% Culture</option><option value="greece">Greece +15% Science</option><option value="china">China +15% Food</option><option value="persia">Persia +15% Gold</option><option value="aztec">Aztec +15% Military</option><option value="japan">Japan +15% Defense</option><option value="czech">Czech +20% Prod & Science</option><option value="mongol">Mongol +15% Movement</option></select>
 <label>Map</label><select id="menu-mapsize"><option value="30,20">Small</option><option value="40,30" selected>Medium</option><option value="55,40">Large</option><option value="130,95">Huge (10x)</option></select>
 <label>Opponents</label><select id="menu-players"><option value="2">1</option><option value="3">2</option><option value="4" selected>3</option><option value="5">4</option><option value="6">5</option></select>
@@ -105,6 +118,7 @@ body{background:#1a1408;color:#e0e0e0;font-family:'Inter',system-ui,sans-serif;o
 <button class="top-btn" style="color:#c490ff;border-color:rgba(196,144,255,.3)" onclick="openDiplomacy()">Diplomacy</button>
 <button class="top-btn" style="color:#60c080;border-color:rgba(96,192,128,.3)" onclick="saveGame()">Save</button>
 <button class="top-btn" style="color:#e07050;border-color:rgba(224,112,80,.3)" onclick="quitGame()">Quit</button>
+<button class="top-btn" style="color:#888;border-color:rgba(136,136,136,.3);font-size:.7rem" onclick="logout()">Logout</button>
 </div>
 <span id="turn-info">Turn 1</span><button id="btn-end-turn" onclick="endTurn()">End Turn</button>
 </div><div id="game-area"><div id="map-container"><canvas id="game-canvas"></canvas><div id="minimap-container"><canvas id="minimap" width="200" height="150"></canvas></div><div id="events-log"></div></div>
@@ -122,6 +136,57 @@ let gameId,state,selectedUnit,selectedCity,pendingSettler,camX=0,camY=0,camZoom=
 // roundRect polyfill for older browsers
 if(!CanvasRenderingContext2D.prototype.roundRect){CanvasRenderingContext2D.prototype.roundRect=function(x,y,w,h,r){r=Math.min(r||0,w/2,h/2);this.beginPath();this.moveTo(x+r,y);this.lineTo(x+w-r,y);this.arcTo(x+w,y,x+w,y+r,r);this.lineTo(x+w,y+h-r);this.arcTo(x+w,y+h,x+w-r,y+h,r);this.lineTo(x+r,y+h);this.arcTo(x,y+h,x,y+h-r,r);this.lineTo(x,y+r);this.arcTo(x,y,x+r,y,r);this.closePath();return this}}
 window.onerror=function(m,s,l){document.title='ERR: '+m;console.error(m,s,l)};
+
+// ======== AUTH ========
+let authToken=localStorage.getItem('civgame_token');
+let currentUser=null;
+
+async function authApi(path,method='GET',body=null){
+    const o={method,headers:{'Content-Type':'application/json'}};
+    if(body)o.body=JSON.stringify(body);
+    if(authToken)o.headers['Authorization']='Bearer '+authToken;
+    return(await fetch(path,o)).json();
+}
+
+// Override api to include auth token
+const _origApi=async function(p,m='GET',b=null){const o={method:m,headers:{'Content-Type':'application/json'}};if(b)o.body=JSON.stringify(b);if(authToken)o.headers['Authorization']='Bearer '+authToken;return(await fetch(p,o)).json()};
+
+async function doLogin(){
+    const u=document.getElementById('auth-user').value,p=document.getElementById('auth-pass').value;
+    const err=document.getElementById('auth-error');
+    try{const r=await authApi('/api/auth/login','POST',{username:u,password:p});
+        if(r.ok){authToken=r.token;currentUser=r.user;localStorage.setItem('civgame_token',r.token);showMenu()}
+        else err.textContent=r.detail||'Login failed'}
+    catch(e){err.textContent='Login failed'}}
+
+async function doRegister(){
+    const u=document.getElementById('auth-user').value,p=document.getElementById('auth-pass').value;
+    const err=document.getElementById('auth-error');
+    try{const r=await authApi('/api/auth/register','POST',{username:u,password:p});
+        if(r.ok){authToken=r.token;currentUser=r.user;localStorage.setItem('civgame_token',r.token);showMenu()}
+        else err.textContent=r.detail||'Registration failed'}
+    catch(e){err.textContent='Registration failed'}}
+
+function playAsGuest(){authToken=null;currentUser=null;localStorage.removeItem('civgame_token');showMenu()}
+
+function showMenu(){
+    document.getElementById('login-screen').style.display='none';
+    document.getElementById('menu-screen').style.display='flex';
+    const ui=document.getElementById('user-info');
+    if(currentUser)ui.textContent=`Logged in as ${currentUser.username} | `;
+    else ui.textContent='Playing as guest | ';
+}
+
+function logout(){authToken=null;currentUser=null;localStorage.removeItem('civgame_token');location.reload()}
+
+// Check token on load
+(async function(){
+    if(authToken){
+        try{const r=await authApi('/api/auth/me');
+            if(r.ok){currentUser=r.user;showMenu();return}}catch(e){}
+        localStorage.removeItem('civgame_token');authToken=null}
+    document.getElementById('login-screen').style.display='flex';
+})();
 
 // Preload sprite images
 const unitImgs={},bldImgs={},terrImgs={};
@@ -146,7 +211,7 @@ function hexP(c,x,y,s){c.beginPath();for(let i=0;i<6;i++){const a=Math.PI/3*i-Ma
 function Hf(a,b){let h=(a*374761393+b*668265263+a*b*131)^0x5bf03635;h=((h>>13)^h)*1274126177;return((h>>16)^h&0x7fffffff)/0x7fffffff}
 
 // ======== API ========
-async function api(p,m='GET',b=null){const o={method:m,headers:{'Content-Type':'application/json'}};if(b)o.body=JSON.stringify(b);return(await fetch(p,o)).json()}
+async function api(p,m='GET',b=null){const o={method:m,headers:{'Content-Type':'application/json'}};if(b)o.body=JSON.stringify(b);if(authToken)o.headers['Authorization']='Bearer '+authToken;return(await fetch(p,o)).json()}
 
 // ======== GAME FLOW ========
 // ======== SIMULATION ========
@@ -257,7 +322,9 @@ async function sentryUnit(){if(!selectedUnit)return;const d=await api(`/api/game
 async function spaceAction(){if(selectedUnit){const d=await api(`/api/game/${gameId}/skip/${selectedUnit}`,'POST');if(d.ok)state=d.state;selectedUnit=null;if(!selectNextUnit()){endTurn()}}else if(!selectNextUnit()){endTurn()}}
 function selectNextUnit(){if(!state)return false;const u=state.units.find(u=>u.player===0&&u.moves_left>0&&!u.fortified&&!u.sentry&&!u.exploring&&!u.goto);if(u){selectedUnit=u.id;selectedCity=null;centerOnTile(u.q,u.r);updatePanel();return true}return false}
 function centerOnTile(q,r){const[px,py]=h2p(q,r);camX=px*camZoom-canvas.width/2;camY=py*camZoom-canvas.height/2}
-async function saveGame(){if(!gameId)return;const d=await api(`/api/game/${gameId}/save`,'POST');if(d.ok)showEvent(d.msg)}
+async function saveGame(){if(!gameId)return;
+    if(currentUser){const d=await api('/api/user/save','POST');if(d.ok)showEvent(d.msg);else showEvent('Save failed')}
+    else{const d=await api(`/api/game/${gameId}/save`,'POST');if(d.ok)showEvent(d.msg)}}
 async function openLoadDialog(){const sv=await api('/api/saves'),c=document.getElementById('load-content');c.innerHTML=sv.length?sv.map(s=>`<div class="save-item" onclick="loadGame('${s.filename}')"><div><b style="color:#c0c8e0">Turn ${s.turn} - ${s.players[0]||'?'}</b><div style="font-size:.8rem;color:#5060a0">${s.width}x${s.height} | ${s.players.length}p</div></div><div style="color:#ffd700">Load</div></div>`).join(''):'<p style="color:#5060a0;text-align:center;padding:2rem">No saves</p>';document.getElementById('load-modal').classList.add('active')}
 function closeLoadDialog(){document.getElementById('load-modal').classList.remove('active')}
 async function loadGame(fn){const d=await api(`/api/load/${fn}`,'POST');gameId=d.game_id;state=d.state;for(const k in tileCache)delete tileCache[k];closeLoadDialog();document.getElementById('menu-screen').style.display='none';document.getElementById('game-screen').style.display='block';setTimeout(()=>{initCanvas();centerOn();requestAnimationFrame(loop);updateUI();selectNextUnit();drawMini();showEvent('Game loaded!')},50)}
@@ -742,6 +809,7 @@ const MP={grass:'#6aa83c',plains:'#dabe52',forest:'#37732a',hills:'#af7841',moun
 function drawMini(){if(!state)return;miniX.fillStyle='#060a14';miniX.fillRect(0,0,200,150);const sc=Math.min(200/state.width,150/state.height);for(const k in state.tiles){const[q,r]=k.split(',').map(Number);miniX.fillStyle=MP[state.tiles[k]]||'#333';miniX.fillRect(q*sc,r*sc,Math.max(2,sc),Math.max(2,sc))}for(const c of state.cities){miniX.fillStyle=state.players.find(p=>p.id===c.player)?.color||'#888';miniX.fillRect(c.q*sc-1,c.r*sc-1,4,4)}const vl=(camX/camZoom)/(S3*S)*sc,vt=(camY/camZoom)/(1.5*S)*sc,vw=(canvas.width/camZoom)/(S3*S)*sc,vh=(canvas.height/camZoom)/(1.5*S)*sc;miniX.strokeStyle='rgba(255,215,0,.6)';miniX.lineWidth=1.5;miniX.strokeRect(vl,vt,vw,vh)}
 miniC.onclick=e=>{const r=miniC.getBoundingClientRect(),sc=Math.min(200/state.width,150/state.height),[px,py]=h2p(Math.round((e.clientX-r.left)/sc),Math.round((e.clientY-r.top)/sc));camX=px*camZoom-canvas.width/2;camY=py*camZoom-canvas.height/2};
 document.getElementById('city-name-input').onkeydown=e=>{if(e.key==='Enter')confirmFoundCity();if(e.key==='Escape')closeCityDialog()};
+document.getElementById('auth-pass').onkeydown=e=>{if(e.key==='Enter')doLogin()};
 </script>
 </body>
 </html>

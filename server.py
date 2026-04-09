@@ -2,25 +2,120 @@
 FastAPI server for Civilization-like web game
 """
 import json
-import os
 from pathlib import Path
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request, Depends
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from typing import Optional
 from game_engine import GameState, CIVILIZATIONS
 import config_loader
-config_loader.start_watcher(interval=2)  # check every 2 seconds
+import auth
+
+config_loader.start_watcher(interval=2)
 
 SAVE_DIR = Path("saves")
 SAVE_DIR.mkdir(exist_ok=True)
 
 app = FastAPI(title="CivGame")
 
-# Global game state
-games = {}
+# Per-user game state: user_id -> {game_id -> GameState}
+user_games = {}
 next_game_id = 1
+# Legacy compat
+games = {}
+
+
+class AuthRequest(BaseModel):
+    username: str
+    password: str
+
+
+def get_user(request: Request):
+    """Extract user from Authorization header. Returns user dict or None."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    if not token:
+        return None
+    return auth.verify_token(token)
+
+
+def require_user(request: Request):
+    """Require authenticated user. Raises 401 if not."""
+    user = get_user(request)
+    if not user:
+        raise HTTPException(401, "Not authenticated")
+    return user
+
+
+# ---- AUTH ENDPOINTS ----
+
+@app.post("/api/auth/register")
+def api_register(req: AuthRequest):
+    try:
+        user = auth.register(req.username, req.password)
+        token = auth.login(req.username, req.password)
+        return {"ok": True, "user": user, "token": token}
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+@app.post("/api/auth/login")
+def api_login(req: AuthRequest):
+    try:
+        token = auth.login(req.username, req.password)
+        user = auth.verify_token(token)
+        return {"ok": True, "user": user, "token": token}
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+@app.get("/api/auth/me")
+def api_me(request: Request):
+    user = get_user(request)
+    if not user:
+        raise HTTPException(401, "Not authenticated")
+    return {"ok": True, "user": user}
+
+
+# ---- USER SAVES ----
+
+@app.post("/api/user/save")
+def api_user_save(request: Request):
+    user = require_user(request)
+    uid = user["id"]
+    # Get active game
+    if uid not in user_games or not user_games[uid]:
+        raise HTTPException(400, "No active game")
+    gid = max(user_games[uid].keys())
+    game = user_games[uid][gid]
+    save_data = game.save_full()
+    save_data["_game_id"] = gid
+    auth.save_game(uid, f"save_{gid}", save_data, game.turn)
+    return {"ok": True, "msg": f"Game saved (Turn {game.turn})"}
+
+
+@app.get("/api/user/saves")
+def api_user_saves(request: Request):
+    user = require_user(request)
+    return auth.list_saves(user["id"])
+
+
+@app.post("/api/user/load/{save_id}")
+def api_user_load(save_id: int, request: Request):
+    global next_game_id
+    user = require_user(request)
+    data = auth.load_save(user["id"], save_id)
+    if not data:
+        raise HTTPException(404, "Save not found")
+    gid = next_game_id
+    next_game_id += 1
+    game = GameState.load_full(data)
+    if user["id"] not in user_games:
+        user_games[user["id"]] = {}
+    user_games[user["id"]][gid] = game
+    # Also add to legacy games for API compat
+    games[gid] = game
+    return {"game_id": gid, "state": game.to_dict(for_player=0)}
 
 
 class NewGameRequest(BaseModel):
@@ -81,7 +176,7 @@ class SimulateRequest(BaseModel):
 # ----------------------------------------------------------
 
 @app.post("/api/new_game")
-def new_game(req: NewGameRequest):
+def new_game(req: NewGameRequest, request: Request):
     global next_game_id
     gid = next_game_id
     next_game_id += 1
@@ -89,7 +184,6 @@ def new_game(req: NewGameRequest):
     game = GameState(width=req.width, height=req.height,
                      num_players=req.num_players, seed=req.seed)
 
-    # Set player civ if requested
     if req.civ in CIVILIZATIONS:
         game.players[0]["civ"] = req.civ
         game.players[0]["name"] = CIVILIZATIONS[req.civ]["name"]
@@ -97,6 +191,13 @@ def new_game(req: NewGameRequest):
         game.players[0]["leader"] = CIVILIZATIONS[req.civ]["leader"]
 
     games[gid] = game
+    # Associate with user if logged in
+    user = get_user(request)
+    if user:
+        uid = user["id"]
+        if uid not in user_games:
+            user_games[uid] = {}
+        user_games[uid][gid] = game
     return {"game_id": gid, "state": game.to_dict(for_player=0)}
 
 

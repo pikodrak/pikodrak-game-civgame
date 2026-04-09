@@ -4,6 +4,15 @@
 
 ### Latest Changes
 
+**User Authentication System**
+- SQLite database (civgame.db) with users and saves tables
+- bcrypt password hashing, JWT tokens (30-day expiry)
+- Login/Register screen before main menu
+- "Play as Guest" option (no account needed)
+- Per-user game saves (API: /api/user/save, /api/user/saves, /api/user/load/{id})
+- Auth token in all API calls, Logout button in game
+- Enter key submits login form
+
 **Critical fixes from screenshot analysis**
 - FIXED: Terrain rendering was catastrophically broken (rotation/offset/scale removed)
 - 4 variants per terrain type — position-based selection, no two adjacent hexes identical
