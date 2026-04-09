@@ -41,6 +41,28 @@ def init_db():
             active INTEGER DEFAULT 1,
             FOREIGN KEY (user_id) REFERENCES users(id)
         );
+        CREATE TABLE IF NOT EXISTS game_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            game_id INTEGER NOT NULL,
+            user_id INTEGER,
+            turn INTEGER NOT NULL,
+            player_id INTEGER,
+            action TEXT NOT NULL,
+            detail TEXT,
+            timestamp REAL NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS active_games (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            game_id INTEGER UNIQUE NOT NULL,
+            user_id INTEGER,
+            username TEXT,
+            width INTEGER,
+            height INTEGER,
+            num_players INTEGER,
+            turn INTEGER DEFAULT 1,
+            started_at REAL NOT NULL,
+            last_action REAL
+        );
         CREATE TABLE IF NOT EXISTS saves (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id INTEGER NOT NULL,
@@ -211,6 +233,62 @@ def delete_save(user_id, save_id):
     conn.execute("DELETE FROM saves WHERE id = ? AND user_id = ?", (save_id, user_id))
     conn.commit()
     conn.close()
+
+
+# ---- GAME LOGGING ----
+
+def log_action(game_id, turn, player_id, action, detail=None, user_id=None):
+    """Log a game action."""
+    import json
+    conn = get_db()
+    conn.execute("INSERT INTO game_logs (game_id, user_id, turn, player_id, action, detail, timestamp) VALUES (?,?,?,?,?,?,?)",
+                  (game_id, user_id, turn, player_id, action,
+                   json.dumps(detail) if isinstance(detail, dict) else str(detail) if detail else None,
+                   time.time()))
+    conn.commit()
+    conn.close()
+
+
+def register_active_game(game_id, user_id, username, width, height, num_players):
+    """Register a game as active for spectating."""
+    conn = get_db()
+    conn.execute(
+        "INSERT OR REPLACE INTO active_games (game_id, user_id, username, width, height, num_players, started_at, last_action) VALUES (?,?,?,?,?,?,?,?)",
+        (game_id, user_id, username, width, height, num_players, time.time(), time.time()))
+    conn.commit()
+    conn.close()
+
+
+def update_active_game(game_id, turn):
+    """Update turn and last_action for active game."""
+    conn = get_db()
+    conn.execute("UPDATE active_games SET turn = ?, last_action = ? WHERE game_id = ?",
+                  (turn, time.time(), game_id))
+    conn.commit()
+    conn.close()
+
+
+def list_active_games():
+    """List all active games for spectating."""
+    conn = get_db()
+    rows = conn.execute("SELECT * FROM active_games ORDER BY last_action DESC").fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def get_game_log(game_id, from_turn=0, limit=200):
+    """Get game log entries."""
+    conn = get_db()
+    rows = conn.execute(
+        "SELECT * FROM game_logs WHERE game_id = ? AND turn >= ? ORDER BY id DESC LIMIT ?",
+        (game_id, from_turn, limit)).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def is_admin(username):
+    """Check if user is admin (pikodrak)."""
+    return username == "pikodrak"
 
 
 # Initialize DB on import

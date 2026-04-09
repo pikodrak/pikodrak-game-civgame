@@ -318,6 +318,38 @@ def ai_map_info(game_id: int):
 
 from game_engine import hex_neighbors, hex_distance, Terrain, IMPROVEMENTS, TERRAIN_YIELDS
 
+# ---- SPECTATOR MODE (admin only) ----
+
+@app.get("/api/spectate/games")
+def spectate_games(request: Request):
+    """List active games for spectating (admin only)."""
+    user = get_user(request)
+    if not user or not auth.is_admin(user["username"]):
+        raise HTTPException(403, "Admin only")
+    return auth.list_active_games()
+
+@app.get("/api/spectate/game/{game_id}")
+def spectate_game(game_id: int, request: Request):
+    """Get full game state for spectating (admin only, no fog)."""
+    user = get_user(request)
+    if not user or not auth.is_admin(user["username"]):
+        raise HTTPException(403, "Admin only")
+    game = games.get(game_id)
+    if not game:
+        raise HTTPException(404, "Game not found")
+    state = game.to_dict(for_player=None)
+    state["improvements"] = {f"{q},{r}": v for (q, r), v in game.improvements.items()}
+    state["roads"] = {f"{q},{r}": v for (q, r), v in game.roads.items()}
+    return state
+
+@app.get("/api/spectate/log/{game_id}")
+def spectate_log(game_id: int, from_turn: int = 0, request: Request = None):
+    """Get game action log (admin only)."""
+    user = get_user(request)
+    if not user or not auth.is_admin(user["username"]):
+        raise HTTPException(403, "Admin only")
+    return auth.get_game_log(game_id, from_turn)
+
 class NewGameRequest(BaseModel):
     width: int = 40
     height: int = 30
@@ -398,6 +430,8 @@ def new_game(req: NewGameRequest, request: Request):
         if uid not in user_games:
             user_games[uid] = {}
         user_games[uid][gid] = game
+        auth.register_active_game(gid, uid, user["username"], req.width, req.height, req.num_players)
+    auth.log_action(gid, 1, 0, "new_game", {"width": req.width, "height": req.height, "players": req.num_players, "civ": req.civ})
     return {"game_id": gid, "state": game.to_dict(for_player=0)}
 
 
@@ -425,6 +459,7 @@ def move_unit(game_id: int, req: MoveRequest):
     if not game:
         raise HTTPException(404, "Game not found")
     result = game.move_unit(req.unit_id, req.q, req.r)
+    auth.log_action(game_id, game.turn, 0, "move", {"unit_id": req.unit_id, "to": [req.q, req.r], "result": result.get("msg", "")})
     result["state"] = game.to_dict(for_player=0)
     return result
 
@@ -475,6 +510,7 @@ def set_production(game_id: int, req: ProductionRequest):
     if not game:
         raise HTTPException(404, "Game not found")
     result = game.set_production(req.city_id, req.item_type, req.item_name)
+    auth.log_action(game_id, game.turn, 0, "production", {"city_id": req.city_id, "type": req.item_type, "name": req.item_name})
     result["state"] = game.to_dict(for_player=0)
     return result
 
@@ -485,6 +521,7 @@ def set_research(game_id: int, req: ResearchRequest):
     if not game:
         raise HTTPException(404, "Game not found")
     result = game.set_research(0, req.tech_name)
+    auth.log_action(game_id, game.turn, 0, "research", {"tech": req.tech_name})
     result["state"] = game.to_dict(for_player=0)
     return result
 
@@ -535,6 +572,8 @@ def end_turn(game_id: int):
     if not game:
         raise HTTPException(404, "Game not found")
     result = game.end_turn()
+    auth.log_action(game_id, game.turn, 0, "end_turn", {"events": result.get("events", [])[:10]})
+    auth.update_active_game(game_id, game.turn)
     result["state"] = game.to_dict(for_player=0)
     return result
 
@@ -552,6 +591,7 @@ def diplomacy(game_id: int, req: DiplomacyRequest):
         game.form_alliance(0, req.target_player)
     elif req.action == "break_alliance":
         game.break_alliance(0, req.target_player)
+    auth.log_action(game_id, game.turn, 0, "diplomacy", {"target": req.target_player, "action": req.action})
     return {"ok": True, "state": game.to_dict(for_player=0)}
 
 

@@ -4,6 +4,16 @@
 
 ### Latest Changes
 
+**Game Logging + Spectator Mode**
+- All game actions logged to SQLite: move, end_turn, production, research, diplomacy
+- Active games registered in DB with user, size, turn, timestamp
+- Spectator mode (admin pikodrak only):
+  - "View Active Games" in My Account panel
+  - Lists all active games with player, size, turn, age
+  - "Watch" button loads game state without fog of war
+  - Auto-refreshes every 3 seconds to see live gameplay
+- Admin API: GET /api/spectate/games, /api/spectate/game/{id}, /api/spectate/log/{id}
+
 **My Account Panel**
 - "My Account" button in main menu (only for logged-in users)
 - Saved Games list: load any save with one click

@@ -237,6 +237,11 @@ async function openAccount(){
     <div style="margin-top:.3rem">Header: <code>Authorization: Bearer civ_xxx...</code></div>
     </div></div>`;
 
+    // Admin: spectator
+    if(currentUser&&currentUser.username==='pikodrak'){
+        h+=`<div class="panel-section"><h3>Spectator Mode (Admin)</h3>
+        <button class="action-btn" onclick="openSpectator()">View Active Games</button></div>`}
+
     h+=`<button class="btn btn-secondary" onclick="logout()" style="color:#e74c3c;border-color:rgba(224,80,80,.3);margin-top:.5rem">Logout</button>`;
 
     document.getElementById('account-content').innerHTML=h;
@@ -246,6 +251,30 @@ function closeAccount(){document.getElementById('account-modal').classList.remov
 async function loadUserSave(sid){closeAccount();const d=await api(`/api/user/load/${sid}`,'POST');if(d.game_id){gameId=d.game_id;state=d.state;for(const k in tileCache)delete tileCache[k];document.getElementById('menu-screen').style.display='none';document.getElementById('game-screen').style.display='block';setTimeout(()=>{initCanvas();centerOn();requestAnimationFrame(loop);updateUI();selectNextUnit();drawMini();showEvent('Game loaded!')},50)}}
 async function createToken(){const name=prompt('Token name (e.g. my-ai-bot):','ai-bot');if(!name)return;const d=await api('/api/auth/token','POST',{name});if(d.ok){alert('Token created!\\n\\nCopy this token (shown only once):\\n\\n'+d.token);openAccount()}else alert('Error creating token')}
 async function revokeToken(tid){if(!confirm('Revoke this token?'))return;await api(`/api/auth/token/${tid}`,'DELETE');openAccount()}
+async function openSpectator(){
+    try{const games=await api('/api/spectate/games');
+    let h='<h3>Active Games</h3>';
+    if(!games.length)h+='<p style="color:#6a7a9a">No active games</p>';
+    for(const g of games){
+        const age=Math.floor((Date.now()/1000-g.started_at)/60);
+        h+=`<div class="save-item"><div><b style="color:#c0c8e0">${g.username||'guest'} — Game #${g.game_id}</b>
+        <div style="font-size:.78rem;color:#5a6a8a">${g.width}x${g.height} | ${g.num_players}p | Turn ${g.turn} | ${age}min ago</div></div>
+        <button class="action-btn" onclick="spectateGame(${g.game_id})">Watch</button></div>`}
+    document.getElementById('account-content').innerHTML=h+'<br><button class="action-btn" onclick="openAccount()">Back</button>';
+    }catch(e){alert('Error: '+e.message)}}
+async function spectateGame(gid){
+    try{const d=await api(`/api/spectate/game/${gid}`);
+    closeAccount();state=d;gameId=gid;
+    for(const k in tileCache)delete tileCache[k];
+    document.getElementById('menu-screen').style.display='none';
+    document.getElementById('game-screen').style.display='block';
+    setTimeout(()=>{initCanvas();centerOn();requestAnimationFrame(loop);updateUI();updatePanel();drawMini();showEvent('Spectating game #'+gid)},50);
+    // Auto-refresh every 3 seconds
+    if(window._spectateInterval)clearInterval(window._spectateInterval);
+    window._spectateInterval=setInterval(async()=>{
+        try{const s=await api(`/api/spectate/game/${gid}`);state=s;for(const k in tileCache)delete tileCache[k];updateUI();drawMini()}catch(e){clearInterval(window._spectateInterval)}
+    },3000);
+    }catch(e){alert('Error: '+e.message)}}
 
 // Check token on load
 (async function(){
