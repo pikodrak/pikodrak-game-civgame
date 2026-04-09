@@ -4,6 +4,12 @@
 
 ### Latest Changes
 
+**Unit Upgrades & City Defense**
+- Unit upgrade system: warrior→swordsman→musketman→rifleman→infantry (and mounted/naval chains)
+- Upgrades happen in own cities, cost half of unit price
+- AI upgrades obsolete units when gold allows (~57 upgrades per game)
+- City defense: units rush to defend cities when enemies within 3 hexes (~63 defends per game)
+
 **Continued AI Tuning (2nd analysis round)**
 - Score victory: highest score wins if no other victory by turn limit
 - Space tech rush: if 1+ space techs done, remaining get 70% cost discount

@@ -1465,6 +1465,9 @@ class GameState:
                 self.break_alliance(pid, other["id"])
                 self._log_ai(pid, f"DIPLO: broke alliance with {other['name']} (disloyal)")
 
+        # Upgrade obsolete units
+        self._ai_upgrade_units(pid)
+
         # Research: strategy-weighted tech selection
         if not player["researching"]:
             strategy = player.get("strategy", "balanced")
@@ -1743,6 +1746,42 @@ class GameState:
             if not udata["tech"] or udata["tech"] in player["techs"]:
                 return uname
         return "warrior"
+
+    def _ai_upgrade_units(self, pid):
+        """Upgrade obsolete units in cities (costs gold)."""
+        player = self.players[pid]
+        if player["gold"] < 50:
+            return
+        upgrade_path = {
+            "warrior": "swordsman", "swordsman": "musketman", "musketman": "rifleman",
+            "rifleman": "infantry", "spearman": "musketman",
+            "archer": "musketman", "horseman": "knight", "knight": "tank",
+            "catapult": "artillery", "galley": "caravel", "caravel": "ironclad",
+        }
+        for u in list(self.units.values()):
+            if u["player"] != pid or u["cat"] == "civilian":
+                continue
+            upgrade_to = upgrade_path.get(u["type"])
+            if not upgrade_to or upgrade_to not in UNIT_TYPES:
+                continue
+            udata = UNIT_TYPES[upgrade_to]
+            if udata["tech"] and udata["tech"] not in player["techs"]:
+                continue
+            # Must be in own city to upgrade
+            in_city = any(c["q"] == u["q"] and c["r"] == u["r"] and c["player"] == pid
+                          for c in self.cities.values())
+            if not in_city:
+                continue
+            cost = udata["cost"] // 2  # half price for upgrade
+            if player["gold"] >= cost:
+                player["gold"] -= cost
+                old_type = u["type"]
+                u["type"] = upgrade_to
+                u["atk"] = udata["atk"]
+                u["def"] = udata["def"]
+                u["mov"] = udata["mov"]
+                u["cat"] = udata["cat"]
+                self._log_ai(pid, f"UPGRADE: {old_type} → {upgrade_to} at ({u['q']},{u['r']}) cost={cost}g")
 
     def _ai_spy_move(self, unit, pid):
         """Move spy toward nearest enemy city."""
@@ -2099,6 +2138,18 @@ class GameState:
             if hex_distance(unit["q"], unit["r"], target["q"], target["r"]) < attack_range:
                 self._ai_step_toward(unit, target["q"], target["r"])
                 return
+
+        # Defend threatened cities — rush to closest city with enemy nearby
+        for city in my_cities:
+            enemies_near_city = [u for u in self.units.values()
+                                 if u["player"] != pid and u["cat"] != "civilian"
+                                 and hex_distance(u["q"], u["r"], city["q"], city["r"]) <= 3]
+            if enemies_near_city:
+                d = hex_distance(unit["q"], unit["r"], city["q"], city["r"])
+                if d <= 8:
+                    self._log_ai(pid, f"DEFEND: {unit['type']} rushing to {city['name']} (enemies near)")
+                    self._ai_step_toward(unit, city["q"], city["r"])
+                    return
 
         # Default: patrol near own cities
         if my_cities:
