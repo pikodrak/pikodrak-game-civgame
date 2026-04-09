@@ -399,29 +399,25 @@ function renderTile(c,type,q,r){
     if(tImg&&tImg.complete&&tImg.naturalWidth>0){
         hexP(c,0,0,S);c.save();c.clip();
         // Offset + scale variation so tiles don't repeat identically
+        c.save();
         const ox=(h1-.5)*S*.4, oy=(h2-.5)*S*.4, sc=1.0+h3*.15;
         c.translate(ox,oy);c.scale(sc,sc);
-        // Random rotation (0, 60, 120, 180, 240, 300 deg)
         const rot=((q*7+r*13)%6)*Math.PI/3;
         c.rotate(rot);
         c.drawImage(tImg,-S,-S,S*2,S*2);
-        c.setTransform(1,0,0,1,0,0);  // reset
-        // Re-clip after transform reset — apply color variation
-        hexP(c,0,0,S);c.save();c.clip();
+        c.restore();  // undo translate/scale/rotate
         // Brightness variation
         const bright=(h1-.5)*0.12;
         c.globalAlpha=Math.abs(bright);
         c.fillStyle=bright>0?'rgba(255,250,220,.3)':'rgba(0,0,20,.25)';
         c.fillRect(-S,-S,S*2,S*2);
-        c.restore();
-        c.restore();
+        c.restore();  // undo clip
         // Hex border
         hexP(c,0,0,S);c.strokeStyle='rgba(30,25,10,.18)';c.lineWidth=.8;c.stroke();
         return;
     }
-    const h1=Hf(q,r),h2=Hf(q+999,r+777);
+    // Fallback procedural rendering
     const base=TPAL[type]||[80,80,80];
-    // Flat fill with very subtle variation
     const j=(h1-.5)*6;
     hexP(c,0,0,S);
     c.fillStyle=`rgb(${base[0]+j|0},${base[1]+j|0},${base[2]+j|0})`;
