@@ -473,6 +473,22 @@ def api_rules():
         "technologies": TECHNOLOGIES,
         "improvements": IMPROVEMENTS,
 
+        "roads_and_railroads": {
+            "road": {
+                "build_time": "3 turns",
+                "movement_bonus": "Halves terrain movement cost (forest 2→1, hills 2→1)",
+                "yield_bonus": "None",
+                "connects_cities": "Workers auto-build roads between cities via BFS path",
+            },
+            "railroad": {
+                "build_time": "4 turns",
+                "tech_required": "railroad",
+                "movement_bonus": "Reduces terrain movement cost to 1/3 (forest 2→1, hills 2→1)",
+                "yield_bonus": "+1 production per tile",
+                "upgrades_from": "road (worker auto-upgrades when tech available)",
+            },
+        },
+
         "city_mechanics": {
             "founding": {
                 "min_distance": 3,

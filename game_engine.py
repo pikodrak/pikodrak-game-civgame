@@ -720,6 +720,13 @@ class GameState:
             return {"ok": False, "msg": "Naval units stay in water"}
 
         move_cost = TERRAIN_MOVE_COST.get(terrain, 1)
+        # Roads reduce movement cost
+        road = self.roads.get((target_q, target_r))
+        if road:
+            if road["type"] == "railroad":
+                move_cost = max(1, move_cost // 3)  # railroad: 1/3 cost (min 1)
+            else:
+                move_cost = max(1, move_cost // 2)  # road: 1/2 cost (min 1)
         if unit["moves_left"] < move_cost and unit["moves_left"] < unit["mov"]:
             return {"ok": False, "msg": "Not enough movement"}
 
