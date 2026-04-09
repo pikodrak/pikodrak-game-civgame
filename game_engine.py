@@ -657,7 +657,7 @@ class GameState:
         if unit["moves_left"] < move_cost and unit["moves_left"] < unit["mov"]:
             return {"ok": False, "msg": "Not enough movement"}
 
-        # Territory check — only alliance allows passage, everything else = war
+        # Territory check — only alliance allows passage
         territory_owner = self.get_tile_owner(target_q, target_r)
         if territory_owner is not None and territory_owner != unit["player"]:
             rel = self.players[unit["player"]]["diplomacy"].get(territory_owner, "peace")
@@ -666,7 +666,13 @@ class GameState:
             elif rel == "war":
                 pass  # already at war, enter to fight
             else:
-                # peace or neutral — entering territory is act of war
+                # Human player: block and ask for confirmation
+                if self.players[unit["player"]].get("is_human"):
+                    return {"ok": False, "needs_war": True,
+                            "war_target": territory_owner,
+                            "war_target_name": self.players[territory_owner]["name"],
+                            "msg": f"Enter {self.players[territory_owner]['name']} territory? This means WAR!"}
+                # AI: auto-declare war
                 self.declare_war(unit["player"], territory_owner)
                 self._log_ai(unit["player"], f"DIPLO: entered {self.players[territory_owner]['name']} territory — WAR!")
 
@@ -675,11 +681,14 @@ class GameState:
                        if u["q"] == target_q and u["r"] == target_r and u["player"] != unit["player"]]
 
         if enemy_units:
-            # Combat!
             defender = enemy_units[0]
-            rel = self.players[unit["player"]]["diplomacy"].get(defender["player"], "neutral")
+            rel = self.players[unit["player"]]["diplomacy"].get(defender["player"], "peace")
             if rel != "war":
-                # Auto declare war
+                if self.players[unit["player"]].get("is_human"):
+                    return {"ok": False, "needs_war": True,
+                            "war_target": defender["player"],
+                            "war_target_name": self.players[defender["player"]]["name"],
+                            "msg": f"Attack {self.players[defender['player']]['name']}? This means WAR!"}
                 self.declare_war(unit["player"], defender["player"])
             return self._combat(unit, defender)
 
@@ -688,8 +697,13 @@ class GameState:
                         if c["q"] == target_q and c["r"] == target_r and c["player"] != unit["player"]]
         if enemy_cities and unit["cat"] != "civilian":
             city = enemy_cities[0]
-            rel = self.players[unit["player"]]["diplomacy"].get(city["player"], "neutral")
+            rel = self.players[unit["player"]]["diplomacy"].get(city["player"], "peace")
             if rel != "war":
+                if self.players[unit["player"]].get("is_human"):
+                    return {"ok": False, "needs_war": True,
+                            "war_target": city["player"],
+                            "war_target_name": self.players[city["player"]]["name"],
+                            "msg": f"Attack {city['name']}? This means WAR with {self.players[city['player']]['name']}!"}
                 self.declare_war(unit["player"], city["player"])
             return self._attack_city(unit, city)
 

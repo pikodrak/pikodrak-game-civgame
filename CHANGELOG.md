@@ -4,6 +4,12 @@
 
 ### Latest Changes
 
+**War Confirmation Popup**
+- Human player entering foreign territory → confirm dialog "This means WAR!"
+- Attacking non-war unit/city → same confirm dialog
+- Only after player confirms, war is declared and move executed
+- AI auto-declares war (no popup)
+
 **Alliance & Territory System**
 - 4 diplomatic states: **war** / **peace** / **alliance** / neutral
 - Alliance = mutual free passage through territory + formed against common enemies
