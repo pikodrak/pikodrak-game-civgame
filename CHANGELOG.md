@@ -4,6 +4,14 @@
 
 ### Latest Changes
 
+**My Account Panel**
+- "My Account" button in main menu (only for logged-in users)
+- Saved Games list: load any save with one click
+- API Tokens: create, view (click to copy), revoke tokens
+- API Reference: inline documentation of all AI endpoints
+- Logout button
+- Token creation shows full token in alert (copy once)
+
 **AI API: Full Game Control via REST**
 - API tokens: persistent tokens per user (civ_xxx...), stored in DB
 - Endpoints: POST /api/auth/token (create), GET /api/auth/tokens (list), DELETE /api/auth/token/{id} (revoke)
