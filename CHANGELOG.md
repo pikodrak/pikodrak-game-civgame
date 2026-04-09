@@ -4,6 +4,17 @@
 
 ### Latest Changes
 
+**PNG Sprite Graphics System**
+- 21 unit sprites (64x64 pixel art PNGs) — warrior through ironclad
+- 15 building icons (48x48 PNGs) — palace through nuclear_plant
+- 8 terrain tiles (64x64 PNGs) — grass, plains, forest, hills, mountain, desert, water, coast
+- All generated via Python PIL in Civ II modern pixel-art style
+- Frontend loads PNGs with canvas fallback if image not ready
+- Production panel shows unit/building icons next to names
+- Building list in city panel shows icons
+- Terrain tiles rendered as hex-clipped PNGs with per-tile variation
+- All icon paths in game_config.ini (icon = static/img/...)
+
 **Strategy-Victory Alignment & Conqueror Buff**
 - Strategy-victory alignment improved: 60% → 67%
 - Conqueror strategy: +15% war chance (vs 8%), earlier domination urgency at 30%+ cities
