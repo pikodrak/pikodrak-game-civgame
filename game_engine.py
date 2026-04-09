@@ -1073,6 +1073,10 @@ class GameState:
         unit = self.units.get(unit_id)
         if not unit or unit["player"] != self.current_player:
             return {"ok": False, "msg": "Not your unit"}
+        if q < 0 or q >= self.width or r < 0 or r >= self.height:
+            return {"ok": False, "msg": "Target off map"}
+        if not self.tiles.get((q, r)):
+            return {"ok": False, "msg": "Invalid target"}
         unit["goto"] = {"q": q, "r": r}
         unit["fortified"] = False
         unit["sentry"] = False
