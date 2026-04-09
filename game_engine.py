@@ -1480,6 +1480,9 @@ class GameState:
                 "expansionist": ["agriculture", "pottery", "writing", "construction"],
             }
             prio_list = priority_techs.get(strategy, [])
+            # Dynamic priority: if close to space victory, rush remaining space techs
+            space_techs_needed = ["space_program", "rocketry", "nuclear_fission"]
+            space_done = sum(1 for t in space_techs_needed if t in player["techs"])
             for tname, tdata in TECHNOLOGIES.items():
                 if tname in player["techs"]:
                     continue
@@ -1487,7 +1490,10 @@ class GameState:
                     cost = tdata["cost"]
                     # Discount priority techs
                     if tname in prio_list:
-                        cost = int(cost * 0.5)  # appears cheaper → researched first
+                        cost = int(cost * 0.5)
+                    # Rush remaining space techs if close to space victory
+                    if space_done >= 1 and tname in space_techs_needed:
+                        cost = int(cost * 0.3)  # massive discount
                     available.append((cost, tname))
             if available:
                 available.sort()
@@ -1599,6 +1605,13 @@ class GameState:
             mil_score -= 5   # Japan prefers buildings over units
         if game_phase > 0.6:
             mil_score += 10
+        # Domination urgency — boost military if close to domination victory
+        total_cities_all = len(self.cities)
+        my_city_count_now = len(my_cities)
+        if total_cities_all >= 4:
+            domin_pct = my_city_count_now / total_cities_all
+            if domin_pct >= 0.4:
+                mil_score += 25  # push for domination!
         # Diminishing returns: strong penalty when already have lots of units
         if len(my_military) > len(my_cities) * 3:
             mil_score -= (len(my_military) - len(my_cities) * 3) * 8
@@ -2429,8 +2442,16 @@ class GameState:
 
             game.turn += 1
 
+        # Score victory — if no winner, highest score wins
+        if not game.game_over:
+            alive = [p for p in game.players if p["alive"]]
+            if alive:
+                best = max(alive, key=lambda p: p["score"])
+                game.game_over = True
+                game.winner = best["id"]
+                log["turns"][-1]["events"].append(f"{best['name']} achieves SCORE victory! ({best['score']} pts)")
+
         # Final result
-        alive = [p for p in game.players if p["alive"]]
         log["result"] = {
             "game_over": game.game_over,
             "winner": game.players[game.winner]["name"] if game.winner is not None else None,

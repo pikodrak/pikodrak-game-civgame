@@ -4,6 +4,12 @@
 
 ### Latest Changes
 
+**Continued AI Tuning (2nd analysis round)**
+- Score victory: highest score wins if no other victory by turn limit
+- Space tech rush: if 1+ space techs done, remaining get 70% cost discount
+- Domination urgency: +25 military score when controlling 40%+ cities
+- 15/15 games won, 3 victory types all active, 5 strategies winning
+
 **AI Fixes Based on Log Analysis (7 problems fixed)**
 1. **Economy disaster** (gold -1206): aggressive bankruptcy — disband multiple units at once based on debt depth
 2. **Settler stuck** (109 events → 0): settlers now try settling at current location when stuck, or random move to get unstuck
