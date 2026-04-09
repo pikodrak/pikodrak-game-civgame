@@ -4,6 +4,12 @@
 
 ### Latest Changes
 
+**Strategy-Victory Alignment & Conqueror Buff**
+- Strategy-victory alignment improved: 60% → 67%
+- Conqueror strategy: +15% war chance (vs 8%), earlier domination urgency at 30%+ cities
+- Conqueror tech priorities expanded: added industrialization, flight
+- All 4 victory types active: space 6, domination 3, culture 3, score 3
+
 **Combat & AI Iteration 3 (based on battle analysis)**
 - Combat damage increased: 30+10/30+5 → 50+15/40+10 (battles 60% more decisive)
 - Draw ratio dropped: 867→354 (29% win rate → 46%)

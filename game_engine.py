@@ -1424,7 +1424,10 @@ class GameState:
                     self.make_peace(pid, other["id"])
                     self._log_ai(pid, f"DIPLO: peace with {other['name']} (outmatched {len(my_military)} vs {other_military})")
             elif rel == "neutral":
-                if len(my_military) > other_military * 1.3 and random.random() < aggression * 0.08:
+                war_chance = aggression * 0.08
+                if player.get("strategy") == "conqueror":
+                    war_chance = aggression * 0.15  # conquerors are more warlike
+                if len(my_military) > other_military * 1.3 and random.random() < war_chance:
                     self.declare_war(pid, other["id"])
                     self._log_ai(pid, f"DIPLO: WAR on {other['name']} (stronger {len(my_military)} vs {other_military}, aggr={aggression})")
             elif rel == "peace":
@@ -1474,7 +1477,7 @@ class GameState:
             available = []
             # Priority techs by strategy
             priority_techs = {
-                "conqueror": ["bronze_working", "iron_working", "horseback", "feudalism", "gunpowder", "dynamite"],
+                "conqueror": ["bronze_working", "iron_working", "horseback", "feudalism", "gunpowder", "dynamite", "industrialization", "flight"],
                 "warmonger": ["archery", "bronze_working", "iron_working", "gunpowder", "dynamite", "flight"],
                 "turtle": ["construction", "engineering", "education", "astronomy", "electricity", "nuclear_fission", "rocketry", "space_program"],
                 "builder": ["mining", "construction", "engineering", "industrialization", "steam_power", "railroad", "rocketry", "space_program"],
@@ -1614,7 +1617,9 @@ class GameState:
         if total_cities_all >= 4:
             domin_pct = my_city_count_now / total_cities_all
             if domin_pct >= 0.4:
-                mil_score += 25  # push for domination!
+                mil_score += 25
+            if strategy in ("conqueror",) and domin_pct >= 0.3:
+                mil_score += 20  # conquerors push earlier for domination
         # Diminishing returns: strong penalty when already have lots of units
         if len(my_military) > len(my_cities) * 3:
             mil_score -= (len(my_military) - len(my_cities) * 3) * 8
