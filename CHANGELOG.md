@@ -4,6 +4,14 @@
 
 ### Latest Changes
 
+**BFS pathfinding, worker manual build, unit panel redesign**
+- BFS pathfinding replaces greedy step — units navigate around mountains/water
+- Goto/explore now finds real paths instead of getting stuck
+- Worker manual build: Farm, Mine, Mill, Road, Rail, Trade buttons
+- Unit panel redesign: icon (48x48), position & terrain, building status
+- Next Unit button (Tab) to cycle through active units
+- Shows active unit count, terrain type, building progress
+
 **Bug fixes: naval, disband, borders**
 - Naval units only buildable in coastal cities (adjacent water required)
 - Disband button (Del key) — delete unit with confirmation

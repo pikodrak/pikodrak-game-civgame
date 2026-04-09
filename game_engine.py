@@ -1131,19 +1131,8 @@ class GameState:
                     if u["q"] == tgt["q"] and u["r"] == tgt["r"]:
                         u["goto"] = None
                         break
-                    # Find best adjacent hex toward target
-                    best = None
-                    best_d = hex_distance(u["q"], u["r"], tgt["q"], tgt["r"])
-                    for nq, nr in hex_neighbors(u["q"], u["r"]):
-                        t = self.tiles.get((nq, nr))
-                        if t is None or t == Terrain.MOUNTAIN:
-                            continue
-                        if t in (Terrain.WATER, Terrain.COAST) and u["cat"] not in ("naval", "air"):
-                            continue
-                        d = hex_distance(nq, nr, tgt["q"], tgt["r"])
-                        if d < best_d or d == 0:
-                            best_d = d
-                            best = (nq, nr)
+                    # BFS pathfinding toward target
+                    best = self._find_path_next(u, tgt["q"], tgt["r"])
                     if not best:
                         u["goto"] = None
                         break
@@ -2280,11 +2269,52 @@ class GameState:
         else:
             unit["exploring"] = False
 
-    def _ai_step_toward(self, unit, tq, tr):
-        """Move unit one step toward target. Can move INTO target hex (for combat)."""
+    def _find_path_next(self, unit, tq, tr):
+        """BFS pathfinding — returns next hex to move to, or None."""
+        from collections import deque
+        start = (unit["q"], unit["r"])
+        target = (tq, tr)
+        if start == target:
+            return None
+
+        is_naval = unit["cat"] in ("naval",)
+        is_air = unit["cat"] == "air"
+
+        visited = {start}
+        queue = deque([(start, [start])])
+        max_search = min(200, self.width * self.height // 4)
+        steps = 0
+
+        while queue and steps < max_search:
+            (cq, cr), path = queue.popleft()
+            steps += 1
+            for nq, nr in hex_neighbors(cq, cr):
+                if (nq, nr) in visited:
+                    continue
+                t = self.tiles.get((nq, nr))
+                if t is None:
+                    continue
+                # Passability
+                if not is_air:
+                    if is_naval and t not in (Terrain.WATER, Terrain.COAST):
+                        continue
+                    if not is_naval and t == Terrain.MOUNTAIN:
+                        continue
+                    if not is_naval and t in (Terrain.WATER, Terrain.COAST):
+                        continue
+                visited.add((nq, nr))
+                new_path = path + [(nq, nr)]
+                if (nq, nr) == target:
+                    return new_path[1] if len(new_path) > 1 else None
+                queue.append(((nq, nr), new_path))
+
+        # BFS failed — fallback to greedy step
+        return self._greedy_step(unit, tq, tr)
+
+    def _greedy_step(self, unit, tq, tr):
+        """Simple greedy step toward target (fallback)."""
         best = None
         best_dist = hex_distance(unit["q"], unit["r"], tq, tr)
-
         for nq, nr in hex_neighbors(unit["q"], unit["r"]):
             t = self.tiles.get((nq, nr))
             if t is None or t == Terrain.MOUNTAIN:
@@ -2292,13 +2322,17 @@ class GameState:
             if t in (Terrain.WATER, Terrain.COAST) and unit["cat"] not in ("naval", "air"):
                 continue
             d = hex_distance(nq, nr, tq, tr)
-            if d < best_dist or (d == 0):  # d==0 means this IS the target
+            if d < best_dist or d == 0:
                 best_dist = d
                 best = (nq, nr)
+        return best
 
-        if best:
+    def _ai_step_toward(self, unit, tq, tr):
+        """Move unit one step toward target using BFS pathfinding."""
+        next_hex = self._find_path_next(unit, tq, tr)
+        if next_hex:
             self.current_player = unit["player"]
-            self.move_unit(unit["id"], best[0], best[1])
+            self.move_unit(unit["id"], next_hex[0], next_hex[1])
 
     # --------------------------------------------------------
     # SERIALIZATION
