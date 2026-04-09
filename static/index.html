@@ -546,7 +546,7 @@ function render(){
     // ROADS on map
     if(state.roads){for(const k in state.roads){const[q,r]=k.split(',').map(Number);const[px,py]=h2p(q,r),sx=px-ox,sy=py-oy;if(sx<-pad||sx>W/camZoom+pad||sy<-pad||sy>H/camZoom+pad)continue;const rd=state.roads[k];
         // Draw road connections to adjacent road tiles
-        const nb=hNb(q,r);for(const[nq,nr]of nb){if(state.roads[`${nq},${nr}`]){const[np,ny]=h2p(nq,nr);ctx.save();ctx.globalAlpha=.5;ctx.strokeStyle=rd.type==='railroad'?'#555':'#8B7355';ctx.lineWidth=rd.type==='railroad'?2.5:2;ctx.beginPath();ctx.moveTo(sx,sy);ctx.lineTo((sx+np-ox)/2+sx/2,(sy+ny-oy)/2+sy/2);ctx.stroke();if(rd.type==='railroad'){ctx.strokeStyle='#777';ctx.lineWidth=1;ctx.setLineDash([3,3]);ctx.stroke();ctx.setLineDash([])}ctx.restore()}}}}
+        const nb=hNb(q,r);for(const[nq,nr]of nb){if(state.roads[`${nq},${nr}`]){const[np2,ny2]=h2p(nq,nr);const nsx=np2-ox,nsy=ny2-oy;ctx.save();ctx.globalAlpha=.5;ctx.strokeStyle=rd.type==='railroad'?'#555':'#8B7355';ctx.lineWidth=rd.type==='railroad'?2.5:2;ctx.beginPath();ctx.moveTo(sx,sy);ctx.lineTo((sx+nsx)/2,(sy+nsy)/2);ctx.stroke();if(rd.type==='railroad'){ctx.strokeStyle='#777';ctx.lineWidth=1;ctx.setLineDash([3,3]);ctx.stroke();ctx.setLineDash([])}ctx.restore()}}}}
 
     // TERRITORY — fill + dashed border on outermost hexes
     // First pass: collect all territory tiles per player
