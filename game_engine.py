@@ -195,8 +195,47 @@ CIVILIZATIONS = {
                  "trait": "industrious", "aggression": 0.35, "loyalty": 0.85,
                  "strategy": "turtle"},        # focus: defense (Hussite wagons), science, industry
     "mongol":   {"name": "Mongol Empire",    "color": "#1abc9c", "bonus": "movement", "leader": "Genghis Khan",
-                 "trait": "aggressive", "aggression": 1.0, "loyalty": 0.2,
-                 "strategy": "conqueror"},     # focus: fast units, conquest, nomadic
+                 "trait": "aggressive", "aggression": 1.0, "loyalty": 0.2, "strategy": "conqueror"},
+    "babylon":  {"name": "Babylon",          "color": "#1a5f7a", "bonus": "gold",     "leader": "Hammurabi",
+                 "trait": "financial",  "aggression": 0.6, "loyalty": 0.8, "strategy": "builder"},
+    "india":    {"name": "India",            "color": "#1f77d4", "bonus": "culture",  "leader": "Gandhi",
+                 "trait": "creative",   "aggression": 0.2, "loyalty": 0.95,"strategy": "expansionist"},
+    "arabia":   {"name": "Arabia",           "color": "#d4721f", "bonus": "military", "leader": "Saladin",
+                 "trait": "aggressive", "aggression": 0.7, "loyalty": 0.6, "strategy": "conqueror"},
+    "spain":    {"name": "Spain",            "color": "#cc2936", "bonus": "movement", "leader": "Isabella",
+                 "trait": "expansive",  "aggression": 0.55,"loyalty": 0.75,"strategy": "expansionist"},
+    "england":  {"name": "England",          "color": "#012169", "bonus": "gold",     "leader": "Elizabeth",
+                 "trait": "financial",  "aggression": 0.45,"loyalty": 0.8, "strategy": "expansionist"},
+    "france":   {"name": "France",           "color": "#002395", "bonus": "military", "leader": "Napoleon",
+                 "trait": "aggressive", "aggression": 0.95,"loyalty": 0.4, "strategy": "conqueror"},
+    "germany":  {"name": "Germany",          "color": "#333333", "bonus": "prod",     "leader": "Bismarck",
+                 "trait": "industrious","aggression": 0.65,"loyalty": 0.7, "strategy": "builder"},
+    "russia":   {"name": "Russia",           "color": "#d42c2c", "bonus": "food",     "leader": "Catherine",
+                 "trait": "expansive",  "aggression": 0.6, "loyalty": 0.65,"strategy": "expansionist"},
+    "zulu":     {"name": "Zulu",             "color": "#2a2a2a", "bonus": "military", "leader": "Shaka",
+                 "trait": "aggressive", "aggression": 0.9, "loyalty": 0.3, "strategy": "conqueror"},
+    "inca":     {"name": "Inca",             "color": "#ad6f3f", "bonus": "prod",     "leader": "Pachacuti",
+                 "trait": "industrious","aggression": 0.4, "loyalty": 0.85,"strategy": "builder"},
+    "maya":     {"name": "Maya",             "color": "#2d5016", "bonus": "science",  "leader": "Pacal",
+                 "trait": "creative",   "aggression": 0.25,"loyalty": 0.8, "strategy": "culturalist"},
+    "korea":    {"name": "Korea",            "color": "#c60c30", "bonus": "science",  "leader": "Sejong",
+                 "trait": "industrious","aggression": 0.2, "loyalty": 0.9, "strategy": "builder"},
+    "ottoman":  {"name": "Ottoman Empire",   "color": "#81c784", "bonus": "military", "leader": "Suleiman",
+                 "trait": "aggressive", "aggression": 0.75,"loyalty": 0.5, "strategy": "conqueror"},
+    "carthage": {"name": "Carthage",         "color": "#a71029", "bonus": "military", "leader": "Hannibal",
+                 "trait": "aggressive", "aggression": 0.85,"loyalty": 0.4, "strategy": "conqueror"},
+    "viking":   {"name": "Viking",           "color": "#8b7355", "bonus": "movement", "leader": "Ragnar",
+                 "trait": "aggressive", "aggression": 0.8, "loyalty": 0.25,"strategy": "conqueror"},
+    "siam":     {"name": "Siam",             "color": "#6a1b2a", "bonus": "culture",  "leader": "Ramkhamhaeng",
+                 "trait": "creative",   "aggression": 0.35,"loyalty": 0.75,"strategy": "culturalist"},
+    "poland":   {"name": "Poland",           "color": "#dc143c", "bonus": "defense",  "leader": "Casimir",
+                 "trait": "protective", "aggression": 0.4, "loyalty": 0.8, "strategy": "turtle"},
+    "ethiopia": {"name": "Ethiopia",         "color": "#a51212", "bonus": "defense",  "leader": "Haile Selassie",
+                 "trait": "protective", "aggression": 0.3, "loyalty": 0.85,"strategy": "turtle"},
+    "brazil":   {"name": "Brazil",           "color": "#008c45", "bonus": "food",     "leader": "Pedro",
+                 "trait": "expansive",  "aggression": 0.5, "loyalty": 0.7, "strategy": "expansionist"},
+    "sumeria":  {"name": "Sumeria",          "color": "#c4a747", "bonus": "science",  "leader": "Gilgamesh",
+                 "trait": "aggressive", "aggression": 0.7, "loyalty": 0.5, "strategy": "conqueror"},
 }
 
 # Leader traits:
@@ -331,12 +370,24 @@ class GameState:
         # Generate map
         self.tiles = generate_map(width, height, seed)
 
-        # Players
+        # Players — unique civilizations, no duplicates
         civ_keys = list(CIVILIZATIONS.keys())
         random.shuffle(civ_keys)
+        # If more players than civs, extend with numbered variants
+        while len(civ_keys) < num_players:
+            base = civ_keys[len(civ_keys) % len(CIVILIZATIONS)]
+            civ_keys.append(base)  # fallback, but shouldn't happen with 9 civs
         self.players = []
+        used_civs = set()
         for i in range(num_players):
-            civ = civ_keys[i % len(civ_keys)]
+            civ = civ_keys[i]
+            if civ in used_civs:
+                # Find unused civ
+                for ck in CIVILIZATIONS:
+                    if ck not in used_civs:
+                        civ = ck
+                        break
+            used_civs.add(civ)
             self.players.append({
                 "id": i,
                 "civ": civ,

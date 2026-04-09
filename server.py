@@ -487,6 +487,18 @@ def new_game(req: NewGameRequest, request: Request):
                      num_players=req.num_players, seed=req.seed)
 
     if req.civ in CIVILIZATIONS:
+        # Swap: if another player has this civ, give them player 0's civ
+        for p in game.players[1:]:
+            if p["civ"] == req.civ:
+                old_civ = game.players[0]["civ"]
+                p["civ"] = old_civ
+                p["name"] = CIVILIZATIONS[old_civ]["name"]
+                p["color"] = CIVILIZATIONS[old_civ]["color"]
+                p["leader"] = CIVILIZATIONS[old_civ]["leader"]
+                for k in ("trait", "aggression", "loyalty", "strategy"):
+                    if k in CIVILIZATIONS[old_civ]:
+                        p[k] = CIVILIZATIONS[old_civ][k]
+                break
         game.players[0]["civ"] = req.civ
         game.players[0]["name"] = CIVILIZATIONS[req.civ]["name"]
         game.players[0]["color"] = CIVILIZATIONS[req.civ]["color"]
