@@ -22,8 +22,36 @@ app = FastAPI(title="CivGame")
 # Per-user game state: user_id -> {game_id -> GameState}
 user_games = {}
 next_game_id = 1
-# Legacy compat
 games = {}
+
+
+def restore_active_games():
+    """Restore active games from auto-saves on startup."""
+    global next_game_id
+    import json
+    try:
+        conn = auth.get_db()
+        active = conn.execute("SELECT game_id, user_id FROM active_games").fetchall()
+        for row in active:
+            gid = row["game_id"]
+            uid = row["user_id"]
+            save = conn.execute("SELECT data FROM saves WHERE user_id = ? AND name = ? ORDER BY updated_at DESC LIMIT 1",
+                                 (uid, f"auto_{gid}")).fetchone()
+            if save:
+                data = json.loads(save["data"])
+                game = GameState.load_full(data)
+                games[gid] = game
+                if uid not in user_games:
+                    user_games[uid] = {}
+                user_games[uid][gid] = game
+                if gid >= next_game_id:
+                    next_game_id = gid + 1
+                print(f"[RESTORE] Game #{gid} restored (turn {game.turn})")
+        conn.close()
+    except Exception as e:
+        print(f"[RESTORE] Error: {e}")
+
+restore_active_games()
 
 
 class AuthRequest(BaseModel):
@@ -616,6 +644,14 @@ def end_turn(game_id: int):
     result = game.end_turn()
     auth.log_action(game_id, game.turn, 0, "end_turn", {"events": result.get("events", [])[:10]})
     auth.update_active_game(game_id, game.turn)
+    # Auto-save to DB every 5 turns
+    if game.turn % 5 == 0:
+        # Find owner
+        conn = auth.get_db()
+        row = conn.execute("SELECT user_id FROM active_games WHERE game_id = ?", (game_id,)).fetchone()
+        conn.close()
+        if row:
+            auth.save_game(row["user_id"], f"auto_{game_id}", game.save_full(), game.turn)
     result["state"] = game.to_dict(for_player=0)
     return result
 
