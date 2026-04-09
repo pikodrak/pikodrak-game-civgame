@@ -4,6 +4,17 @@
 
 ### Latest Changes
 
+**AI API: Full Game Control via REST**
+- API tokens: persistent tokens per user (civ_xxx...), stored in DB
+- Endpoints: POST /api/auth/token (create), GET /api/auth/tokens (list), DELETE /api/auth/token/{id} (revoke)
+- GET /api/game/{id}/ai/state — complete game state (no fog, all info)
+- GET /api/game/{id}/ai/actions/{player} — all possible actions per unit/city:
+  - Per unit: movable hexes, buildable improvements, available actions (move/fortify/explore/found_city/etc)
+  - Per city: yields, available productions, buildings
+  - Available techs, diplomacy options with cooldowns
+- GET /api/game/{id}/ai/map — full terrain/improvement/road/territory data
+- All existing action endpoints work with API token auth
+
 **User Authentication System**
 - SQLite database (civgame.db) with users and saves tables
 - bcrypt password hashing, JWT tokens (30-day expiry)

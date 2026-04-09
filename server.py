@@ -118,6 +118,206 @@ def api_user_load(save_id: int, request: Request):
     return {"game_id": gid, "state": game.to_dict(for_player=0)}
 
 
+# ---- API TOKENS ----
+
+class TokenRequest(BaseModel):
+    name: str = "default"
+
+@app.post("/api/auth/token")
+def api_create_token(req: TokenRequest, request: Request):
+    user = require_user(request)
+    token = auth.create_api_token(user["id"], req.name)
+    return {"ok": True, "token": token, "name": req.name}
+
+@app.get("/api/auth/tokens")
+def api_list_tokens(request: Request):
+    user = require_user(request)
+    return auth.list_api_tokens(user["id"])
+
+@app.delete("/api/auth/token/{token_id}")
+def api_revoke_token(token_id: int, request: Request):
+    user = require_user(request)
+    auth.revoke_api_token(user["id"], token_id)
+    return {"ok": True}
+
+
+# ---- AI API — Full game state + possible actions ----
+
+@app.get("/api/game/{game_id}/ai/state")
+def ai_full_state(game_id: int, request: Request):
+    """Complete game state for AI — no fog of war, all info visible."""
+    game = games.get(game_id)
+    if not game:
+        raise HTTPException(404, "Game not found")
+    # Full state without fog
+    state = game.to_dict(for_player=None)
+    # Add extra info for AI
+    state["improvements"] = {f"{q},{r}": v for (q, r), v in game.improvements.items()}
+    state["roads"] = {f"{q},{r}": v for (q, r), v in game.roads.items()}
+    state["territory"] = {}
+    for q in range(game.width):
+        for r in range(game.height):
+            owner = game.get_tile_owner(q, r)
+            if owner is not None:
+                state["territory"][f"{q},{r}"] = owner
+    return state
+
+
+@app.get("/api/game/{game_id}/ai/actions/{player_id}")
+def ai_possible_actions(game_id: int, player_id: int, request: Request):
+    """All possible actions for a player — units, cities, research, diplomacy."""
+    game = games.get(game_id)
+    if not game:
+        raise HTTPException(404, "Game not found")
+
+    player = game.players[player_id]
+    result = {
+        "player": {"id": player_id, "name": player["name"], "gold": player["gold"],
+                    "techs": player["techs"], "researching": player["researching"]},
+        "units": [],
+        "cities": [],
+        "available_techs": game.get_available_techs(player_id),
+        "diplomacy": {},
+    }
+
+    # Per-unit actions
+    for u in game.units.values():
+        if u["player"] != player_id:
+            continue
+        unit_info = {
+            "id": u["id"], "type": u["type"], "q": u["q"], "r": u["r"],
+            "hp": u["hp"], "atk": u["atk"], "def": u["def"],
+            "moves_left": u["moves_left"], "mov": u["mov"],
+            "fortified": u["fortified"], "sentry": u.get("sentry"),
+            "exploring": u.get("exploring"), "goto": u.get("goto"),
+            "building": u.get("building"),
+            "actions": [],
+        }
+
+        if u["moves_left"] > 0:
+            # Possible moves
+            movable = []
+            for nq, nr in hex_neighbors(u["q"], u["r"]):
+                t = game.tiles.get((nq, nr))
+                if t is None:
+                    continue
+                if t == Terrain.MOUNTAIN and u["cat"] != "air":
+                    continue
+                if t in (Terrain.WATER, Terrain.COAST) and u["cat"] not in ("naval", "air"):
+                    continue
+                if t not in (Terrain.WATER, Terrain.COAST) and u["cat"] == "naval":
+                    continue
+                enemy_unit = any(eu["q"] == nq and eu["r"] == nr and eu["player"] != player_id
+                                 for eu in game.units.values())
+                enemy_city = any(c["q"] == nq and c["r"] == nr and c["player"] != player_id
+                                 for c in game.cities.values())
+                movable.append({"q": nq, "r": nr, "enemy_unit": enemy_unit, "enemy_city": enemy_city})
+            unit_info["movable_hexes"] = movable
+
+            unit_info["actions"].append("move")
+            unit_info["actions"].append("skip")
+            unit_info["actions"].append("goto")
+
+            if u["type"] == "settler":
+                # Can found city?
+                terrain = game.tiles.get((u["q"], u["r"]))
+                too_close = any(hex_distance(c["q"], c["r"], u["q"], u["r"]) < 3 for c in game.cities.values())
+                if not too_close and terrain and terrain not in (Terrain.WATER, Terrain.COAST, Terrain.MOUNTAIN):
+                    unit_info["actions"].append("found_city")
+
+            if u["type"] == "worker":
+                unit_info["actions"].append("auto_build")
+                # Available improvements at current tile
+                terrain = game.tiles.get((u["q"], u["r"]))
+                if terrain:
+                    buildable = []
+                    for imp_name, imp_data in IMPROVEMENTS.items():
+                        if imp_data["tech"] and imp_data["tech"] not in player["techs"]:
+                            continue
+                        if terrain.value not in imp_data["terrain"]:
+                            continue
+                        pos = (u["q"], u["r"])
+                        if imp_name in ("road", "railroad"):
+                            if game.roads.get(pos, {}).get("type") == imp_name:
+                                continue
+                        else:
+                            if pos in game.improvements:
+                                continue
+                        buildable.append({"name": imp_name, "turns": imp_data["turns"],
+                                          "food": imp_data["food"], "prod": imp_data["prod"], "gold": imp_data["gold"]})
+                    unit_info["buildable_improvements"] = buildable
+
+            if u["cat"] != "civilian":
+                unit_info["actions"].extend(["fortify", "sentry", "explore"])
+
+        unit_info["actions"].append("disband")
+        result["units"].append(unit_info)
+
+    # Per-city actions
+    for c in game.cities.values():
+        if c["player"] != player_id:
+            continue
+        city_info = {
+            "id": c["id"], "name": c["name"], "q": c["q"], "r": c["r"],
+            "population": c["population"], "hp": c["hp"], "max_hp": c["max_hp"],
+            "producing": c["producing"], "prod_progress": c.get("prod_progress", 0),
+            "buildings": c["buildings"],
+            "available_productions": game.get_available_productions(c["id"]),
+            "yields": game.get_city_yields(c["id"]),
+        }
+        result["cities"].append(city_info)
+
+    # Diplomacy options
+    for other in game.players:
+        if other["id"] == player_id:
+            continue
+        rel = player["diplomacy"].get(other["id"], "peace")
+        cd = player.get("diplo_cooldown", {}).get(other["id"], 0)
+        actions = []
+        if cd == 0:
+            if rel != "war":
+                actions.append("declare_war")
+            if rel == "war":
+                actions.append("make_peace")
+            if rel == "peace":
+                actions.append("form_alliance")
+            if rel == "alliance":
+                actions.append("break_alliance")
+        result["diplomacy"][other["id"]] = {
+            "player_name": other["name"], "relation": rel,
+            "cooldown": cd, "available_actions": actions,
+            "military_strength": len([u for u in game.units.values() if u["player"] == other["id"] and u["cat"] != "civilian"]),
+            "cities": len([c for c in game.cities.values() if c["player"] == other["id"]]),
+            "score": other["score"], "alive": other["alive"],
+        }
+
+    return result
+
+
+@app.get("/api/game/{game_id}/ai/map")
+def ai_map_info(game_id: int):
+    """Full map data — terrain, improvements, roads, territory for AI analysis."""
+    game = games.get(game_id)
+    if not game:
+        raise HTTPException(404, "Game not found")
+    tiles = {}
+    for (q, r), t in game.tiles.items():
+        tile_data = {"terrain": t.value, "yields": TERRAIN_YIELDS.get(t, {})}
+        imp = game.improvements.get((q, r))
+        if imp:
+            tile_data["improvement"] = imp
+        road = game.roads.get((q, r))
+        if road:
+            tile_data["road"] = road
+        owner = game.get_tile_owner(q, r)
+        if owner is not None:
+            tile_data["owner"] = owner
+        tiles[f"{q},{r}"] = tile_data
+    return {"width": game.width, "height": game.height, "tiles": tiles}
+
+
+from game_engine import hex_neighbors, hex_distance, Terrain, IMPROVEMENTS, TERRAIN_YIELDS
+
 class NewGameRequest(BaseModel):
     width: int = 40
     height: int = 30

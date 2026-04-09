@@ -31,6 +31,16 @@ def init_db():
             created_at REAL NOT NULL,
             last_login REAL
         );
+        CREATE TABLE IF NOT EXISTS api_tokens (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            token TEXT UNIQUE NOT NULL,
+            name TEXT NOT NULL,
+            created_at REAL NOT NULL,
+            last_used REAL,
+            active INTEGER DEFAULT 1,
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        );
         CREATE TABLE IF NOT EXISTS saves (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id INTEGER NOT NULL,
@@ -93,14 +103,64 @@ def login(username, password):
 
 
 def verify_token(token):
-    """Verify JWT token. Returns user dict or None."""
+    """Verify JWT or API token. Returns user dict or None."""
+    # Try JWT first
     try:
         payload = jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
         if payload.get("exp", 0) < time.time():
             return None
         return {"id": payload["user_id"], "username": payload["username"]}
     except (jwt.InvalidTokenError, Exception):
-        return None
+        pass
+
+    # Try API token
+    conn = get_db()
+    row = conn.execute(
+        "SELECT api_tokens.*, users.username FROM api_tokens JOIN users ON api_tokens.user_id = users.id "
+        "WHERE api_tokens.token = ? AND api_tokens.active = 1", (token,)
+    ).fetchone()
+    if row:
+        conn.execute("UPDATE api_tokens SET last_used = ? WHERE id = ?", (time.time(), row["id"]))
+        conn.commit()
+        conn.close()
+        return {"id": row["user_id"], "username": row["username"]}
+    conn.close()
+    return None
+
+
+def create_api_token(user_id, name="default"):
+    """Create a persistent API token for a user."""
+    import secrets
+    token = f"civ_{secrets.token_hex(32)}"
+    conn = get_db()
+    conn.execute("INSERT INTO api_tokens (user_id, token, name, created_at) VALUES (?, ?, ?, ?)",
+                  (user_id, token, name, time.time()))
+    conn.commit()
+    conn.close()
+    return token
+
+
+def list_api_tokens(user_id):
+    """List API tokens for user."""
+    conn = get_db()
+    rows = conn.execute(
+        "SELECT id, name, token, created_at, last_used, active FROM api_tokens WHERE user_id = ?",
+        (user_id,)
+    ).fetchall()
+    conn.close()
+    return [{"id": r["id"], "name": r["name"],
+             "token": r["token"][:8] + "..." + r["token"][-4:],
+             "token_full": r["token"],
+             "created_at": r["created_at"], "last_used": r["last_used"],
+             "active": bool(r["active"])} for r in rows]
+
+
+def revoke_api_token(user_id, token_id):
+    """Revoke an API token."""
+    conn = get_db()
+    conn.execute("UPDATE api_tokens SET active = 0 WHERE id = ? AND user_id = ?", (token_id, user_id))
+    conn.commit()
+    conn.close()
 
 
 def save_game(user_id, name, data, turn=0):
