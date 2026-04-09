@@ -534,7 +534,7 @@ function render(){
     for(const k in tiles){const t=tiles[k];if(t!=='water'&&t!=='coast')continue;const[q,r]=k.split(',').map(Number);const[px,py]=h2p(q,r),sx=px-ox,sy=py-oy;if(sx<-pad||sx>W/camZoom+pad||sy<-pad||sy>H/camZoom+pad)continue;drawWaterFX(sx,sy,t,q,r)}
 
     // FOG OF WAR - darken explored but not currently visible tiles
-    if(state.visible){const vs=new Set(state.visible);for(const k in tiles){if(vs.has(k))continue;const[q,r]=k.split(',').map(Number);const[px,py]=h2p(q,r),sx=px-ox,sy=py-oy;if(sx<-pad||sx>W/camZoom+pad||sy<-pad||sy>H/camZoom+pad)continue;ctx.save();ctx.globalAlpha=.55;hexP(ctx,sx,sy,S);ctx.fillStyle='#000';ctx.fill();ctx.restore()}}
+    if(state.visible){const vs=new Set(state.visible);for(const k in tiles){if(vs.has(k))continue;const[q,r]=k.split(',').map(Number);const[px,py]=h2p(q,r),sx=px-ox,sy=py-oy;if(sx<-pad||sx>W/camZoom+pad||sy<-pad||sy>H/camZoom+pad)continue;ctx.save();ctx.globalAlpha=.35;hexP(ctx,sx,sy,S);ctx.fillStyle='#0a0a18';ctx.fill();ctx.restore()}}
 
     // IMPROVEMENTS on map
     if(state.improvements){for(const k in state.improvements){const[q,r]=k.split(',').map(Number);const[px,py]=h2p(q,r),sx=px-ox,sy=py-oy;if(sx<-pad||sx>W/camZoom+pad||sy<-pad||sy>H/camZoom+pad)continue;const imp=state.improvements[k];ctx.save();ctx.globalAlpha=.7;
@@ -616,9 +616,7 @@ function renderTile(c,type,q,r){
         hexP(c,0,0,S);c.save();c.clip();
         // Draw tile image centered, NO rotation/scale — just fill the hex
         c.drawImage(tImg,-S,-S,S*2,S*2);
-        // Very subtle brightness variation
-        const bright=(h1-.5)*0.03;
-        if(bright>0){c.globalAlpha=bright;c.fillStyle='rgba(255,255,240,.2)';c.fillRect(-S,-S,S*2,S*2)}
+        // No overlay — clean tiles
         c.restore();
         // Clean hex border
         hexP(c,0,0,S);c.strokeStyle='rgba(20,15,5,.15)';c.lineWidth=.7;c.stroke();
