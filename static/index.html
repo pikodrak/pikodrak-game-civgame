@@ -616,10 +616,9 @@ function renderTile(c,type,q,r){
         hexP(c,0,0,S);c.save();c.clip();
         // Draw tile image centered, NO rotation/scale — just fill the hex
         c.drawImage(tImg,-S,-S,S*2,S*2);
-        // Subtle per-tile color variation only (no geometric transforms)
-        const bright=(h1-.5)*0.08;
-        if(bright>0){c.globalAlpha=bright;c.fillStyle='rgba(255,250,230,.25)';c.fillRect(-S,-S,S*2,S*2)}
-        else{c.globalAlpha=-bright;c.fillStyle='rgba(0,5,20,.2)';c.fillRect(-S,-S,S*2,S*2)}
+        // Very subtle brightness variation
+        const bright=(h1-.5)*0.03;
+        if(bright>0){c.globalAlpha=bright;c.fillStyle='rgba(255,255,240,.2)';c.fillRect(-S,-S,S*2,S*2)}
         c.restore();
         // Clean hex border
         hexP(c,0,0,S);c.strokeStyle='rgba(20,15,5,.15)';c.lineWidth=.7;c.stroke();
@@ -835,7 +834,7 @@ function drawUnit(sx,sy,unit,col,sel){
     if(unit.fortified){ctx.strokeStyle='#5080c0';ctx.lineWidth=1.2;ctx.setLineDash([3,3]);ctx.beginPath();ctx.arc(sx,sy,S*.38,0,6.3);ctx.stroke();ctx.setLineDash([])}
     if(unit.sentry){ctx.strokeStyle='#f1c40f';ctx.lineWidth=1.2;ctx.setLineDash([3,3]);ctx.beginPath();ctx.arc(sx,sy,S*.38,0,6.3);ctx.stroke();ctx.setLineDash([])}
     if(unit.exploring){ctx.strokeStyle='#2ecc71';ctx.lineWidth=1.2;ctx.setLineDash([3,3]);ctx.beginPath();ctx.arc(sx,sy,S*.38,0,6.3);ctx.stroke();ctx.setLineDash([])}
-    if(unit.goto&&unit.player===0&&unit.goto.q>=0&&unit.goto.r>=0&&unit.goto.q<(state.width||999)&&unit.goto.r<(state.height||999)){const[gx,gy]=h2p(unit.goto.q,unit.goto.r);const ox2=camX/camZoom,oy2=camY/camZoom;const gsx=gx-ox2,gsy=gy-oy2;ctx.save();ctx.globalAlpha=.4;ctx.strokeStyle='#ffd700';ctx.lineWidth=1.5;ctx.setLineDash([4,4]);ctx.beginPath();ctx.moveTo(sx,sy);ctx.lineTo(gsx,gsy);ctx.stroke();ctx.setLineDash([]);ctx.globalAlpha=.6;ctx.fillStyle='#ffd700';ctx.beginPath();ctx.arc(gsx,gsy,4,0,6.3);ctx.fill();ctx.restore()}
+    if(unit.goto&&unit.player===0&&!window._spectateMode&&unit.goto.q>=0&&unit.goto.r>=0&&unit.goto.q<(state.width||999)&&unit.goto.r<(state.height||999)){const[gx,gy]=h2p(unit.goto.q,unit.goto.r);const ox2=camX/camZoom,oy2=camY/camZoom;const gsx=gx-ox2,gsy=gy-oy2;ctx.save();ctx.globalAlpha=.4;ctx.strokeStyle='#ffd700';ctx.lineWidth=1.5;ctx.setLineDash([4,4]);ctx.beginPath();ctx.moveTo(sx,sy);ctx.lineTo(gsx,gsy);ctx.stroke();ctx.setLineDash([]);ctx.globalAlpha=.6;ctx.fillStyle='#ffd700';ctx.beginPath();ctx.arc(gsx,gsy,4,0,6.3);ctx.fill();ctx.restore()}
     ctx.restore();
 }
 
