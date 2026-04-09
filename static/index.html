@@ -172,13 +172,19 @@ async function doRegister(){
 
 function playAsGuest(){authToken=null;currentUser=null;localStorage.removeItem('civgame_token');showMenu()}
 
-function showMenu(){
+async function showMenu(){
     document.getElementById('login-screen').style.display='none';
     document.getElementById('menu-screen').style.display='flex';
     const ui=document.getElementById('user-info');
     const ab=document.getElementById('btn-account');
     if(currentUser){ui.textContent=`Logged in as ${currentUser.username}`;if(ab)ab.style.display=''}
     else{ui.textContent='Playing as guest';if(ab)ab.style.display='none'}
+    // Try auto-load last game
+    if(await tryAutoLoad()){
+        for(const k in tileCache)delete tileCache[k];
+        document.getElementById('menu-screen').style.display='none';
+        document.getElementById('game-screen').style.display='block';
+        setTimeout(()=>{initCanvas();centerOn();requestAnimationFrame(loop);updateUI();selectNextUnit();drawMini();showEvent('Game restored')},50)}
 }
 
 function logout(){authToken=null;currentUser=null;localStorage.removeItem('civgame_token');location.reload()}
@@ -329,15 +335,7 @@ async function tryAutoLoad(){
         gameId=d.game_id;state=d.state;return true;
     }catch(e){return false}
 }
-// Try auto-load on page load
-(async function(){
-    if(await tryAutoLoad()){
-        for(const k in tileCache)delete tileCache[k];
-        document.getElementById('menu-screen').style.display='none';
-        document.getElementById('game-screen').style.display='block';
-        setTimeout(()=>{initCanvas();centerOn();requestAnimationFrame(loop);updateUI();selectNextUnit();drawMini();showEvent('Game restored')},50);
-    }
-})();
+// Auto-load removed from here — handled after login in showMenu()
 
 async function startGame(){
     try{
