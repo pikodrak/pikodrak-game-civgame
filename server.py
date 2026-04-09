@@ -478,7 +478,7 @@ def api_rules():
                 "build_time": "3 turns",
                 "movement_bonus": "+60% speed (move cost * 0.4). Forest 2→1, hills 2→1, grass stays 1",
                 "yield_bonus": "None",
-                "strategy": "PRIORITY: build between cities for fast troop movement and defense. Workers auto-connect cities via BFS path.",
+                "strategy": "PRIORITY: build between cities for fast troop movement. A* pathfinding prefers roads — units automatically take fastest route.",
             },
             "railroad": {
                 "build_time": "4 turns",
@@ -704,6 +704,13 @@ def spectate_log(game_id: int, from_turn: int = 0, request: Request = None):
     if not user or not auth.is_admin(user["username"]):
         raise HTTPException(403, "Admin only")
     return auth.get_game_log(game_id, from_turn)
+
+@app.delete("/api/user/save/{save_id}")
+def api_delete_save(save_id: int, request: Request):
+    user = require_user(request)
+    auth.delete_save(user["id"], save_id)
+    return {"ok": True, "msg": "Save deleted"}
+
 
 class NewGameRequest(BaseModel):
     width: int = 40

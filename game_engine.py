@@ -2463,8 +2463,8 @@ class GameState:
             self.units[unit["id"]]["exploring"] = False
 
     def _find_path_next(self, unit, tq, tr):
-        """BFS pathfinding — avoids foreign territory unless at war."""
-        from collections import deque
+        """A* pathfinding with move cost — prefers roads, avoids foreign territory."""
+        import heapq
         start = (unit["q"], unit["r"])
         target = (tq, tr)
         if start == target:
@@ -2475,14 +2475,24 @@ class GameState:
         is_naval = unit["cat"] in ("naval",)
         is_air = unit["cat"] == "air"
 
-        visited = {start}
-        queue = deque([(start, [start])])
-        max_search = min(200, self.width * self.height // 4)
+        # A* with move cost
+        # (total_cost, steps, position, path)
+        heap = [(0, 0, start, [start])]
+        visited = {}  # pos -> best cost
+        max_search = min(300, self.width * self.height // 3)
         steps = 0
 
-        while queue and steps < max_search:
-            (cq, cr), path = queue.popleft()
+        while heap and steps < max_search:
+            cost, _, (cq, cr), path = heapq.heappop(heap)
             steps += 1
+
+            if (cq, cr) == target:
+                return path[1] if len(path) > 1 else None
+
+            if (cq, cr) in visited and visited[(cq, cr)] <= cost:
+                continue
+            visited[(cq, cr)] = cost
+
             for nq, nr in hex_neighbors(cq, cr):
                 if (nq, nr) in visited:
                     continue
@@ -2497,20 +2507,26 @@ class GameState:
                         continue
                     if not is_naval and t in (Terrain.WATER, Terrain.COAST):
                         continue
-                # Avoid foreign territory unless at war or target is there
-                if (nq, nr) != (tq, tr):
+                # Avoid foreign territory unless at war or target
+                if (nq, nr) != target:
                     tile_owner = self.get_tile_owner(nq, nr)
                     if tile_owner is not None and tile_owner != pid:
                         rel = player.get("diplomacy", {}).get(tile_owner, "peace")
                         if rel not in ("war", "alliance"):
-                            continue  # don't enter non-allied foreign territory
-                visited.add((nq, nr))
-                new_path = path + [(nq, nr)]
-                if (nq, nr) == target:
-                    return new_path[1] if len(new_path) > 1 else None
-                queue.append(((nq, nr), new_path))
+                            continue
 
-        # BFS failed — fallback to greedy step
+                # Move cost — roads are cheaper
+                move_cost = TERRAIN_MOVE_COST.get(t, 1)
+                road = self.roads.get((nq, nr))
+                if road:
+                    move_cost = max(1, int(move_cost * (0.2 if road["type"] == "railroad" else 0.4)))
+
+                new_cost = cost + move_cost
+                # Heuristic: hex distance to target
+                h = hex_distance(nq, nr, tq, tr)
+                heapq.heappush(heap, (new_cost + h, steps, (nq, nr), path + [(nq, nr)]))
+
+        # A* failed — fallback to greedy step
         return self._greedy_step(unit, tq, tr)
 
     def _greedy_step(self, unit, tq, tr):

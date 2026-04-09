@@ -200,7 +200,7 @@ async function openAccount(){
         if(saves.length===0)h+='<p style="color:#6a7a9a">No saved games</p>';
         for(const s of saves){
             const date=new Date(s.updated_at*1000).toLocaleString();
-            h+=`<div class="save-item"><div><b style="color:#c0c8e0">Turn ${s.turn} — ${s.name}</b><div style="font-size:.78rem;color:#5a6a8a">${date}</div></div><button class="action-btn" onclick="loadUserSave(${s.id})">Load</button></div>`;
+            h+=`<div class="save-item"><div><b style="color:#c0c8e0">Turn ${s.turn} — ${s.name}</b><div style="font-size:.78rem;color:#5a6a8a">${date}</div></div><div style="display:flex;gap:4px"><button class="action-btn" onclick="loadUserSave(${s.id})">Load</button><button class="action-btn" style="color:#e74c3c" onclick="deleteUserSave(${s.id})">Del</button></div></div>`;
         }
         h+='</div>';
     }catch(e){h+='<div class="panel-section"><h3>Saved Games</h3><p style="color:#e74c3c">Error loading saves</p></div>'}
@@ -248,6 +248,7 @@ async function openAccount(){
     document.getElementById('account-modal').classList.add('active');
 }
 function closeAccount(){document.getElementById('account-modal').classList.remove('active')}
+async function deleteUserSave(sid){if(!confirm('Delete this save?'))return;await api(`/api/user/save/${sid}`,'DELETE');openAccount()}
 async function loadUserSave(sid){closeAccount();const d=await api(`/api/user/load/${sid}`,'POST');if(d.game_id){gameId=d.game_id;state=d.state;for(const k in tileCache)delete tileCache[k];document.getElementById('menu-screen').style.display='none';document.getElementById('game-screen').style.display='block';setTimeout(()=>{initCanvas();centerOn();requestAnimationFrame(loop);updateUI();selectNextUnit();drawMini();showEvent('Game loaded!')},50)}}
 async function createToken(){const name=prompt('Token name (e.g. my-ai-bot):','ai-bot');if(!name)return;const d=await api('/api/auth/token','POST',{name});if(d.ok){alert('Token created!\\n\\nCopy this token (shown only once):\\n\\n'+d.token);openAccount()}else alert('Error creating token')}
 async function revokeToken(tid){if(!confirm('Revoke this token?'))return;await api(`/api/auth/token/${tid}`,'DELETE');openAccount()}
