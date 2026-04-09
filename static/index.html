@@ -385,7 +385,7 @@ let holdTimer=null,isHold=false;
 function initCanvas(){const c=document.getElementById('map-container');canvas.width=c.clientWidth;canvas.height=c.clientHeight;
 canvas.onmousedown=e=>{isDragging=true;isHold=false;dragStartX=e.clientX;dragStartY=e.clientY;dragCamX=camX;dragCamY=camY;
     // Start hold timer for goto
-    if(selectedUnit&&e.button===0){holdTimer=setTimeout(()=>{isHold=true;const r=canvas.getBoundingClientRect();const[q,r2]=p2h(e.clientX-r.left,e.clientY-r.top);if(selectedUnit){const u=state.units.find(u=>u.id===selectedUnit);if(u&&!(u.q===q&&u.r===r2)){gotoUnit(selectedUnit,q,r2);showEvent('Goto set')}}},400)}};
+    if(selectedUnit&&e.button===0){holdTimer=setTimeout(()=>{isHold=true;const r=canvas.getBoundingClientRect();const[q,r2]=p2h(e.clientX-r.left,e.clientY-r.top);if(selectedUnit&&state.tiles[`${q},${r2}`]){const u=state.units.find(u=>u.id===selectedUnit);if(u&&!(u.q===q&&u.r===r2)){gotoUnit(selectedUnit,q,r2);showEvent('Goto set')}}},400)}};
 canvas.onmousemove=e=>{if(isDragging){const dx=Math.abs(e.clientX-dragStartX),dy=Math.abs(e.clientY-dragStartY);if(dx>5||dy>5){clearTimeout(holdTimer);holdTimer=null}camX=dragCamX-(e.clientX-dragStartX);camY=dragCamY-(e.clientY-dragStartY)}};
 canvas.onmouseup=e=>{clearTimeout(holdTimer);holdTimer=null;if(!isHold&&Math.abs(e.clientX-dragStartX)<5&&Math.abs(e.clientY-dragStartY)<5){const r=canvas.getBoundingClientRect();handleClick(...p2h(e.clientX-r.left,e.clientY-r.top),e.button===2)}isDragging=false;isHold=false};
 canvas.onwheel=e=>{e.preventDefault();const o=camZoom;camZoom=Math.max(.3,Math.min(3,camZoom*(e.deltaY>0?.9:1.1)));const r=canvas.getBoundingClientRect(),mx=e.clientX-r.left,my=e.clientY-r.top;camX=(camX+mx)*(camZoom/o)-mx;camY=(camY+my)*(camZoom/o)-my};canvas.oncontextmenu=e=>e.preventDefault();document.onkeydown=onKey;onresize=()=>{canvas.width=document.getElementById('map-container').clientWidth;canvas.height=document.getElementById('map-container').clientHeight}}
@@ -831,7 +831,7 @@ function drawUnit(sx,sy,unit,col,sel){
     if(unit.fortified){ctx.strokeStyle='#5080c0';ctx.lineWidth=1.2;ctx.setLineDash([3,3]);ctx.beginPath();ctx.arc(sx,sy,S*.38,0,6.3);ctx.stroke();ctx.setLineDash([])}
     if(unit.sentry){ctx.strokeStyle='#f1c40f';ctx.lineWidth=1.2;ctx.setLineDash([3,3]);ctx.beginPath();ctx.arc(sx,sy,S*.38,0,6.3);ctx.stroke();ctx.setLineDash([])}
     if(unit.exploring){ctx.strokeStyle='#2ecc71';ctx.lineWidth=1.2;ctx.setLineDash([3,3]);ctx.beginPath();ctx.arc(sx,sy,S*.38,0,6.3);ctx.stroke();ctx.setLineDash([])}
-    if(unit.goto&&unit.player===0){const[gx,gy]=h2p(unit.goto.q,unit.goto.r);const ox2=camX/camZoom,oy2=camY/camZoom;const gsx=gx-ox2,gsy=gy-oy2;ctx.save();ctx.globalAlpha=.4;ctx.strokeStyle='#ffd700';ctx.lineWidth=1.5;ctx.setLineDash([4,4]);ctx.beginPath();ctx.moveTo(sx,sy);ctx.lineTo(gsx,gsy);ctx.stroke();ctx.setLineDash([]);ctx.globalAlpha=.6;ctx.fillStyle='#ffd700';ctx.beginPath();ctx.arc(gsx,gsy,4,0,6.3);ctx.fill();ctx.restore()}
+    if(unit.goto&&unit.player===0&&unit.goto.q>=0&&unit.goto.r>=0&&unit.goto.q<(state.width||999)&&unit.goto.r<(state.height||999)){const[gx,gy]=h2p(unit.goto.q,unit.goto.r);const ox2=camX/camZoom,oy2=camY/camZoom;const gsx=gx-ox2,gsy=gy-oy2;ctx.save();ctx.globalAlpha=.4;ctx.strokeStyle='#ffd700';ctx.lineWidth=1.5;ctx.setLineDash([4,4]);ctx.beginPath();ctx.moveTo(sx,sy);ctx.lineTo(gsx,gsy);ctx.stroke();ctx.setLineDash([]);ctx.globalAlpha=.6;ctx.fillStyle='#ffd700';ctx.beginPath();ctx.arc(gsx,gsy,4,0,6.3);ctx.fill();ctx.restore()}
     ctx.restore();
 }
 
