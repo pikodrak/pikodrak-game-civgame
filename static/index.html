@@ -533,8 +533,8 @@ function render(){
     // ANIMATED WATER
     for(const k in tiles){const t=tiles[k];if(t!=='water'&&t!=='coast')continue;const[q,r]=k.split(',').map(Number);const[px,py]=h2p(q,r),sx=px-ox,sy=py-oy;if(sx<-pad||sx>W/camZoom+pad||sy<-pad||sy>H/camZoom+pad)continue;drawWaterFX(sx,sy,t,q,r)}
 
-    // FOG OF WAR - darken explored but not currently visible tiles
-    if(state.visible){const vs=new Set(state.visible);for(const k in tiles){if(vs.has(k))continue;const[q,r]=k.split(',').map(Number);const[px,py]=h2p(q,r),sx=px-ox,sy=py-oy;if(sx<-pad||sx>W/camZoom+pad||sy<-pad||sy>H/camZoom+pad)continue;ctx.save();ctx.globalAlpha=.35;hexP(ctx,sx,sy,S);ctx.fillStyle='#0a0a18';ctx.fill();ctx.restore()}}
+    // FOG OF WAR - very light tint on explored-but-not-visible tiles
+    if(state.visible){const vs=new Set(state.visible);for(const k in tiles){if(vs.has(k))continue;const[q,r]=k.split(',').map(Number);const[px,py]=h2p(q,r),sx=px-ox,sy=py-oy;if(sx<-pad||sx>W/camZoom+pad||sy<-pad||sy>H/camZoom+pad)continue;ctx.save();ctx.globalAlpha=.2;hexP(ctx,sx,sy,S);ctx.fillStyle='#182030';ctx.fill();ctx.restore()}}
 
     // IMPROVEMENTS on map
     if(state.improvements){for(const k in state.improvements){const[q,r]=k.split(',').map(Number);const[px,py]=h2p(q,r),sx=px-ox,sy=py-oy;if(sx<-pad||sx>W/camZoom+pad||sy<-pad||sy>H/camZoom+pad)continue;const imp=state.improvements[k];ctx.save();ctx.globalAlpha=.7;
