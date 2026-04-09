@@ -751,8 +751,8 @@ class GameState:
         if total == 0:
             total = 1
 
-        dmg_to_def = int(30 * atk_roll / total + 10)
-        dmg_to_atk = int(30 * def_roll / total + 5)
+        dmg_to_def = int(50 * atk_roll / total + 15)
+        dmg_to_atk = int(40 * def_roll / total + 10)
 
         defender["hp"] -= dmg_to_def
         attacker["hp"] -= dmg_to_atk
@@ -2139,15 +2139,34 @@ class GameState:
                 self._ai_step_toward(unit, target["q"], target["r"])
                 return
 
-        # Defend threatened cities — rush to closest city with enemy nearby
+        # Obsolete unit — go to nearest city for upgrade
+        upgrade_path = {"warrior": "swordsman", "swordsman": "musketman", "musketman": "rifleman",
+                        "spearman": "musketman", "archer": "musketman", "horseman": "knight"}
+        upgrade_to = upgrade_path.get(unit["type"])
+        if upgrade_to and upgrade_to in UNIT_TYPES:
+            udata = UNIT_TYPES[upgrade_to]
+            if udata["tech"] and udata["tech"] in player.get("techs", []):
+                # Has tech for upgrade — go to nearest own city
+                in_city = any(c["q"] == unit["q"] and c["r"] == unit["r"] and c["player"] == pid
+                              for c in self.cities.values())
+                any_war = any(player["diplomacy"].get(p["id"]) == "war" for p in self.players if p["id"] != pid and p["alive"])
+                if not in_city and my_cities and not any_war:
+                    nearest_city = min(my_cities, key=lambda c: hex_distance(unit["q"], unit["r"], c["q"], c["r"]))
+                    if hex_distance(unit["q"], unit["r"], nearest_city["q"], nearest_city["r"]) <= 6:
+                        self._ai_step_toward(unit, nearest_city["q"], nearest_city["r"])
+                        return
+
+        # Defend threatened cities — only if not enough defenders
         for city in my_cities:
             enemies_near_city = [u for u in self.units.values()
                                  if u["player"] != pid and u["cat"] != "civilian"
                                  and hex_distance(u["q"], u["r"], city["q"], city["r"]) <= 3]
-            if enemies_near_city:
+            defenders_near = [u for u in self.units.values()
+                              if u["player"] == pid and u["cat"] != "civilian" and u["id"] != unit["id"]
+                              and hex_distance(u["q"], u["r"], city["q"], city["r"]) <= 2]
+            if enemies_near_city and len(defenders_near) < len(enemies_near_city):
                 d = hex_distance(unit["q"], unit["r"], city["q"], city["r"])
-                if d <= 8:
-                    self._log_ai(pid, f"DEFEND: {unit['type']} rushing to {city['name']} (enemies near)")
+                if d <= 6:
                     self._ai_step_toward(unit, city["q"], city["r"])
                     return
 

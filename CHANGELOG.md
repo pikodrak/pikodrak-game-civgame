@@ -4,6 +4,14 @@
 
 ### Latest Changes
 
+**Combat & AI Iteration 3 (based on battle analysis)**
+- Combat damage increased: 30+10/30+5 → 50+15/40+10 (battles 60% more decisive)
+- Draw ratio dropped: 867→354 (29% win rate → 46%)
+- Obsolete units seek nearest city for upgrade when not at war
+- Old units at end: 10+ → 0 (all upgraded)
+- City defense smarter: only rush when outnumbered by nearby enemies
+- Defend spam fixed: 174→0 (was over-defending)
+
 **Unit Upgrades & City Defense**
 - Unit upgrade system: warrior→swordsman→musketman→rifleman→infantry (and mounted/naval chains)
 - Upgrades happen in own cities, cost half of unit price
