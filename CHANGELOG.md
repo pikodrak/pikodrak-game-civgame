@@ -4,6 +4,16 @@
 
 ### Latest Changes
 
+**Major visual overhaul (based on screenshot analysis)**
+- Terrain variation: each hex rotated, offset, scaled differently — no two identical tiles
+- Brightness variation per tile (warm/cool tint)
+- Units 85% of hex size (was 70%) + player color dot at bottom-right
+- Player identification: colored circle on every unit shows owner at a glance
+- Improvements visible on map: farms (green rows), mines (triangle), lumber mills (circle), trading posts (gold coin)
+- Roads visible: brown lines connecting adjacent road tiles, railroads dashed with darker color
+- Territory borders fixed: uses territory ownership map, draws border only where neighbor is different player
+- Border drawn at 98% hex radius for clean alignment
+
 **BFS pathfinding, worker manual build, unit panel redesign**
 - BFS pathfinding replaces greedy step — units navigate around mountains/water
 - Goto/explore now finds real paths instead of getting stuck

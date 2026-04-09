@@ -334,17 +334,40 @@ function render(){
     // FOG OF WAR - darken explored but not currently visible tiles
     if(state.visible){const vs=new Set(state.visible);for(const k in tiles){if(vs.has(k))continue;const[q,r]=k.split(',').map(Number);const[px,py]=h2p(q,r),sx=px-ox,sy=py-oy;if(sx<-pad||sx>W/camZoom+pad||sy<-pad||sy>H/camZoom+pad)continue;ctx.save();ctx.globalAlpha=.55;hexP(ctx,sx,sy,S);ctx.fillStyle='#000';ctx.fill();ctx.restore()}}
 
-    // TERRITORY — fill + thick border line at edge
-    for(const city of state.cities){const pc=state.players.find(p=>p.id===city.player)?.color||'#888';const br=city.border_radius||1;for(let dq=-br;dq<=br;dq++)for(let dr=-br;dr<=br;dr++){const d=hD(city.q,city.r,city.q+dq,city.r+dr);if(d>br||!tiles[`${city.q+dq},${city.r+dr}`])continue;const[px,py]=h2p(city.q+dq,city.r+dr),sx=px-ox,sy=py-oy;if(sx<-pad||sx>W/camZoom+pad||sy<-pad||sy>H/camZoom+pad)continue;
-        // Light fill
-        ctx.save();ctx.globalAlpha=d===br?.05:.08;hexP(ctx,sx,sy,S);ctx.fillStyle=pc;ctx.fill();ctx.restore();
-        // Thick border on edge hexes — draw only edges that face outside territory
-        if(d===br){const nb=hNb(city.q+dq,city.r+dr);
-            // Edge mapping: hex vertex i connects to neighbor (i+5)%6 in hNb order
-            for(let i=0;i<6;i++){const ni=(i+5)%6;const[nq,nr]=nb[ni];const nd=hD(city.q,city.r,nq,nr);if(nd>br||!tiles[`${nq},${nr}`]){
-            const a1=Math.PI/3*i-Math.PI/2,a2=Math.PI/3*(i+1)-Math.PI/2;
-            ctx.save();ctx.globalAlpha=.55;ctx.strokeStyle=pc;ctx.lineWidth=3;ctx.lineCap='round';
-            ctx.beginPath();ctx.moveTo(sx+S*Math.cos(a1),sy+S*Math.sin(a1));ctx.lineTo(sx+S*Math.cos(a2),sy+S*Math.sin(a2));ctx.stroke();ctx.restore()}}}}}
+    // IMPROVEMENTS on map
+    if(state.improvements){for(const k in state.improvements){const[q,r]=k.split(',').map(Number);const[px,py]=h2p(q,r),sx=px-ox,sy=py-oy;if(sx<-pad||sx>W/camZoom+pad||sy<-pad||sy>H/camZoom+pad)continue;const imp=state.improvements[k];ctx.save();ctx.globalAlpha=.7;
+        if(imp.type==='farm'){ctx.fillStyle='#8B4513';ctx.fillRect(sx-S*.2,sy-S*.05,S*.4,S*.02);ctx.fillRect(sx-S*.2,sy+S*.08,S*.4,S*.02);ctx.fillRect(sx-S*.2,sy+S*.2,S*.4,S*.02);ctx.fillStyle='#228B22';for(let i=0;i<3;i++){ctx.beginPath();ctx.arc(sx-S*.12+i*S*.12,sy+S*.05,2,0,6.3);ctx.fill()}}
+        else if(imp.type==='mine'){ctx.fillStyle='#666';ctx.beginPath();ctx.moveTo(sx,sy-S*.15);ctx.lineTo(sx-S*.12,sy+S*.05);ctx.lineTo(sx+S*.12,sy+S*.05);ctx.closePath();ctx.fill();ctx.fillStyle='#aaa';ctx.beginPath();ctx.arc(sx,sy-S*.02,2,0,6.3);ctx.fill()}
+        else if(imp.type==='lumber_mill'){ctx.fillStyle='#8B5A2B';ctx.fillRect(sx-S*.15,sy-S*.03,S*.3,S*.06);ctx.fillStyle='#CD853F';ctx.beginPath();ctx.arc(sx,sy,S*.08,0,6.3);ctx.fill()}
+        else if(imp.type==='trading_post'){ctx.fillStyle='#DAA520';ctx.beginPath();ctx.arc(sx,sy+S*.05,S*.08,0,6.3);ctx.fill();ctx.fillStyle='#FFD700';ctx.beginPath();ctx.arc(sx,sy+S*.05,S*.05,0,6.3);ctx.fill()}
+        ctx.restore()}}
+    // ROADS on map
+    if(state.roads){for(const k in state.roads){const[q,r]=k.split(',').map(Number);const[px,py]=h2p(q,r),sx=px-ox,sy=py-oy;if(sx<-pad||sx>W/camZoom+pad||sy<-pad||sy>H/camZoom+pad)continue;const rd=state.roads[k];
+        // Draw road connections to adjacent road tiles
+        const nb=hNb(q,r);for(const[nq,nr]of nb){if(state.roads[`${nq},${nr}`]){const[np,ny]=h2p(nq,nr);ctx.save();ctx.globalAlpha=.5;ctx.strokeStyle=rd.type==='railroad'?'#555':'#8B7355';ctx.lineWidth=rd.type==='railroad'?2.5:2;ctx.beginPath();ctx.moveTo(sx,sy);ctx.lineTo((sx+np-ox)/2+sx/2,(sy+ny-oy)/2+sy/2);ctx.stroke();if(rd.type==='railroad'){ctx.strokeStyle='#777';ctx.lineWidth=1;ctx.setLineDash([3,3]);ctx.stroke();ctx.setLineDash([])}ctx.restore()}}}}
+
+    // TERRITORY — fill + dashed border on outermost hexes
+    // First pass: collect all territory tiles per player
+    const terrMap={};
+    for(const city of state.cities){const pid=city.player;const pc=state.players.find(p=>p.id===pid)?.color||'#888';const br=city.border_radius||1;
+        for(let dq=-br;dq<=br;dq++)for(let dr=-br;dr<=br;dr++){const tq=city.q+dq,tr=city.r+dr;
+            if(hD(city.q,city.r,tq,tr)>br||!tiles[`${tq},${tr}`])continue;
+            const k=`${tq},${tr}`;if(!terrMap[k])terrMap[k]={player:pid,color:pc}}}
+    // Second pass: render fill + borders
+    for(const k in terrMap){const[q,r]=k.split(',').map(Number);const{player:pid,color:pc}=terrMap[k];
+        const[px,py]=h2p(q,r),sx=px-ox,sy=py-oy;
+        if(sx<-pad||sx>W/camZoom+pad||sy<-pad||sy>H/camZoom+pad)continue;
+        // Tinted fill
+        ctx.save();ctx.globalAlpha=.08;hexP(ctx,sx,sy,S);ctx.fillStyle=pc;ctx.fill();ctx.restore();
+        // Check each edge — draw border if neighbor is NOT same player's territory
+        const nb=hNb(q,r);
+        for(let i=0;i<6;i++){const[nq,nr]=nb[i];const nk=`${nq},${nr}`;
+            const neighborSame=terrMap[nk]&&terrMap[nk].player===pid;
+            if(!neighborSame){
+                const a1=Math.PI/3*i-Math.PI/2,a2=Math.PI/3*(i+1)-Math.PI/2;
+                ctx.save();ctx.globalAlpha=.6;ctx.strokeStyle=pc;ctx.lineWidth=2.5;ctx.lineCap='round';
+                ctx.beginPath();ctx.moveTo(sx+S*.98*Math.cos(a1),sy+S*.98*Math.sin(a1));
+                ctx.lineTo(sx+S*.98*Math.cos(a2),sy+S*.98*Math.sin(a2));ctx.stroke();ctx.restore()}}}
 
     // SELECTION
     if(selectedUnit){const u=state.units.find(u=>u.id===selectedUnit);if(u){const[px,py]=h2p(u.q,u.r),sx=px-ox,sy=py-oy;ctx.save();ctx.globalAlpha=.1+Math.sin(T*5)*.07;hexP(ctx,sx,sy,S+3);ctx.strokeStyle='#fff';ctx.lineWidth=3;ctx.stroke();hexP(ctx,sx,sy,S);ctx.fillStyle='#fff';ctx.fill();ctx.restore();if(u.moves_left>0)for(const[nq,nr]of hNb(u.q,u.r)){const k=`${nq},${nr}`;if(!tiles[k])continue;const t=tiles[k];if((t==='water'||t==='coast')&&u.cat!=='naval'&&u.cat!=='air')continue;if(t==='mountain'&&u.cat!=='air')continue;const[np,ny]=h2p(nq,nr),nx=np-ox,ns=ny-oy;const en=state.units.some(x=>x.q===nq&&x.r===nr&&x.player!==0)||state.cities.some(c=>c.q===nq&&c.r===nr&&c.player!==0);ctx.save();ctx.globalAlpha=.15+Math.sin(T*3)*.05;hexP(ctx,nx,ns,S);ctx.fillStyle=en?'#ff3030':'#30ff70';ctx.fill();ctx.globalAlpha=.5;hexP(ctx,nx,ns,S);ctx.strokeStyle=en?'#ff3030':'#30ff70';ctx.lineWidth=2;ctx.setLineDash([5,4]);ctx.stroke();ctx.setLineDash([]);ctx.restore()}}}
@@ -371,17 +394,29 @@ const TPAL={
 };
 
 function renderTile(c,type,q,r){
-    // Try PNG terrain tile first
     const tImg=terrImgs[type];
+    const h1=Hf(q,r),h2=Hf(q+999,r+777),h3=Hf(q+333,r+555);
     if(tImg&&tImg.complete&&tImg.naturalWidth>0){
         hexP(c,0,0,S);c.save();c.clip();
+        // Offset + scale variation so tiles don't repeat identically
+        const ox=(h1-.5)*S*.4, oy=(h2-.5)*S*.4, sc=1.0+h3*.15;
+        c.translate(ox,oy);c.scale(sc,sc);
+        // Random rotation (0, 60, 120, 180, 240, 300 deg)
+        const rot=((q*7+r*13)%6)*Math.PI/3;
+        c.rotate(rot);
         c.drawImage(tImg,-S,-S,S*2,S*2);
-        // Subtle variation per tile
-        const h1=Hf(q,r);
-        c.globalAlpha=0.04+h1*0.04;c.fillStyle=h1>.5?'rgba(255,255,200,.1)':'rgba(0,0,30,.1)';
+        c.setTransform(1,0,0,1,0,0);  // reset
+        // Re-clip after transform reset — apply color variation
+        hexP(c,0,0,S);c.save();c.clip();
+        // Brightness variation
+        const bright=(h1-.5)*0.12;
+        c.globalAlpha=Math.abs(bright);
+        c.fillStyle=bright>0?'rgba(255,250,220,.3)':'rgba(0,0,20,.25)';
         c.fillRect(-S,-S,S*2,S*2);
         c.restore();
-        hexP(c,0,0,S);c.strokeStyle='rgba(40,30,15,.2)';c.lineWidth=1;c.stroke();
+        c.restore();
+        // Hex border
+        hexP(c,0,0,S);c.strokeStyle='rgba(30,25,10,.18)';c.lineWidth=.8;c.stroke();
         return;
     }
     const h1=Hf(q,r),h2=Hf(q+999,r+777);
@@ -577,13 +612,19 @@ function drawUnit(sx,sy,unit,col,sel){
         ctx.restore()}
     ctx.fillStyle=col;ctx.beginPath();ctx.ellipse(sx,sy+1,S*.3,S*.08,0,0,6.3);ctx.fill();
     ctx.strokeStyle=dk(col,40);ctx.lineWidth=.8;ctx.stroke();ctx.shadowBlur=0;
-    // Draw unit — PNG sprite or fallback to canvas
+    // Draw unit — PNG sprite with player color ring
     const uImg=unitImgs[unit.type];
+    const us=S*.85;  // bigger units
     if(uImg&&uImg.complete&&uImg.naturalWidth>0){
-        const us=S*.7;ctx.drawImage(uImg,sx-us/2,uy-us/2,us,us);
+        ctx.drawImage(uImg,sx-us/2,uy-us/2,us,us);
     }else{
         ctx.save();ctx.translate(sx,uy);const sc=S/26;ctx.scale(sc,sc);drawSprite(ctx,unit.type,col);ctx.restore();
     }
+    // Player color circle under unit — always visible
+    ctx.save();ctx.globalAlpha=.85;
+    ctx.fillStyle=col;ctx.beginPath();ctx.arc(sx+S*.3,sy+S*.12,S*.14,0,6.3);ctx.fill();
+    ctx.strokeStyle='rgba(0,0,0,.5)';ctx.lineWidth=1.5;ctx.stroke();
+    ctx.restore();
     if(unit.hp<100){const r=S*.32,bw=r*.8,pct=unit.hp/100,by=sy+S*.18;ctx.fillStyle='rgba(0,0,0,.4)';ctx.beginPath();ctx.roundRect(sx-bw,by,bw*2,2.5,1);ctx.fill();ctx.fillStyle=pct>.6?'#4a8a3a':pct>.3?'#b8982a':'#aa3030';ctx.beginPath();ctx.roundRect(sx-bw,by,bw*2*pct,2.5,1);ctx.fill()}
     if(unit.player===0&&unit.moves_left>0){ctx.save();ctx.shadowColor='#50d870';ctx.shadowBlur=4;ctx.fillStyle='#50d870';ctx.beginPath();ctx.arc(sx+S*.28,sy-S*.32,2.5,0,6.3);ctx.fill();ctx.restore()}
     if(unit.fortified){ctx.strokeStyle='#5080c0';ctx.lineWidth=1.2;ctx.setLineDash([3,3]);ctx.beginPath();ctx.arc(sx,sy,S*.38,0,6.3);ctx.stroke();ctx.setLineDash([])}
