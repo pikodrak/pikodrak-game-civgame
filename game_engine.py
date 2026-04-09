@@ -555,6 +555,10 @@ class GameState:
             for dr in range(-brd, brd + 1):
                 tq, tr = city["q"] + dq, city["r"] + dr
                 if hex_distance(city["q"], city["r"], tq, tr) <= brd:
+                    # Only harvest from tiles we own (culture pressure)
+                    tile_owner = self.get_tile_owner(tq, tr)
+                    if tile_owner is not None and tile_owner != city["player"]:
+                        continue  # foreign culture controls this tile
                     t = self.tiles.get((tq, tr))
                     if t:
                         y = TERRAIN_YIELDS[t]
@@ -638,14 +642,19 @@ class GameState:
     # --------------------------------------------------------
 
     def get_tile_owner(self, q, r):
-        """Return player_id who owns this tile. When contested, higher culture + closer city wins."""
+        """Return player_id who owns this tile. City hex always belongs to city owner.
+        Contested tiles: higher culture/distance wins."""
+        # City hex always belongs to city owner
+        for c in self.cities.values():
+            if c["q"] == q and c["r"] == r:
+                return c["player"]
+        # Other tiles: culture pressure
         best_owner = None
         best_score = -1
         for c in self.cities.values():
             br = c.get("border_radius", 1)
             dist = hex_distance(c["q"], c["r"], q, r)
             if dist <= br:
-                # Score: culture / distance (closer + higher culture = stronger claim)
                 culture = c.get("culture", 0) + 1
                 score = culture / max(1, dist)
                 if score > best_score:

@@ -509,7 +509,12 @@ def api_rules():
             "culture_borders": {
                 "thresholds": {"radius_2": 10, "radius_3": 50, "radius_4": 150, "radius_5": 400},
                 "culture_per_turn": "Base 1 + building bonuses + trait bonuses",
-                "culture_pressure": "When two cities' borders overlap, tile belongs to city with higher culture/distance ratio. Build temples/monasteries to push borders.",
+                "culture_pressure": {
+                    "how": "When borders overlap, tile belongs to city with higher culture/distance ratio",
+                    "city_hex": "City's own hex ALWAYS belongs to its owner (never taken by culture)",
+                    "yield_loss": "City can only harvest resources from tiles it owns. If foreign culture takes your tiles, you lose those yields (food/prod/gold)",
+                    "strategy": "Build temples/monasteries to push borders. A city surrounded by foreign culture will starve",
+                },
             },
             "defense": "Base 10 + building defense bonuses. City heals +10 hp/turn.",
         },
