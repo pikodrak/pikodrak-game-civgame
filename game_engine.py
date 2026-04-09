@@ -6,6 +6,7 @@ from enum import Enum
 
 # Game config — overridden by config_loader from game_config.ini
 GAME_CONFIG = {}
+CITY_NAMES = {}  # civ_key -> [city names]
 
 # ============================================================
 # TERRAIN & MAP
@@ -2059,10 +2060,14 @@ class GameState:
             terrain = self.tiles.get((unit["q"], unit["r"]))
             too_close = any(hex_distance(c["q"], c["r"], unit["q"], unit["r"]) < 3 for c in self.cities.values())
             if not too_close and terrain not in (Terrain.WATER, Terrain.COAST, Terrain.MOUNTAIN):
-                city_names = ["Nova Roma", "Alexandria", "Persepolis", "Kyoto", "Tenochtitlan",
-                              "Constantinople", "Carthage", "Babylon", "Memphis", "Sparta",
-                              "Athens", "Thebes", "Troy", "Corinth", "Delhi",
-                              "Luxor", "Olympia", "Syracuse", "Antioch", "Samarkand"]
+                # Use per-civilization city names
+                player_civ = self.players[pid]["civ"]
+                city_names = CITY_NAMES.get(player_civ, [])
+                if not city_names:
+                    city_names = ["Nova Roma", "Alexandria", "Persepolis", "Kyoto", "Tenochtitlan",
+                                  "Constantinople", "Carthage", "Babylon", "Memphis", "Sparta",
+                                  "Athens", "Thebes", "Troy", "Corinth", "Delhi",
+                                  "Luxor", "Olympia", "Syracuse", "Antioch", "Samarkand"]
                 used = {c["name"] for c in self.cities.values()}
                 name = next((n for n in city_names if n not in used), f"City {self.next_city_id}")
                 self.current_player = pid

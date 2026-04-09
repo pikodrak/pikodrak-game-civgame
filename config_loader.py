@@ -34,7 +34,7 @@ def load_config():
 
     data = {"game": {}, "civilizations": {}, "unit_types": {}, "buildings": {},
             "improvements": {}, "terrain_yields": {}, "terrain_move_cost": {},
-            "terrain_defense": {}}
+            "terrain_defense": {}, "city_names": {}}
 
     # [game] section
     if cfg.has_section("game"):
@@ -121,6 +121,11 @@ def load_config():
                 "gold": int(im.get("gold", "0")),
             }
 
+    # [cities] section
+    if cfg.has_section("cities"):
+        for key in cfg["cities"]:
+            data["city_names"][key] = [n.strip() for n in cfg["cities"][key].split(",") if n.strip()]
+
     return data
 
 
@@ -176,6 +181,9 @@ def apply_config(data):
 
     # Store game settings for access
     game_engine.GAME_CONFIG = data.get("game", {})
+
+    if data["city_names"]:
+        game_engine.CITY_NAMES = data["city_names"]
 
 
 def check_and_reload():
