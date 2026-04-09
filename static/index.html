@@ -9,7 +9,7 @@
 *{margin:0;padding:0;box-sizing:border-box}
 body{background:#1a1408;color:#e0e0e0;font-family:'Inter',system-ui,sans-serif;overflow:hidden;height:100vh}
 #menu-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;position:relative;overflow:hidden}
-#menu-bg{position:absolute;top:0;left:0;width:100%;height:100%}
+#menu-bg{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none}
 #menu-screen h1{font-family:'Cinzel',serif;font-size:5rem;font-weight:700;background:linear-gradient(135deg,#ffd700,#ff8c00,#ffd700);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:.3rem;letter-spacing:8px;z-index:1}
 #menu-screen .subtitle{font-family:'Cinzel',serif;color:#8090b0;font-size:1.1rem;margin-bottom:2.5rem;letter-spacing:6px;text-transform:uppercase;z-index:1}
 .menu-panel{background:rgba(15,20,40,.85);border:1px solid rgba(255,215,0,.15);border-radius:16px;padding:2rem 2.5rem;width:440px;backdrop-filter:blur(20px);box-shadow:0 20px 60px rgba(0,0,0,.5);z-index:1}
@@ -338,6 +338,7 @@ async function tryAutoLoad(){
 // Auto-load removed from here — handled after login in showMenu()
 
 async function startGame(){
+    console.log('startGame called');document.title='Starting...';
     try{
     const c=document.getElementById('menu-civ').value,[w,h]=document.getElementById('menu-mapsize').value.split(',').map(Number),n=+document.getElementById('menu-players').value;
     const d=await api('/api/new_game','POST',{width:w,height:h,num_players:n,civ:c});
