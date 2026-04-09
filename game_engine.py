@@ -576,6 +576,18 @@ class GameState:
         return defense
 
     # --------------------------------------------------------
+    # TERRITORY
+    # --------------------------------------------------------
+
+    def get_tile_owner(self, q, r):
+        """Return player_id who owns this tile via city border, or None."""
+        for c in self.cities.values():
+            br = c.get("border_radius", 1)
+            if hex_distance(c["q"], c["r"], q, r) <= br:
+                return c["player"]
+        return None
+
+    # --------------------------------------------------------
     # VISIBILITY / FOG OF WAR
     # --------------------------------------------------------
 
@@ -644,6 +656,19 @@ class GameState:
         move_cost = TERRAIN_MOVE_COST.get(terrain, 1)
         if unit["moves_left"] < move_cost and unit["moves_left"] < unit["mov"]:
             return {"ok": False, "msg": "Not enough movement"}
+
+        # Territory check — entering foreign territory without peace = war
+        territory_owner = self.get_tile_owner(target_q, target_r)
+        if territory_owner is not None and territory_owner != unit["player"]:
+            rel = self.players[unit["player"]]["diplomacy"].get(territory_owner, "peace")
+            if rel == "war":
+                pass  # at war, can enter
+            elif rel == "peace":
+                pass  # peace treaty allows passage
+            else:
+                # neutral — entering territory is act of war
+                self.declare_war(unit["player"], territory_owner)
+                self._log_ai(unit["player"], f"DIPLO: entered {self.players[territory_owner]['name']} territory — WAR!")
 
         # Check for enemy units
         enemy_units = [u for u in self.units.values()
@@ -793,9 +818,35 @@ class GameState:
             return {"ok": False, "msg": "Cannot build city here"}
 
         cid = self._create_city(unit["player"], name, unit["q"], unit["r"])
+        city_player = unit["player"]
         del self.units[unit_id]
 
-        return {"ok": True, "msg": f"City {name} founded!", "city_id": cid}
+        # Push foreign units out of new city borders
+        city = self.cities[cid]
+        br = city.get("border_radius", 1)
+        pushed = []
+        for uid, u in list(self.units.items()):
+            if u["player"] != city_player and hex_distance(city["q"], city["r"], u["q"], u["r"]) <= br:
+                # Find nearest tile outside borders
+                best_exit = None
+                best_d = 999
+                for nq, nr in hex_neighbors(u["q"], u["r"]):
+                    t = self.tiles.get((nq, nr))
+                    if not t or t in (Terrain.WATER, Terrain.COAST, Terrain.MOUNTAIN):
+                        continue
+                    if hex_distance(city["q"], city["r"], nq, nr) > br:
+                        d = hex_distance(u["q"], u["r"], nq, nr)
+                        if d < best_d:
+                            best_d = d
+                            best_exit = (nq, nr)
+                if best_exit:
+                    u["q"], u["r"] = best_exit
+                    pushed.append(u["type"])
+
+        msg = f"City {name} founded!"
+        if pushed:
+            msg += f" ({len(pushed)} foreign unit(s) expelled)"
+        return {"ok": True, "msg": msg, "city_id": cid}
 
     def set_production(self, city_id, item_type, item_name):
         """Set what a city is producing. item_type: 'unit' or 'building'."""

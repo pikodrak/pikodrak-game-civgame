@@ -2,6 +2,37 @@
 
 ## Session: 2026-04-09 | 400+ simulations total
 
+### Latest Changes
+
+**Territory System**
+- `get_tile_owner(q,r)` returns which player controls a tile via city borders
+- Entering foreign territory (neutral) auto-declares war
+- Peace treaty allows passage through allied territory
+- Founding a city pushes foreign units outside new borders
+- Territory = city border_radius (grows with culture: 1→2→3→4→5)
+
+**Goto System**
+- Click distant hex with selected unit → auto-move each turn
+- Golden dashed line shows path, dot shows target
+- Cancelled when: enemy adjacent (non-peace), arrived, stuck
+- Panel shows "Moving to (x,y)" status
+
+**Default Diplomacy**
+- All civilizations start at peace (was neutral)
+- Entering neutral territory triggers war
+
+**INI Configuration (game_config.ini)**
+- All game parameters externalized to INI file
+- Hot-reload every 2 seconds — edit while game runs
+- Sections: [game], [terrain_*], [civ.*], [unit.*], [building.*], [improvement.*]
+- config_loader.py with background watcher thread
+
+**Workers Two-Layer System**
+- Improvements (farm/mine/lumber_mill) and roads (road/railroad) are separate layers
+- Both coexist on same tile — farm + road on same hex
+- Worker priority: improvement first → road → railroad upgrade
+- Worker seeks unimproved tiles near cities, then connects cities with roads
+
 ---
 
 ### Phase 1-3: Core Features ✅
