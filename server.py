@@ -249,9 +249,16 @@ def ai_possible_actions(game_id: int, player_id: int, request: Request):
             if u["type"] == "settler":
                 # Can found city?
                 terrain = game.tiles.get((u["q"], u["r"]))
-                too_close = any(hex_distance(c["q"], c["r"], u["q"], u["r"]) < 3 for c in game.cities.values())
-                if not too_close and terrain and terrain not in (Terrain.WATER, Terrain.COAST, Terrain.MOUNTAIN):
+                nearest_city_dist = min((hex_distance(c["q"], c["r"], u["q"], u["r"]) for c in game.cities.values()), default=999)
+                can_found = terrain and terrain not in (Terrain.WATER, Terrain.COAST, Terrain.MOUNTAIN) and nearest_city_dist >= 3
+                if can_found:
                     unit_info["actions"].append("found_city")
+                unit_info["can_found_info"] = {
+                    "terrain": terrain.value if terrain else None,
+                    "nearest_city_dist": nearest_city_dist,
+                    "min_required": 3,
+                    "can_found": can_found,
+                }
 
             if u["type"] == "worker":
                 unit_info["actions"].append("auto_build")

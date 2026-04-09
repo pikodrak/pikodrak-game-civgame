@@ -1182,6 +1182,13 @@ class GameState:
                 if enemy_near:
                     u["goto"] = None
                     continue
+                # Cancel goto if target is in foreign territory (not alliance)
+                tgt_owner = self.get_tile_owner(tgt["q"], tgt["r"])
+                if tgt_owner is not None and tgt_owner != pid:
+                    rel = player["diplomacy"].get(tgt_owner, "peace")
+                    if rel != "alliance":
+                        u["goto"] = None
+                        continue
                 # Move toward target using all movement
                 while u["id"] in self.units and u.get("goto") and u.get("moves_left", 0) > 0:
                     if u["q"] == tgt["q"] and u["r"] == tgt["r"]:
