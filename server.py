@@ -476,14 +476,14 @@ def api_rules():
         "roads_and_railroads": {
             "road": {
                 "build_time": "3 turns",
-                "movement_bonus": "Halves terrain movement cost (forest 2→1, hills 2→1)",
+                "movement_bonus": "+60% speed (move cost * 0.4). Forest 2→1, hills 2→1, grass stays 1",
                 "yield_bonus": "None",
-                "connects_cities": "Workers auto-build roads between cities via BFS path",
+                "strategy": "PRIORITY: build between cities for fast troop movement and defense. Workers auto-connect cities via BFS path.",
             },
             "railroad": {
                 "build_time": "4 turns",
                 "tech_required": "railroad",
-                "movement_bonus": "Reduces terrain movement cost to 1/3 (forest 2→1, hills 2→1)",
+                "movement_bonus": "+80% speed (move cost * 0.2). Almost free movement.",
                 "yield_bonus": "+1 production per tile",
                 "upgrades_from": "road (worker auto-upgrades when tech available)",
             },

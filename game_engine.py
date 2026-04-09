@@ -720,13 +720,13 @@ class GameState:
             return {"ok": False, "msg": "Naval units stay in water"}
 
         move_cost = TERRAIN_MOVE_COST.get(terrain, 1)
-        # Roads reduce movement cost
+        # Roads: +60% movement speed (cost * 0.4). Railroad: cost * 0.2
         road = self.roads.get((target_q, target_r))
         if road:
             if road["type"] == "railroad":
-                move_cost = max(1, move_cost // 3)  # railroad: 1/3 cost (min 1)
+                move_cost = max(1, int(move_cost * 0.2))  # railroad: 80% faster
             else:
-                move_cost = max(1, move_cost // 2)  # road: 1/2 cost (min 1)
+                move_cost = max(1, int(move_cost * 0.4))  # road: 60% faster
         if unit["moves_left"] < move_cost and unit["moves_left"] < unit["mov"]:
             return {"ok": False, "msg": "Not enough movement"}
 
@@ -2004,45 +2004,40 @@ class GameState:
             # On a road between cities? (not near city but on road path)
             on_road_path = existing_road is not None
 
-            if near_city:
-                # Priority 1: Terrain improvement (farm/mine/lumber_mill)
-                if not existing_imp:
-                    imp_type = self._ai_pick_improvement(terrain.value, player)
-                    if imp_type:
-                        idata = IMPROVEMENTS.get(imp_type, {})
-                        bonus = f"+{idata.get('food',0)}f +{idata.get('prod',0)}p +{idata.get('gold',0)}g"
-                        self.current_player = pid
-                        self.worker_build(unit["id"], imp_type)
-                        self._log_ai(pid, f"WORKER: {imp_type} at ({unit['q']},{unit['r']}) [{bonus}] terrain={terrain.value}")
-                        return
+            # Priority 1: Terrain improvement (farm/mine/lumber_mill) near city
+            if near_city and not existing_imp:
+                imp_type = self._ai_pick_improvement(terrain.value, player)
+                if imp_type:
+                    idata = IMPROVEMENTS.get(imp_type, {})
+                    bonus = f"+{idata.get('food',0)}f +{idata.get('prod',0)}p +{idata.get('gold',0)}g"
+                    self.current_player = pid
+                    self.worker_build(unit["id"], imp_type)
+                    self._log_ai(pid, f"WORKER: {imp_type} at ({unit['q']},{unit['r']}) [{bonus}] terrain={terrain.value}")
+                    return
 
-                # Priority 2: Road
-                if not existing_road:
+            # Priority 2: Road — only if on path between cities OR near city with all improvements done
+            needs_local_road = near_city and existing_imp and not existing_road
+            if not existing_road:
+                # Check if we're on a path between two cities (connecting road)
+                on_connect_path = False
+                if len(my_cities) >= 2:
+                    for c in my_cities:
+                        d = hex_distance(unit["q"], unit["r"], c["q"], c["r"])
+                        if 1 < d < 10:  # between cities, not AT city
+                            on_connect_path = True
+                            break
+                if on_connect_path or needs_local_road:
                     self.current_player = pid
                     self.worker_build(unit["id"], "road")
-                    self._log_ai(pid, f"WORKER: road at ({unit['q']},{unit['r']})")
+                    self._log_ai(pid, f"WORKER: road at ({unit['q']},{unit['r']})" + (" [connecting]" if on_connect_path else ""))
                     return
 
-                # Priority 3: Upgrade to railroad
-                if has_railroad and existing_road and existing_road["type"] == "road":
-                    self.current_player = pid
-                    self.worker_build(unit["id"], "railroad")
-                    self._log_ai(pid, f"WORKER: railroad at ({unit['q']},{unit['r']})")
-                    return
-
-            elif on_road_path or not existing_road:
-                # Between cities — build road to connect
-                if not existing_road:
-                    self.current_player = pid
-                    self.worker_build(unit["id"], "road")
-                    self._log_ai(pid, f"WORKER: connecting road at ({unit['q']},{unit['r']})")
-                    return
-                # Upgrade road between cities to railroad
-                if has_railroad and existing_road and existing_road["type"] == "road":
-                    self.current_player = pid
-                    self.worker_build(unit["id"], "railroad")
-                    self._log_ai(pid, f"WORKER: railroad link at ({unit['q']},{unit['r']})")
-                    return
+            # Priority 3: Upgrade to railroad
+            if has_railroad and existing_road and existing_road["type"] == "road":
+                self.current_player = pid
+                self.worker_build(unit["id"], "railroad")
+                self._log_ai(pid, f"WORKER: railroad at ({unit['q']},{unit['r']})")
+                return
 
         # --- WHERE TO MOVE? ---
         task = self._ai_worker_find_task(unit, pid, my_cities, has_railroad)
@@ -2050,11 +2045,11 @@ class GameState:
             self._ai_step_toward(unit, task[0], task[1])
 
     def _ai_worker_find_task(self, unit, pid, my_cities, has_railroad):
-        """Find best tile for worker to move to. Returns (q,r) or None."""
+        """Find best tile for worker. Priority: improvements > roads between cities > local roads."""
         player = self.players[pid]
         candidates = []  # (priority, q, r, reason)
 
-        # Task 1: Unimproved tiles near cities (improvements — highest priority)
+        # Task 1: Improvements near cities (farms, mines — highest priority)
         for city in my_cities:
             br = city.get("border_radius", 1) + 1
             for dq in range(-br, br + 1):
@@ -2068,37 +2063,29 @@ class GameState:
                     d = hex_distance(unit["q"], unit["r"], tq, tr)
                     if d > 20:
                         continue
-                    needs_imp = (tq, tr) not in self.improvements and self._ai_pick_improvement(t.value, player)
-                    needs_road = (tq, tr) not in self.roads
-                    needs_rr = has_railroad and (tq, tr) in self.roads and self.roads[(tq, tr)]["type"] == "road"
-                    if needs_imp:
+                    if (tq, tr) not in self.improvements and self._ai_pick_improvement(t.value, player):
                         candidates.append((d, tq, tr, "improve"))
-                    elif needs_road:
-                        candidates.append((d + 10, tq, tr, "road"))
-                    elif needs_rr:
+                    if has_railroad and (tq, tr) in self.roads and self.roads[(tq, tr)]["type"] == "road":
                         candidates.append((d + 20, tq, tr, "railroad"))
 
-        # Task 2: Build road connecting cities — find first tile without road on BFS path
+        # Task 2: Roads BETWEEN cities — HIGHEST priority after basic improvements
         if len(my_cities) >= 2:
             from collections import deque
             for i, c1 in enumerate(my_cities):
                 for c2 in my_cities[i+1:]:
                     dist = hex_distance(c1["q"], c1["r"], c2["q"], c2["r"])
-                    if dist > 12:
+                    if dist > 15:
                         continue
-                    # BFS from c1 to c2, find first tile on path without road
+                    # BFS from c1 to c2 — find path
                     visited = {(c1["q"], c1["r"])}
                     queue = deque([((c1["q"], c1["r"]), [(c1["q"], c1["r"])])])
-                    found_unroaded = None
-                    while queue and not found_unroaded:
+                    path_found = None
+                    while queue:
                         (cq, cr), path = queue.popleft()
                         if cq == c2["q"] and cr == c2["r"]:
-                            # Found path — check for unroaded tiles
-                            for pq, pr in path:
-                                t = self.tiles.get((pq, pr))
-                                if t and t not in (Terrain.WATER, Terrain.COAST, Terrain.MOUNTAIN) and (pq, pr) not in self.roads:
-                                    found_unroaded = (pq, pr)
-                                    break
+                            path_found = path
+                            break
+                        if len(visited) > 150:
                             break
                         for nq, nr in hex_neighbors(cq, cr):
                             if (nq, nr) in visited:
@@ -2107,12 +2094,14 @@ class GameState:
                             if not t or t in (Terrain.WATER, Terrain.COAST, Terrain.MOUNTAIN):
                                 continue
                             visited.add((nq, nr))
-                            if len(visited) > 100:
-                                break
                             queue.append(((nq, nr), path + [(nq, nr)]))
-                    if found_unroaded:
-                        d = hex_distance(unit["q"], unit["r"], found_unroaded[0], found_unroaded[1])
-                        candidates.append((d + 5, found_unroaded[0], found_unroaded[1], f"connect {c1['name']}-{c2['name']}"))
+                    if path_found:
+                        # Find first unroaded tile on path
+                        for pq, pr in path_found:
+                            if (pq, pr) not in self.roads:
+                                d = hex_distance(unit["q"], unit["r"], pq, pr)
+                                candidates.append((d + 3, pq, pr, f"road {c1['name'][:6]}-{c2['name'][:6]}"))
+                                break  # only first gap per city pair
 
         if not candidates:
             return None
