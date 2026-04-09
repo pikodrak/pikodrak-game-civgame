@@ -710,6 +710,10 @@ def diplomacy(game_id: int, req: DiplomacyRequest):
     game = games.get(game_id)
     if not game:
         raise HTTPException(404, "Game not found")
+    # Check cooldown before any diplomatic action
+    cd = game.players[0].get("diplo_cooldown", {}).get(req.target_player, 0)
+    if cd > 0:
+        return {"ok": False, "msg": f"Diplomatic cooldown: {cd} turns remaining", "state": game.to_dict(for_player=0)}
     if req.action == "war":
         game.declare_war(0, req.target_player)
     elif req.action == "peace":

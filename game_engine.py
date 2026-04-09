@@ -1108,6 +1108,10 @@ class GameState:
         return {"ok": True, "msg": "Unit skipped"}
 
     def declare_war(self, player_a, player_b):
+        # Check cooldown
+        cd_a = self.players[player_a].get("diplo_cooldown", {}).get(player_b, 0)
+        if cd_a > 0:
+            return  # can't change diplomacy yet
         self.players[player_a]["diplomacy"][player_b] = "war"
         self.players[player_b]["diplomacy"][player_a] = "war"
         cd = GAME_CONFIG.get("diplo_war_cooldown", 10)
@@ -1186,9 +1190,14 @@ class GameState:
                         woken.append(u["type"])
                         break
 
-        # Auto-explore units
+        # Auto-explore units — but cancel if at war (units should defend instead)
+        at_war = any(player["diplomacy"].get(p["id"]) == "war" for p in self.players if p["id"] != pid and p["alive"])
         for u in list(self.units.values()):
             if u["player"] == pid and u.get("exploring") and u.get("moves_left", 0) > 0:
+                # Cancel explore for military units during war — they should fight
+                if at_war and u["cat"] != "civilian":
+                    u["exploring"] = False
+                    continue
                 while u["id"] in self.units and u.get("exploring") and u.get("moves_left", 0) > 0:
                     old_q, old_r = u["q"], u["r"]
                     self._auto_explore_step(u, pid)
