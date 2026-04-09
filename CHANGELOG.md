@@ -4,6 +4,14 @@
 
 ### Latest Changes
 
+**High-Quality Graphics Upgrade**
+- All sprites upgraded to 128x128 resolution (from 64x64)
+- Units: detailed body proportions, armor, weapons, shadows, layered shading
+- Buildings: architectural detail, columns, arches, proper roofing, gold accents (96x96)
+- Terrain: natural variation patches, grass blades, wheat heads, tree canopy layers, snow-capped peaks
+- Drop shadows on all unit sprites
+- Proper material colors: skin tones, metal shading, wood grain, leather
+
 **PNG Sprite Graphics System**
 - 21 unit sprites (64x64 pixel art PNGs) — warrior through ironclad
 - 15 building icons (48x48 PNGs) — palace through nuclear_plant
