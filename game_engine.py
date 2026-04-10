@@ -543,12 +543,6 @@ class GameState:
         else:
             self.tiles = generate_map(width, height, seed)
 
-    def wrap_q(self, q):
-        """Wrap horizontal coordinate for globe maps."""
-        if self.wrap:
-            return q % self.width
-        return q
-
         # Players — unique civilizations, no duplicates
         civ_keys = list(CIVILIZATIONS.keys())
         random.shuffle(civ_keys)
@@ -663,6 +657,12 @@ class GameState:
                 if (nq, nr) not in used_tiles and self.tiles.get((nq, nr)) not in (None, Terrain.WATER, Terrain.COAST, Terrain.MOUNTAIN):
                     self._create_unit(p["id"], "worker", nq, nr)
                     break
+
+    def wrap_q(self, q):
+        """Wrap horizontal coordinate for globe maps."""
+        if getattr(self, 'wrap', False):
+            return q % self.width
+        return q
 
     def _create_unit(self, player_id, unit_type, q, r):
         uid = self.next_unit_id
