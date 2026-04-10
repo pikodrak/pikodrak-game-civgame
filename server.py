@@ -1148,7 +1148,11 @@ def set_auto_produce(game_id: int, req: AutoProduceRequest):
     if not city:
         raise HTTPException(404, "City not found")
     city["auto_produce"] = req.mode if req.mode != "off" else None
-    return {"ok": True, "msg": f"Auto-produce: {req.mode}", "state": game.to_dict(for_player=0)}
+    # If city is idle, immediately start producing based on auto mode
+    if not city.get("producing") and req.mode != "off":
+        player = game.players[city["player"]]
+        game._auto_produce_mode(city, player, city["player"])
+    return {"ok": True, "msg": f"Auto-produce: {req.mode}" + (f" → {city['producing']['name']}" if city.get('producing') else ""), "state": game.to_dict(for_player=0)}
 
 
 @app.post("/api/game/{game_id}/research")

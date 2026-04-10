@@ -616,7 +616,19 @@ async function endTurn(){
     if(lastProduced){const lp=document.getElementById('last-produced');if(lp)lp.textContent=lastProduced}
     updateUI();updatePanel();drawMini();autoSave();if(state.game_over){showGameOver();return}
     const me=state.players.find(p=>p.id===0);if(me&&!me.researching&&state.cities.some(c=>c.player===0)){showEvent('Choose research!');openTechTree();return}focusNextNeed()}
-function focusNextNeed(){const idle=state.cities.find(c=>c.player===0&&!c.producing);if(idle){selectedCity=idle.id;selectedUnit=null;centerOnTile(idle.q,idle.r);updatePanel();openProdModal(idle.id);return}selectNextUnit()}
+async function focusNextNeed(){
+// Show what was just produced (from last turn events)
+const lp=document.getElementById('last-produced');
+const lastMsg=lp?.textContent;
+const idle=state.cities.find(c=>c.player===0&&!c.producing);
+if(idle){
+    selectedCity=idle.id;selectedUnit=null;centerOnTile(idle.q,idle.r);updatePanel();
+    if(lastMsg&&lastMsg.length>3){
+        await gameAlert('Production Complete',lastMsg);
+        if(lp)lp.textContent='';
+    }
+    openProdModal(idle.id);return}
+selectNextUnit()}
 async function fortifyUnit(){if(!selectedUnit)return;const d=await api(`/api/game/${gameId}/fortify/${selectedUnit}`,'POST');if(d.ok){state=d.state;showEvent(d.msg)}selectedUnit=null;selectNextUnit();updateUI();updatePanel()}
 async function exploreUnit(){if(!selectedUnit)return;const d=await api(`/api/game/${gameId}/explore/${selectedUnit}`,'POST');if(d.ok){state=d.state;showEvent(d.msg)}selectedUnit=null;selectNextUnit();updateUI();updatePanel()}
 async function gotoUnit(uid,q,r){const d=await api(`/api/game/${gameId}/goto`,'POST',{unit_id:uid,q,r});if(d.ok){state=d.state;showEvent(d.msg)}selectedUnit=null;selectNextUnit();updateUI();updatePanel()}
