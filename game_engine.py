@@ -553,6 +553,8 @@ class GameState:
             "buildings": ["palace"] if len([c for c in self.cities.values() if c["player"] == player_id]) == 0 else [],
             "producing": None,
             "prod_progress": 0,
+            "prod_queue": [],  # list of {"type": "unit"/"building", "name": str} — max 5
+            "auto_produce": None,  # None / "units" / "buildings" / "auto"
             "hp": 200,
             "max_hp": 200,
         }
@@ -1705,8 +1707,14 @@ class GameState:
                         events.append(f"{city['name']} built {item['name']}")
                     city["producing"] = None
                     city["prod_progress"] = 0
-                    # AI: immediately pick next production (bypass validation)
-                    if not player["is_human"]:
+                    # Next from queue, auto-mode, or AI
+                    queue = city.get("prod_queue", [])
+                    if queue:
+                        next_item = queue.pop(0)
+                        self.set_production(city["id"], next_item["type"], next_item["name"])
+                    elif city.get("auto_produce") and player["is_human"]:
+                        self._auto_produce_mode(city, player, pid)
+                    elif not player["is_human"]:
                         self._ai_auto_produce(city, player, pid)
 
             # City culture & border expansion
@@ -2442,6 +2450,32 @@ class GameState:
         best = candidates[0]
         self.set_production(city["id"], best[1], best[2])
         self._log_ai(pid, f"PROD-SCORE: {city['name']} -> {best[2]} (score={best[0]}, reason={best[3]}) | top3: {[(c[2],c[0]) for c in candidates[:3]]}")
+
+    def _auto_produce_mode(self, city, player, pid):
+        """Auto-produce for human cities based on auto_produce setting."""
+        mode = city.get("auto_produce")
+        if not mode:
+            return
+        my_cities = [c for c in self.cities.values() if c["player"] == pid]
+        my_military = [u for u in self.units.values() if u["player"] == pid and u["cat"] != "civilian"]
+        my_settlers = [u for u in self.units.values() if u["player"] == pid and u["type"] == "settler"]
+        saved = self.current_player
+        self.current_player = pid
+        if mode == "auto":
+            self._ai_choose_production(city, player, my_cities, my_military, my_settlers, pid)
+        elif mode == "units":
+            best = self._ai_best_military(player)
+            self.set_production(city["id"], "unit", best)
+        elif mode == "buildings":
+            # Pick highest-scoring building
+            for bname, bdata in BUILDINGS.items():
+                if bname in city["buildings"] or bname == "palace":
+                    continue
+                if bdata["tech"] and bdata["tech"] not in player["techs"]:
+                    continue
+                self.set_production(city["id"], "building", bname)
+                break
+        self.current_player = saved
 
     def _ai_auto_produce(self, city, player, pid):
         """Directly set production for AI city, bypassing current_player check."""

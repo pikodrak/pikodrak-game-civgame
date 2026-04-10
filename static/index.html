@@ -390,7 +390,24 @@ if(selectedUnit&&'123456'.includes(e.key)){const wu=state.units.find(u=>u.id===s
 function isM(){return['tech-modal','diplo-modal','load-modal','prod-modal','account-modal'].some(id=>document.getElementById(id).classList.contains('active'))||document.getElementById('city-name-dialog').style.display==='block'}
 function handleClick(q,r,right){if(!state)return;if(rangedMode&&selectedUnit&&!right){doRangedAttack(q,r);return}if(selectedUnit&&!right){const u=state.units.find(u=>u.id===selectedUnit);if(u){const adj=hNb(u.q,u.r).some(([a,b])=>a===q&&b===r);if(adj&&u.moves_left>0){moveUnit(selectedUnit,q,r);return}}}const cu=state.units.find(u=>u.q===q&&u.r===r&&u.player===0);if(cu){selectedUnit=cu.id;selectedCity=null;updatePanel();return}const cc=state.cities.find(c=>c.q===q&&c.r===r&&c.player===0);if(cc){selectedCity=cc.id;selectedUnit=null;updatePanel();return}selectedUnit=selectedCity=null;updatePanel()}
 
-async function moveUnit(uid,q,r){const d=await api(`/api/game/${gameId}/move`,'POST',{unit_id:uid,q,r});if(d.needs_war){if(confirm(d.msg)){await api(`/api/game/${gameId}/diplomacy`,'POST',{target_player:d.war_target,action:'war'});const d2=await api(`/api/game/${gameId}/move`,'POST',{unit_id:uid,q,r});if(d2.ok){state=d2.state;if(d2.combat)showEvent(d2.msg);const u=state.units.find(u=>u.id===uid);if(!u||u.moves_left<=0){selectedUnit=null;setTimeout(()=>selectNextUnit(),500)}}else showEvent(d2.msg)}updateUI();updatePanel();drawMini();return}if(d.ok){state=d.state;if(d.combat)showEvent(d.msg);updateUI();updatePanel();drawMini();const u=state.units.find(u=>u.id===uid);if(u)centerOnTile(u.q,u.r);if(!u||u.moves_left<=0){setTimeout(()=>{selectedUnit=null;selectNextUnit();updatePanel()},600)}}else{showEvent(d.msg);updateUI();updatePanel();drawMini()}}
+if(!window._unitAnims)window._unitAnims={};
+async function moveUnit(uid,q,r){
+// Save old position for animation
+const oldU=state.units.find(u=>u.id===uid);
+const oldQ=oldU?oldU.q:q,oldR=oldU?oldU.r:r;
+const d=await api(`/api/game/${gameId}/move`,'POST',{unit_id:uid,q,r});
+if(d.needs_war){if(confirm(d.msg)){await api(`/api/game/${gameId}/diplomacy`,'POST',{target_player:d.war_target,action:'war'});const d2=await api(`/api/game/${gameId}/move`,'POST',{unit_id:uid,q,r});if(d2.ok){state=d2.state;if(d2.combat)showEvent(d2.msg);
+// Animate
+const nu=state.units.find(u=>u.id===uid);if(nu&&(nu.q!==oldQ||nu.r!==oldR)){const now=performance.now();window._unitAnims[uid]={fromQ:oldQ,fromR:oldR,toQ:nu.q,toR:nu.r,start:now,end:now+250}}
+if(!nu||nu.moves_left<=0){selectedUnit=null;setTimeout(()=>selectNextUnit(),500)}}else showEvent(d2.msg)}updateUI();updatePanel();drawMini();return}
+if(d.ok){state=d.state;if(d.combat)showEvent(d.msg);
+// Animate movement
+const nu=state.units.find(u=>u.id===uid);
+if(nu&&(nu.q!==oldQ||nu.r!==oldR)){const now=performance.now();window._unitAnims[uid]={fromQ:oldQ,fromR:oldR,toQ:nu.q,toR:nu.r,start:now,end:now+250}}
+updateUI();updatePanel();drawMini();
+if(nu)centerOnTile(nu.q,nu.r);
+if(!nu||nu.moves_left<=0){setTimeout(()=>{selectedUnit=null;selectNextUnit();updatePanel()},600)}}
+else{showEvent(d.msg);updateUI();updatePanel();drawMini()}}
 async function endTurn(){
     // Check for units without orders — select first idle one
     if(state){const idle=state.units.filter(u=>u.player===0&&u.moves_left>0&&!u.fortified&&!u.sentry&&!u.exploring&&!u.goto&&!u.building);
@@ -564,12 +581,33 @@ h+='</div>'}
 h+='</div>';c.innerHTML=h;m.classList.add('active')}
 async function openProdModal(cid){const city=state.cities.find(c=>c.id===cid);if(!city)return;document.getElementById('prod-modal-title').textContent=`${city.name} — Build`;const pr=await api(`/api/game/${gameId}/city/${cid}/productions`);let y;try{y=await api(`/api/game/${gameId}/city/${cid}/yields`)}catch(e){y={prod:1}}
 let ph='<div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem"><div><p style="color:#ff8060;font-size:.85rem;font-weight:700;margin-bottom:.4rem">UNITS</p>';
-for(const u of pr.units){const tl=Math.max(1,Math.ceil(u.cost/Math.max(1,y.prod)));ph+=`<div class="prod-item" onclick="setProductionModal(${cid},'unit','${u.name}')" style="display:flex;align-items:center;gap:8px;padding:.6rem"><img src="/static/img/units/${u.name}.png" width="36" height="36" onerror="this.style.display='none'" style="flex-shrink:0"><div><div class="prod-name" style="font-size:.9rem">${u.name.replace(/_/g,' ')}</div><div class="prod-stats" style="font-size:.8rem">A${u.atk} D${u.def} M${u.mov} | ${u.cost}p (~${tl}t)</div></div></div>`}
+for(const u of pr.units){const tl=Math.max(1,Math.ceil(u.cost/Math.max(1,y.prod)));ph+=`<div class="prod-item" onclick="setProductionModal(${cid},'unit','${u.name}',event)" style="display:flex;align-items:center;gap:8px;padding:.6rem"><img src="/static/img/units/${u.name}.png" width="36" height="36" onerror="this.style.display='none'" style="flex-shrink:0"><div><div class="prod-name" style="font-size:.9rem">${u.name.replace(/_/g,' ')}</div><div class="prod-stats" style="font-size:.8rem">A${u.atk} D${u.def} M${u.mov} | ${u.cost}p (~${tl}t)</div></div></div>`}
 ph+='</div><div><p style="color:#60c080;font-size:.85rem;font-weight:700;margin-bottom:.4rem">BUILDINGS</p>';
-for(const b of pr.buildings){let bn=[];if(b.food)bn.push(`+${b.food}f`);if(b.prod)bn.push(`+${b.prod}p`);if(b.gold)bn.push(`+${b.gold}g`);if(b.science)bn.push(`+${b.science}s`);if(b.culture)bn.push(`+${b.culture}c`);if(b.defense)bn.push(`+${b.defense}d`);const tl=Math.max(1,Math.ceil(b.cost/Math.max(1,y.prod)));ph+=`<div class="prod-item" onclick="setProductionModal(${cid},'building','${b.name}')" style="display:flex;align-items:center;gap:8px;padding:.6rem"><img src="/static/img/buildings/${b.name}.png" width="32" height="32" onerror="this.style.display='none'" style="flex-shrink:0"><div><div class="prod-name" style="font-size:.9rem">${b.name.replace(/_/g,' ')}</div><div class="prod-stats" style="font-size:.8rem">${bn.join(' ')} | ${b.cost}p (~${tl}t)</div></div></div>`}
-ph+='</div></div>';document.getElementById('prod-modal-content').innerHTML=ph;document.getElementById('prod-modal').classList.add('active')}
+for(const b of pr.buildings){let bn=[];if(b.food)bn.push(`+${b.food}f`);if(b.prod)bn.push(`+${b.prod}p`);if(b.gold)bn.push(`+${b.gold}g`);if(b.science)bn.push(`+${b.science}s`);if(b.culture)bn.push(`+${b.culture}c`);if(b.defense)bn.push(`+${b.defense}d`);const tl=Math.max(1,Math.ceil(b.cost/Math.max(1,y.prod)));ph+=`<div class="prod-item" onclick="setProductionModal(${cid},'building','${b.name}',event)" style="display:flex;align-items:center;gap:8px;padding:.6rem"><img src="/static/img/buildings/${b.name}.png" width="32" height="32" onerror="this.style.display='none'" style="flex-shrink:0"><div><div class="prod-name" style="font-size:.9rem">${b.name.replace(/_/g,' ')}</div><div class="prod-stats" style="font-size:.8rem">${bn.join(' ')} | ${b.cost}p (~${tl}t)</div></div></div>`}
+ph+='</div></div>';
+// Production queue
+const q=city.prod_queue||[];
+if(q.length>0){ph+='<div style="margin-top:.6rem;border-top:1px solid rgba(255,255,255,.1);padding-top:.4rem"><p style="color:#ffd700;font-size:.8rem;font-weight:700;margin-bottom:.3rem">Queue ('+q.length+'/5)</p>';
+for(let i=0;i<q.length;i++){ph+=`<div style="font-size:.78rem;color:#a0b0c0;padding:.2rem .4rem">${i+1}. ${q[i].name.replace(/_/g,' ')} (${q[i].type})</div>`}
+ph+='</div>'}
+// Auto-produce mode
+const am=city.auto_produce||'off';
+ph+=`<div style="margin-top:.6rem;border-top:1px solid rgba(255,255,255,.1);padding-top:.4rem;display:flex;gap:.3rem;flex-wrap:wrap">
+<span style="font-size:.75rem;color:#888;line-height:2">Auto:</span>
+<button class="action-btn" style="font-size:.7rem;${am==='auto'?'color:#ffd700;border-color:#ffd700':''}" onclick="setAutoMode(${cid},'auto')">Smart</button>
+<button class="action-btn" style="font-size:.7rem;${am==='units'?'color:#ff8060;border-color:#ff8060':''}" onclick="setAutoMode(${cid},'units')">Units</button>
+<button class="action-btn" style="font-size:.7rem;${am==='buildings'?'color:#60c080;border-color:#60c080':''}" onclick="setAutoMode(${cid},'buildings')">Buildings</button>
+<button class="action-btn" style="font-size:.7rem;${am==='off'?'':'color:#888'}" onclick="setAutoMode(${cid},'off')">Off</button>
+</div>`;
+document.getElementById('prod-modal-content').innerHTML=ph;document.getElementById('prod-modal').classList.add('active')}
+async function setAutoMode(cid,mode){const d=await api(`/api/game/${gameId}/production/auto`,'POST',{city_id:cid,mode});if(d.ok){state=d.state;showEvent(d.msg);openProdModal(cid)}}
 function closeProdModal(){document.getElementById('prod-modal').classList.remove('active')}
-async function setProductionModal(cid,t,n){closeProdModal();await setProduction(cid,t,n)}
+async function setProductionModal(cid,t,n,e){
+// Shift+click = add to queue instead of setting production
+if(e&&e.shiftKey){
+const d=await api(`/api/game/${gameId}/production/queue`,'POST',{city_id:cid,item_type:t,item_name:n});
+if(d.ok){state=d.state;showEvent(d.msg);openProdModal(cid)}else showEvent(d.msg);return}
+closeProdModal();await setProduction(cid,t,n)}
 async function openTechTree(){const ts=await api(`/api/game/${gameId}/techs`),me=state.players.find(p=>p.id===0),rn=me.researching?.name,eras={};for(const t of ts)(eras[t.era]??=[]).push(t);const ec={Ancient:'#c08040',Classical:'#4080c0',Medieval:'#808080',Renaissance:'#c06080',Industrial:'#a08040',Modern:'#40a0a0'};
 // Tech descriptions
 const desc={agriculture:'Allows farms (+1 food per tile)',pottery:'Foundation of civilization',mining:'Allows mines (+2 prod on hills)',bronze_working:'Unlocks spearman + barracks',archery:'Unlocks archers (ranged combat)',sailing:'Opens the seas: galleys + harbors',writing:'Unlocks library (+3 science)',iron_working:'Stronger swordsman + forge (+2 prod)',mathematics:'Siege warfare: catapults',construction:'City walls (+50 def), aqueduct, colosseum',currency:'Marketplace (+4 gold), trading posts',horseback:'Mounted units: horseman + stable',feudalism:'Knights (fast, strong mounted)',engineering:'Castle (+80 def), workshop (+3 prod)',theology:'Temple (+3 culture), monastery',education:'University (+5 science), school',gunpowder:'Musketman (first gunpowder unit)',printing_press:'Bank (+5 gold)',navigation:'Caravel (ocean exploration)',astronomy:'Observatory (+5 science)',aesthetics:'Museum (+5 culture), theater',industrialization:'Factory (+5 prod), rifleman, hospital',steam_power:'Ironclad warship, enables railroad',railroad:'Railroad improvement (+1 prod, +80% speed)',dynamite:'Artillery + infantry (modern army)',military_science:'Military academy (+15 XP for units)',electricity:'Power plant (+5 prod), stadium (+4 happy)',flight:'Fighter + bomber aircraft, airport',nuclear_fission:'Nuclear plant (+8 prod), bunker (+60 def)',rocketry:'Tank (strongest ground unit)',space_program:'Space victory: accumulate production to win'};
@@ -658,8 +696,26 @@ function render(){
     // CITIES
     for(const c of state.cities){const[px,py]=h2p(c.q,c.r),sx=px-ox,sy=py-oy;if(sx<-pad||sx>W/camZoom+pad||sy<-pad||sy>H/camZoom+pad)continue;drawCity(sx,sy,c,state.players.find(p=>p.id===c.player)?.color||'#888')}
 
-    // UNITS
-    for(const u of state.units){const[px,py]=h2p(u.q,u.r),sx=px-ox,sy=py-oy;if(sx<-pad||sx>W/camZoom+pad||sy<-pad||sy>H/camZoom+pad)continue;drawUnit(sx,sy,u,state.players.find(p=>p.id===u.player)?.color||'#888',u.id===selectedUnit)}
+    // UNITS (with move animation)
+    const now=performance.now();
+    for(const u of state.units){
+        let ux=u.q,uy_r=u.r;
+        const anim=window._unitAnims?.[u.id];
+        let sx,sy;
+        if(anim&&now<anim.end){
+            // Interpolate position
+            const t=Math.min(1,(now-anim.start)/(anim.end-anim.start));
+            const ease=t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2; // easeInOutQuad
+            const[fx,fy]=h2p(anim.fromQ,anim.fromR);
+            const[tx,ty]=h2p(anim.toQ,anim.toR);
+            sx=fx+(tx-fx)*ease-ox;
+            sy=fy+(ty-fy)*ease-oy;
+        }else{
+            if(anim)delete window._unitAnims[u.id];
+            const[px,py]=h2p(u.q,u.r);sx=px-ox;sy=py-oy;
+        }
+        if(sx<-pad||sx>W/camZoom+pad||sy<-pad||sy>H/camZoom+pad)continue;
+        drawUnit(sx,sy,u,state.players.find(p=>p.id===u.player)?.color||'#888',u.id===selectedUnit)}
 
     // GOTO PATHS — draw for selected unit or all player units with goto
     for(const u of state.units){

@@ -1109,6 +1109,40 @@ def set_production(game_id: int, req: ProductionRequest):
     result["state"] = game.to_dict(for_player=0)
     return result
 
+class QueueRequest(BaseModel):
+    city_id: int
+    item_type: str
+    item_name: str
+
+@app.post("/api/game/{game_id}/production/queue")
+def add_to_queue(game_id: int, req: QueueRequest):
+    game = games.get(game_id)
+    if not game:
+        raise HTTPException(404, "Game not found")
+    city = game.cities.get(req.city_id)
+    if not city:
+        raise HTTPException(404, "City not found")
+    queue = city.setdefault("prod_queue", [])
+    if len(queue) >= 5:
+        return {"ok": False, "msg": "Queue full (max 5)"}
+    queue.append({"type": req.item_type, "name": req.item_name})
+    return {"ok": True, "msg": f"Added {req.item_name} to queue ({len(queue)}/5)", "state": game.to_dict(for_player=0)}
+
+class AutoProduceRequest(BaseModel):
+    city_id: int
+    mode: str  # "units" / "buildings" / "auto" / "off"
+
+@app.post("/api/game/{game_id}/production/auto")
+def set_auto_produce(game_id: int, req: AutoProduceRequest):
+    game = games.get(game_id)
+    if not game:
+        raise HTTPException(404, "Game not found")
+    city = game.cities.get(req.city_id)
+    if not city:
+        raise HTTPException(404, "City not found")
+    city["auto_produce"] = req.mode if req.mode != "off" else None
+    return {"ok": True, "msg": f"Auto-produce: {req.mode}", "state": game.to_dict(for_player=0)}
+
 
 @app.post("/api/game/{game_id}/research")
 def set_research(game_id: int, req: ResearchRequest):

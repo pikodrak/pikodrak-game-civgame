@@ -34,6 +34,16 @@
 - **Home units list**: which military units are eating from this city
 - API: `GET /api/game/{id}/city/{cid}/manage` for AI bots
 
+### Unit Movement Animation
+- Smooth 250ms easeInOutQuad animation when units move between hexes
+- Unit glides from old hex to new hex instead of teleporting
+
+### Production Queue & Auto-Produce
+- **Production queue**: up to 5 items queued per city (Shift+click to add to queue)
+- **Auto-produce modes**: Smart (AI decides), Units only, Buildings only, Off
+- Queue displayed in production modal with numbered items
+- After production completes: queue item → auto-mode → idle (popup for human)
+
 ### UI/UX Improvements
 - **Save & Quit dialog**: nice popup with save name input, Save & Quit / Quit Without Saving / Cancel
 - **Production popup**: opens automatically after founding city and after production completes
