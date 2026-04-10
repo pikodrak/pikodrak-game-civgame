@@ -91,12 +91,11 @@ body{background:#1a1408;color:#e0e0e0;font-family:'Inter',system-ui,sans-serif;o
 </div>
 <div id="menu-screen" style="display:none"><canvas id="menu-bg"></canvas><h1>CIVGAME</h1><p class="subtitle">Turn-Based Strategy</p><p id="menu-version" style="font-size:.7rem;color:#556;margin-top:-.5rem;margin-bottom:.5rem"></p>
 <div class="menu-panel" style="position:relative"><div id="user-info" style="position:absolute;top:-30px;right:0;font-size:.75rem;color:#8090b0"></div>
-<label>Civilization</label><select id="menu-civ"><option value="rome">Rome +15% Production</option><option value="egypt">Egypt +15% Culture</option><option value="greece">Greece +15% Science</option><option value="china">China +15% Food</option><option value="persia">Persia +15% Gold</option><option value="aztec">Aztec +15% Military</option><option value="japan">Japan +15% Defense</option><option value="czech">Czech +20% Prod & Science</option><option value="mongol">Mongol +15% Movement</option><option value="babylon">Babylon +Gold</option><option value="india">India +Culture</option><option value="arabia">Arabia +Military</option><option value="spain">Spain +Movement</option><option value="england">England +Gold</option><option value="france">France +Military</option><option value="germany">Germany +Production</option><option value="russia">Russia +Food</option><option value="zulu">Zulu +Military</option><option value="inca">Inca +Production</option><option value="maya">Maya +Science</option><option value="korea">Korea +Science</option><option value="ottoman">Ottoman +Military</option><option value="carthage">Carthage +Military</option><option value="viking">Viking +Movement</option><option value="siam">Siam +Culture</option><option value="poland">Poland +Defense</option><option value="ethiopia">Ethiopia +Defense</option><option value="brazil">Brazil +Food</option><option value="sumeria">Sumeria +Science</option></select>
-<label>Map</label><select id="menu-mapsize"><option value="30,20">Small</option><option value="40,30" selected>Medium</option><option value="55,40">Large</option><option value="130,95">Huge (10x)</option></select>
-<label>Opponents</label><select id="menu-players"><option value="2">1</option><option value="3">2</option><option value="4" selected>3</option><option value="5">4</option><option value="6">5</option></select>
-<button class="btn btn-primary" onclick="startGame()">New Game</button><button class="btn btn-secondary" onclick="openLoadDialog()">Load Game</button>
+<button class="btn btn-primary" onclick="openSetupScreen()" style="width:100%;padding:.8rem;font-size:1.1rem">New Game</button>
+<button class="btn btn-secondary" onclick="openLoadDialog()" style="margin-top:.4rem">Load Game</button>
 <button class="btn btn-secondary" onclick="openAccount()" id="btn-account" style="margin-top:.3rem;color:#60a0ff;border-color:rgba(96,160,255,.3)">My Account</button>
 </div></div>
+<div class="modal-overlay" id="setup-modal"><div class="modal" style="max-width:700px;max-height:90vh;overflow-y:auto"><button class="close-btn" onclick="closeSetup()">&times;</button><h2 style="color:#ffd700">New Game Setup</h2><div id="setup-content"></div></div></div>
 <div id="game-screen"><div id="top-bar">
 <div class="resource-item"><span class="resource-icon" style="color:#ffd700">&#9733;</span><div><span class="resource-val" id="res-gold">0</span><div class="resource-label">Gold</div></div></div>
 <div class="resource-item"><span class="resource-icon" style="color:#60a0ff">&#9881;</span><div><span class="resource-val" id="res-science">--</span><div class="resource-label">Science</div></div></div>
@@ -342,17 +341,136 @@ async function tryAutoLoad(){
 }
 // Auto-load removed from here — handled after login in showMenu()
 
-async function startGame(){
-    console.log('startGame called');document.title='Starting...';
+const CIV_DATA={
+rome:{name:'Roman Empire',leader:'Caesar',trait:'industrious',bonus:'prod',strategy:'builder',color:'#e74c3c'},
+egypt:{name:'Egypt',leader:'Cleopatra',trait:'creative',bonus:'culture',strategy:'culturalist',color:'#f1c40f'},
+greece:{name:'Greece',leader:'Alexander',trait:'aggressive',bonus:'science',strategy:'conqueror',color:'#3498db'},
+china:{name:'China',leader:'Qin Shi Huang',trait:'expansive',bonus:'food',strategy:'expansionist',color:'#e67e22'},
+persia:{name:'Persia',leader:'Cyrus',trait:'financial',bonus:'gold',strategy:'builder',color:'#9b59b6'},
+aztec:{name:'Aztec Empire',leader:'Montezuma',trait:'aggressive',bonus:'prod',strategy:'conqueror',color:'#c0392b'},
+japan:{name:'Japan',leader:'Tokugawa',trait:'protective',bonus:'defense',strategy:'turtle',color:'#ecf0f1'},
+czech:{name:'Czech Kingdom',leader:'Jan Zizka',trait:'industrious',bonus:'science',strategy:'turtle',color:'#2ecc71'},
+mongol:{name:'Mongol Empire',leader:'Genghis Khan',trait:'aggressive',bonus:'gold',strategy:'conqueror',color:'#8B4513'},
+babylon:{name:'Babylon',leader:'Hammurabi',trait:'financial',bonus:'gold',strategy:'builder',color:'#1a5f7a'},
+india:{name:'India',leader:'Gandhi',trait:'creative',bonus:'culture',strategy:'expansionist',color:'#ff9933'},
+arabia:{name:'Arabia',leader:'Saladin',trait:'aggressive',bonus:'gold',strategy:'conqueror',color:'#2c3e50'},
+spain:{name:'Spain',leader:'Isabella',trait:'expansive',bonus:'gold',strategy:'expansionist',color:'#f39c12'},
+england:{name:'England',leader:'Elizabeth',trait:'financial',bonus:'gold',strategy:'expansionist',color:'#c0392b'},
+france:{name:'France',leader:'Napoleon',trait:'aggressive',bonus:'culture',strategy:'conqueror',color:'#2980b9'},
+germany:{name:'Germany',leader:'Bismarck',trait:'industrious',bonus:'prod',strategy:'builder',color:'#7f8c8d'},
+russia:{name:'Russia',leader:'Catherine',trait:'expansive',bonus:'food',strategy:'expansionist',color:'#1abc9c'},
+zulu:{name:'Zulu',leader:'Shaka',trait:'aggressive',bonus:'prod',strategy:'conqueror',color:'#d35400'},
+inca:{name:'Inca',leader:'Pachacuti',trait:'industrious',bonus:'prod',strategy:'builder',color:'#f1c40f'},
+maya:{name:'Maya',leader:'Pacal',trait:'creative',bonus:'science',strategy:'culturalist',color:'#27ae60'},
+korea:{name:'Korea',leader:'Sejong',trait:'industrious',bonus:'science',strategy:'builder',color:'#2c3e50'},
+ottoman:{name:'Ottoman Empire',leader:'Suleiman',trait:'aggressive',bonus:'prod',strategy:'conqueror',color:'#c0392b'},
+carthage:{name:'Carthage',leader:'Hannibal',trait:'aggressive',bonus:'gold',strategy:'conqueror',color:'#8e44ad'},
+viking:{name:'Viking',leader:'Ragnar',trait:'aggressive',bonus:'prod',strategy:'conqueror',color:'#34495e'},
+siam:{name:'Siam',leader:'Ramkhamhaeng',trait:'creative',bonus:'culture',strategy:'culturalist',color:'#e74c3c'},
+poland:{name:'Poland',leader:'Casimir',trait:'protective',bonus:'science',strategy:'turtle',color:'#e74c3c'},
+ethiopia:{name:'Ethiopia',leader:'Haile Selassie',trait:'protective',bonus:'defense',strategy:'turtle',color:'#2ecc71'},
+brazil:{name:'Brazil',leader:'Pedro II',trait:'expansive',bonus:'food',strategy:'expansionist',color:'#27ae60'},
+sumeria:{name:'Sumeria',leader:'Gilgamesh',trait:'aggressive',bonus:'science',strategy:'conqueror',color:'#d4ac0d'},
+};
+
+function openSetupScreen(){
+const m=document.getElementById('setup-modal');
+let h='<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">';
+
+// Left: civ selection
+h+='<div><h3 style="color:#ffd700;margin-bottom:.5rem">Choose Civilization</h3>';
+h+='<div id="civ-list" style="max-height:50vh;overflow-y:auto">';
+for(const[k,v]of Object.entries(CIV_DATA)){
+h+=`<div class="prod-item" onclick="selectCiv('${k}')" id="civ-${k}" style="display:flex;align-items:center;gap:8px;padding:.5rem;cursor:pointer;border-radius:6px;border:2px solid transparent">
+<div style="width:12px;height:12px;border-radius:50%;background:${v.color};flex-shrink:0"></div>
+<div><div style="font-size:.85rem;color:#e0e0e0">${v.name}</div>
+<div style="font-size:.68rem;color:#8090b0">${v.leader} | ${v.trait} | +${v.bonus}</div></div></div>`}
+h+='</div></div>';
+
+// Right: settings
+h+='<div>';
+// Civ detail
+h+='<div id="civ-detail" style="background:rgba(255,215,0,.05);border:1px solid rgba(255,215,0,.15);border-radius:8px;padding:.6rem;margin-bottom:.8rem;min-height:80px"><p style="color:#888;font-size:.8rem">Select a civilization</p></div>';
+
+// Map settings
+h+=`<h3 style="color:#ffd700;margin-bottom:.4rem">Map</h3>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:.4rem;margin-bottom:.6rem">
+<div><label style="font-size:.75rem;color:#8090b0">Type</label>
+<select id="setup-maptype" onchange="onMapTypeChange()" style="width:100%;padding:.4rem;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:6px;color:#e0e0e0;font-size:.85rem">
+<option value="random">Random</option><option value="earth_s">Earth (Small)</option><option value="earth_m">Earth (Medium)</option><option value="earth_l">Earth (Large)</option></select></div>
+<div><label style="font-size:.75rem;color:#8090b0">Size</label>
+<select id="setup-mapsize" style="width:100%;padding:.4rem;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:6px;color:#e0e0e0;font-size:.85rem">
+<option value="30,20">Small (30x20)</option><option value="40,30" selected>Medium (40x30)</option><option value="55,40">Large (55x40)</option><option value="80,55">Huge (80x55)</option></select></div>
+</div>
+<div style="margin-bottom:.6rem"><label style="display:flex;align-items:center;gap:.4rem;font-size:.8rem;color:#a0b0c0;cursor:pointer">
+<input type="checkbox" id="setup-wrap" style="accent-color:#ffd700"> Globe map (wrap-around edges)</label></div>`;
+
+// Opponents
+h+=`<h3 style="color:#ffd700;margin-bottom:.4rem">Players</h3>
+<div style="margin-bottom:.8rem"><label style="font-size:.75rem;color:#8090b0">Opponents</label>
+<select id="setup-opponents" style="width:100%;padding:.4rem;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:6px;color:#e0e0e0;font-size:.85rem">
+<option value="2">1 opponent</option><option value="3">2 opponents</option><option value="4" selected>3 opponents</option><option value="5">4 opponents</option><option value="6">5 opponents</option><option value="8">7 opponents</option></select></div>`;
+
+// Start button
+h+=`<button class="btn btn-primary" onclick="launchGame()" style="width:100%;padding:.8rem;font-size:1.1rem">Start Game</button>`;
+h+='</div></div>';
+
+document.getElementById('setup-content').innerHTML=h;
+m.classList.add('active');
+// Pre-select rome
+selectCiv('rome');
+}
+
+function closeSetup(){document.getElementById('setup-modal').classList.remove('active')}
+
+let _selectedCiv='rome';
+function selectCiv(k){
+_selectedCiv=k;
+// Highlight selected
+document.querySelectorAll('#civ-list .prod-item').forEach(el=>el.style.borderColor='transparent');
+const el=document.getElementById('civ-'+k);
+if(el)el.style.borderColor='#ffd700';
+// Show detail
+const v=CIV_DATA[k];if(!v)return;
+document.getElementById('civ-detail').innerHTML=`
+<div style="display:flex;align-items:center;gap:8px;margin-bottom:.4rem">
+<div style="width:20px;height:20px;border-radius:50%;background:${v.color}"></div>
+<h3 style="margin:0;padding:0;border:0;color:#ffd700">${v.name}</h3></div>
+<div style="font-size:.82rem;color:#c0c8e0;margin-bottom:.3rem">Leader: <b>${v.leader}</b></div>
+<div style="font-size:.78rem;color:#a0b0c0;display:grid;grid-template-columns:1fr 1fr;gap:.2rem">
+<div>Trait: <span style="color:#60c080">${v.trait}</span></div>
+<div>Bonus: <span style="color:#ffd700">+${v.bonus}</span></div>
+<div>Strategy: <span style="color:#60a0ff">${v.strategy}</span></div>
+</div>`;
+}
+
+function onMapTypeChange(){
+const mt=document.getElementById('setup-maptype').value;
+const ms=document.getElementById('setup-mapsize');
+if(mt==='earth_s'){ms.value='40,30';ms.disabled=true}
+else if(mt==='earth_m'){ms.value='55,40';ms.disabled=true}
+else if(mt==='earth_l'){ms.value='80,55';ms.disabled=true}
+else{ms.disabled=false}
+}
+
+async function launchGame(){
+    closeSetup();
+    const c=_selectedCiv;
+    const mt=document.getElementById('setup-maptype').value;
+    const ms=document.getElementById('setup-mapsize').value;
+    const[w,h]=ms.split(',').map(Number);
+    const n=+document.getElementById('setup-opponents').value;
+    const wrap=document.getElementById('setup-wrap').checked;
     try{
-    const c=document.getElementById('menu-civ').value,[w,h]=document.getElementById('menu-mapsize').value.split(',').map(Number),n=+document.getElementById('menu-players').value;
-    const d=await api('/api/new_game','POST',{width:w,height:h,num_players:n,civ:c});
+    const d=await api('/api/new_game','POST',{width:w,height:h,num_players:n,civ:c,map_type:mt,wrap});
     gameId=d.game_id;state=d.state;for(const k in tileCache)delete tileCache[k];
     document.getElementById('menu-screen').style.display='none';
     document.getElementById('game-screen').style.display='block';
     setTimeout(()=>{initCanvas();centerOn();requestAnimationFrame(loop);updateUI();selectNextUnit();drawMini();autoSave()},50);
     }catch(e){alert('Error: '+e.message);console.error(e)}
 }
+// Keep old startGame as fallback
+async function startGame(){openSetupScreen()}
 function quitGame(){openSaveDialog('quit')}
 function openSaveDialog(mode){
 const m=document.getElementById('prod-modal');const t=document.getElementById('prod-modal-title');const c=document.getElementById('prod-modal-content');

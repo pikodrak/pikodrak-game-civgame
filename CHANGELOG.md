@@ -34,6 +34,20 @@
 - **Home units list**: which military units are eating from this city
 - API: `GET /api/game/{id}/city/{cid}/manage` for AI bots
 
+### Pre-Game Setup Screen (NEW)
+- **New Game** opens full setup modal instead of inline selects
+- **29 civilizations** displayed with leader, trait, bonus, strategy, color
+- Click to select — shows detail card with all civ info
+- **Map type**: Random / Earth (Small/Medium/Large)
+- **Globe map**: checkbox for wrap-around (left edge connects to right)
+- **Earth map generator**: real continent outlines (NA, SA, Europe, Africa, Asia, Australia)
+  - Latitude-based terrain: polar→tundra, temperate→forest/plains, tropical→grass/jungle
+  - Mountain ranges: Rockies, Andes, Alps, Himalayas, Urals
+  - Sahara desert band, coastal tiles auto-generated
+  - ~38% land coverage (realistic)
+- **Opponent count**: 1-7 opponents selectable
+- Map size selector disabled for Earth maps (fixed sizes)
+
 ### Unit Movement Animation
 - Smooth 250ms easeInOutQuad animation when units move between hexes
 - Unit glides from old hex to new hex instead of teleporting

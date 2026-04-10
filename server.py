@@ -928,6 +928,8 @@ class NewGameRequest(BaseModel):
     num_players: int = 4
     seed: Optional[int] = None
     civ: str = "rome"
+    map_type: str = "random"  # random / earth_s / earth_m / earth_l
+    wrap: bool = False  # wrap-around globe map
 
 
 class MoveRequest(BaseModel):
@@ -986,7 +988,8 @@ def new_game(req: NewGameRequest, request: Request):
     next_game_id += 1
 
     game = GameState(width=req.width, height=req.height,
-                     num_players=req.num_players, seed=req.seed)
+                     num_players=req.num_players, seed=req.seed,
+                     map_type=req.map_type, wrap=req.wrap)
 
     if req.civ in CIVILIZATIONS:
         # Swap: if another player has this civ, give them player 0's civ
