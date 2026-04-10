@@ -14,8 +14,8 @@ import auth
 
 config_loader.start_watcher(interval=2)
 
-GAME_VERSION = "0.9.0"
-GAME_BUILD = "2026-04-10c"
+GAME_VERSION = "0.9.5"
+GAME_BUILD = "2026-04-11"
 
 SAVE_DIR = Path("saves")
 SAVE_DIR.mkdir(exist_ok=True)

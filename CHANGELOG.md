@@ -1,6 +1,17 @@
 # CivGame AI Development Changelog
 
-## Session: 2026-04-10c | v0.9.0 — Unit food, city management, versioning, simulation fixes
+## Session: 2026-04-10/11 | v0.9.5 — Unit food, city management, Earth maps, full manual
+
+### Latest Fixes (v0.9.5)
+- Worker only shows improvements valid for current tile (no farm where farmed, no road where roaded)
+- Goto immediately moves unit (uses all movement points this turn)
+- Production complete dialog shows what was built before opening new production popup
+- Auto-produce immediately starts production when activated on idle city
+- Comprehensive How to Play manual (units, buildings, terrain, combat, economy, tech tree, tips)
+- Custom styled dialogs replace all browser confirm/alert/prompt
+- Profile menu (renamed from My Account) with language selector
+- __init__ fix: wrap_q method was accidentally breaking game initialization
+- Version bumped to 0.9.5
 
 ### Unit Food System (NEW)
 - Every military unit has a **home city** (city where it was produced)
