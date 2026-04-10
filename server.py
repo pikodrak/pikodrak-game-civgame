@@ -692,6 +692,7 @@ def api_rules():
             "settler": {
                 "cost": UNIT_TYPES.get("settler", {}).get("cost", 60),
                 "action": "found_city — creates new city, settler consumed",
+                "population_cost": "Settler costs 1 population from the producing city. City must have pop >= 2 to build settler.",
                 "restrictions": "Min 3 hex from other cities, not in foreign territory, not on water/mountain",
                 "important": "Settlers are civilian units — they CANNOT use explore command. Move them manually with move/goto.",
             },

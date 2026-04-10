@@ -629,11 +629,25 @@ class GameState:
         # Tile yields (work radius = border_radius) + improvements
         brd = city.get("border_radius", 1)
         max_work = city["population"] + 1  # +1 for city center
+        # Shared tile check: find same-player cities that could claim tiles
+        same_player_cities = [c for c in self.cities.values()
+                              if c["player"] == city["player"] and c["id"] != city_id]
         tiles_detail = []  # for city management UI
         for dq in range(-brd, brd + 1):
             for dr in range(-brd, brd + 1):
                 tq, tr = city["q"] + dq, city["r"] + dr
                 if hex_distance(city["q"], city["r"], tq, tr) <= brd:
+                    # Shared tile: if another own city is closer, skip this tile
+                    my_dist = hex_distance(city["q"], city["r"], tq, tr)
+                    claimed_by_other = False
+                    for oc in same_player_cities:
+                        oc_brd = oc.get("border_radius", 1)
+                        oc_dist = hex_distance(oc["q"], oc["r"], tq, tr)
+                        if oc_dist <= oc_brd and oc_dist < my_dist:
+                            claimed_by_other = True
+                            break
+                    if claimed_by_other:
+                        continue
                     tile_owner = self.get_tile_owner(tq, tr)
                     if tile_owner is not None and tile_owner != city["player"]:
                         continue  # foreign culture controls this tile
@@ -1643,17 +1657,20 @@ class GameState:
             total_culture += yields["culture"]
 
             # Food & growth
-            city["food_store"] += yields["food_surplus"]
-            growth_needed = 10 + city["population"] * 5
-            if city["food_store"] >= growth_needed:
-                city["population"] += 1
-                city["food_store"] = 0
-                events.append(f"{city['name']} grew to pop {city['population']}")
-            elif city["food_store"] < 0:
-                if city["population"] > 1:
-                    city["population"] -= 1
+            # While producing settler, food surplus halted (food goes to settler)
+            producing_settler = city.get("producing") and city["producing"].get("name") == "settler"
+            if not producing_settler:
+                city["food_store"] += yields["food_surplus"]
+                growth_needed = 10 + city["population"] * 5
+                if city["food_store"] >= growth_needed:
+                    city["population"] += 1
                     city["food_store"] = 0
-                    events.append(f"{city['name']} lost population (starvation)")
+                    events.append(f"{city['name']} grew to pop {city['population']}")
+                elif city["food_store"] < 0:
+                    if city["population"] > 1:
+                        city["population"] -= 1
+                        city["food_store"] = 0
+                        events.append(f"{city['name']} lost population (starvation)")
 
             # Production
             if city["producing"]:
@@ -1661,6 +1678,19 @@ class GameState:
                 if city["prod_progress"] >= city["producing"]["cost"]:
                     item = city["producing"]
                     if item["type"] == "unit":
+                        # Settler costs 1 population
+                        if item["name"] == "settler":
+                            if city["population"] < 2:
+                                # Can't produce settler from size 1 city — cancel
+                                city["producing"] = None
+                                city["prod_progress"] = 0
+                                events.append(f"{city['name']}: settler cancelled (need pop 2+)")
+                                if not player["is_human"]:
+                                    self._ai_auto_produce(city, player, pid)
+                                continue
+                            city["population"] -= 1
+                            city["food_store"] = 0
+                            events.append(f"{city['name']} lost 1 pop for settler (now {city['population']})")
                         uid = self._create_unit(pid, item["name"], city["q"], city["r"])
                         # Barracks/military academy bonus for military units
                         u = self.units.get(uid)
@@ -2169,9 +2199,9 @@ class GameState:
             urgency = 80 if len(my_workers) == 0 else 40
             candidates.append((urgency, "unit", "worker", f"need workers ({len(my_workers)}/{needed_workers})"))
 
-        # Settler
+        # Settler — requires city pop >= 2 (settler costs 1 pop)
         max_settlers = min(3, max(1, max_cities // 3))
-        if len(my_cities) + len(my_settlers) < max_cities and len(my_settlers) < max_settlers:
+        if city["population"] >= 2 and len(my_cities) + len(my_settlers) < max_cities and len(my_settlers) < max_settlers:
             # Use real settle spot search from city position
             settle_target = self._ai_find_settle_spot((city["q"], city["r"]), pid)
             if settle_target:
@@ -3057,6 +3087,7 @@ class GameState:
         explored = self.explored.get(pid, set())
         is_naval = unit["cat"] == "naval"
         is_air = unit["cat"] == "air"
+        player = self.players[pid]
         start = (unit["q"], unit["r"])
 
         # BFS from unit position — first unexplored reachable tile is target
@@ -3088,18 +3119,66 @@ class GameState:
                         continue
                     if not is_naval and t in (Terrain.WATER, Terrain.COAST):
                         continue
+                # Avoid foreign territory (would trigger war)
+                tile_owner = self.get_tile_owner(nq, nr)
+                if tile_owner is not None and tile_owner != pid:
+                    rel = player.get("diplomacy", {}).get(tile_owner, "peace")
+                    if rel not in ("war", "alliance"):
+                        continue
                 visited.add((nq, nr))
                 queue.append(((nq, nr), path + [(nq, nr)]))
 
         if not target_path or len(target_path) < 2:
             unit["exploring"] = False
+            self._log_ai(pid, f"EXPLORE: {unit['type']} finished exploring (no reachable unexplored tiles)")
             return
 
-        # Move to next hex in path
-        next_hex = target_path[1]
-        result = self.move_unit(unit["id"], next_hex[0], next_hex[1])
+        # Move to next hex in path using A* (not raw BFS step)
+        next_step = self._find_path_next(unit, target_path[-1][0], target_path[-1][1])
+        if not next_step:
+            next_step = target_path[1]
+        result = self.move_unit(unit["id"], next_step[0], next_step[1])
+
+        # If move failed, mark this direction as explored to avoid retrying
+        if not result.get("ok") and unit["id"] in self.units:
+            explored.add(target_path[1])
+            return
+
         if result.get("combat") and unit["id"] in self.units:
             self.units[unit["id"]]["exploring"] = False
+
+    def _compute_path(self, sq, sr, tq, tr, pid):
+        """A* full path as list of [q,r] for rendering goto lines."""
+        import heapq
+        start = (sq, sr)
+        target = (tq, tr)
+        if start == target:
+            return []
+        player = self.players[pid]
+        heap = [(0, 0, start, [])]
+        visited = {}
+        steps = 0
+        while heap and steps < 400:
+            cost, _, (cq, cr), path = heapq.heappop(heap)
+            steps += 1
+            if (cq, cr) == target:
+                return [[p[0], p[1]] for p in path] + [[tq, tr]]
+            if (cq, cr) in visited:
+                continue
+            visited[(cq, cr)] = cost
+            for nq, nr in hex_neighbors(cq, cr):
+                if (nq, nr) in visited:
+                    continue
+                t = self.tiles.get((nq, nr))
+                if not t or t == Terrain.MOUNTAIN or t in (Terrain.WATER, Terrain.COAST):
+                    continue
+                move_cost = TERRAIN_MOVE_COST.get(t, 1)
+                road = self.roads.get((nq, nr))
+                if road:
+                    move_cost = max(1, int(move_cost * (0.2 if road["type"] == "railroad" else 0.4)))
+                h = hex_distance(nq, nr, tq, tr)
+                heapq.heappush(heap, (cost + move_cost + h, steps, (nq, nr), path + [(nq, nr)]))
+        return []  # no path found
 
     def _find_path_next(self, unit, tq, tr):
         """A* pathfinding with move cost — prefers roads, avoids foreign territory."""
@@ -3214,7 +3293,11 @@ class GameState:
         units_data = []
         for u in self.units.values():
             if visible is None or (u["q"], u["r"]) in visible:
-                units_data.append(u.copy())
+                ud = u.copy()
+                # Compute goto path for player's own units with active goto
+                if u.get("goto") and for_player is not None and u["player"] == for_player:
+                    ud["goto_path"] = self._compute_path(u["q"], u["r"], u["goto"]["q"], u["goto"]["r"], u["player"])
+                units_data.append(ud)
 
         # Cities
         cities_data = []
@@ -3561,22 +3644,34 @@ class GameState:
             total_science += yields["science"]
             total_culture += yields["culture"]
 
-            city["food_store"] += yields["food_surplus"]
-            growth_needed = 10 + city["population"] * 5
-            if city["food_store"] >= growth_needed:
-                city["population"] += 1
-                city["food_store"] = 0
-                events.append(f"{city['name']} grew to pop {city['population']}")
-            elif city["food_store"] < 0:
-                if city["population"] > 1:
-                    city["population"] -= 1
+            # While producing settler, food surplus halted
+            producing_settler = city.get("producing") and city["producing"].get("name") == "settler"
+            if not producing_settler:
+                city["food_store"] += yields["food_surplus"]
+                growth_needed = 10 + city["population"] * 5
+                if city["food_store"] >= growth_needed:
+                    city["population"] += 1
                     city["food_store"] = 0
+                    events.append(f"{city['name']} grew to pop {city['population']}")
+                elif city["food_store"] < 0:
+                    if city["population"] > 1:
+                        city["population"] -= 1
+                        city["food_store"] = 0
 
             if city["producing"]:
                 city["prod_progress"] += yields["prod"]
                 if city["prod_progress"] >= city["producing"]["cost"]:
                     item = city["producing"]
                     if item["type"] == "unit":
+                        # Settler costs 1 population
+                        if item["name"] == "settler":
+                            if city["population"] < 2:
+                                city["producing"] = None
+                                city["prod_progress"] = 0
+                                self._ai_auto_produce(city, player, pid)
+                                continue
+                            city["population"] -= 1
+                            city["food_store"] = 0
                         uid = self._create_unit(pid, item["name"], city["q"], city["r"])
                         u = self.units.get(uid)
                         if u and u["cat"] not in ("civilian",):

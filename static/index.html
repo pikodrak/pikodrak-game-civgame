@@ -96,19 +96,6 @@ body{background:#1a1408;color:#e0e0e0;font-family:'Inter',system-ui,sans-serif;o
 <label>Opponents</label><select id="menu-players"><option value="2">1</option><option value="3">2</option><option value="4" selected>3</option><option value="5">4</option><option value="6">5</option></select>
 <button class="btn btn-primary" onclick="startGame()">New Game</button><button class="btn btn-secondary" onclick="openLoadDialog()">Load Game</button>
 <button class="btn btn-secondary" onclick="openAccount()" id="btn-account" style="margin-top:.3rem;color:#60a0ff;border-color:rgba(96,160,255,.3)">My Account</button>
-<div style="margin-top:.8rem;border-top:1px solid rgba(255,128,96,.15);padding-top:.8rem">
-<label style="color:#ff8060">Debug Simulation</label>
-<div style="display:flex;gap:.5rem;margin-bottom:.4rem">
-<div style="flex:1"><label style="font-size:.75rem">Map</label><select id="sim-map" style="width:100%;padding:.4rem;background:rgba(255,255,255,.06);border:1px solid rgba(255,128,96,.2);border-radius:6px;color:#e0e0e0;font-size:.85rem"><option value="30,20">Small</option><option value="40,30" selected>Medium</option><option value="55,40">Large</option><option value="130,95">Huge</option></select></div>
-<div style="flex:1"><label style="font-size:.75rem">Players</label><input id="sim-players" type="number" value="4" min="2" max="8" style="width:100%;padding:.4rem;background:rgba(255,255,255,.06);border:1px solid rgba(255,128,96,.2);border-radius:6px;color:#e0e0e0;font-size:.85rem"></div>
-</div>
-<div style="display:flex;gap:.5rem;margin-bottom:.4rem">
-<div style="flex:1"><label style="font-size:.75rem">Turns</label><input id="sim-turns" type="number" value="100" min="10" max="500" style="width:100%;padding:.4rem;background:rgba(255,255,255,.06);border:1px solid rgba(255,128,96,.2);border-radius:6px;color:#e0e0e0;font-size:.85rem"></div>
-<div style="flex:1"><label style="font-size:.75rem">Seed</label><input id="sim-seed" type="number" placeholder="random" style="width:100%;padding:.4rem;background:rgba(255,255,255,.06);border:1px solid rgba(255,128,96,.2);border-radius:6px;color:#e0e0e0;font-size:.85rem"></div>
-</div>
-<button class="btn btn-secondary" id="sim-btn" onclick="runSimulation()" style="color:#ff8060;border-color:rgba(255,128,96,.3)">Run Simulation</button>
-<pre id="sim-result" style="display:none;margin-top:.5rem;font-size:.72rem;color:#c0a080;max-height:200px;overflow-y:auto;background:rgba(0,0,0,.3);padding:.5rem;border-radius:6px;white-space:pre-wrap"></pre>
-</div>
 </div></div>
 <div id="game-screen"><div id="top-bar">
 <div class="resource-item"><span class="resource-icon" style="color:#ffd700">&#9733;</span><div><span class="resource-val" id="res-gold">0</span><div class="resource-label">Gold</div></div></div>
@@ -122,7 +109,7 @@ body{background:#1a1408;color:#e0e0e0;font-family:'Inter',system-ui,sans-serif;o
 <button class="top-btn" style="color:#e07050;border-color:rgba(224,112,80,.3)" onclick="quitGame()">Quit</button>
 <button class="top-btn" style="color:#888;border-color:rgba(136,136,136,.3);font-size:.7rem" onclick="logout()">Logout</button>
 </div>
-<span id="turn-info">Turn 1</span><span id="game-version" style="font-size:.6rem;color:#556;margin-left:4px"></span><button id="btn-end-turn" onclick="endTurn()">End Turn</button>
+<span id="last-produced" style="font-size:.7rem;color:#60c080;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span><span id="turn-info">Turn 1</span><span id="game-version" style="font-size:.6rem;color:#556;margin-left:4px"></span><button id="btn-end-turn" onclick="endTurn()">End Turn</button>
 </div><div id="game-area"><div id="map-container"><canvas id="game-canvas"></canvas><div id="minimap-container"><canvas id="minimap" width="200" height="150"></canvas></div><div id="events-log"></div></div>
 <div id="right-panel"><div id="panel-content"><div class="panel-section"><h3>Welcome</h3><p style="color:#4060a0">Click a unit or city</p></div></div></div></div></div>
 <div id="city-name-dialog"><h3>Found New City</h3><input type="text" id="city-name-input" maxlength="20"><br><button class="btn btn-primary" onclick="confirmFoundCity()" style="width:auto;padding:.6rem 2rem">Found</button><button class="action-btn" onclick="closeCityDialog()" style="margin-left:.5rem">Cancel</button></div>
@@ -338,43 +325,6 @@ async function api(p,m='GET',b=null){const o={method:m,headers:{'Content-Type':'
 
 // ======== GAME FLOW ========
 // ======== SIMULATION ========
-async function runSimulation(){
-    const[w,h]=document.getElementById('sim-map').value.split(',').map(Number);
-    const n=+document.getElementById('sim-players').value;
-    const turns=+document.getElementById('sim-turns').value;
-    const seedEl=document.getElementById('sim-seed');
-    const seed=seedEl.value?+seedEl.value:null;
-    const btn=document.getElementById('sim-btn');
-    const out=document.getElementById('sim-result');
-    btn.textContent='Simulating...';btn.disabled=true;out.style.display='block';out.textContent='Running...';
-    try{
-        const log=await api('/api/simulate','POST',{width:w,height:h,num_players:n,num_turns:turns,seed});
-        let s=`=== ${log.result.final_turn} TURNS | ${w}x${h} | ${n}p | seed=${seed||'random'} ===\n`;
-        s+=`Winner: ${log.result.winner||'NONE'}\n\n`;
-        s+='SCORES:\n';
-        for(const p of log.result.scores)s+=`  ${p.name}: ${p.score}pts ${p.cities}c ${p.units}u ${p.techs}t ${p.alive?'':'DEAD'}\n`;
-        // Key events
-        s+='\nKEY EVENTS:\n';
-        let combat=0,founded=0,captured=0,deaths=0;
-        for(const t of log.turns)for(const e of t.events){
-            if(typeof e==='string'){
-                if(e.includes('founded'))founded++;
-                if(e.includes('captured')){captured++;s+=`  T${t.turn}: ${e}\n`}
-                if(e.includes('destroyed')){deaths++;s+=`  T${t.turn}: ${e}\n`}
-                if(e.includes('Victory'))s+=`  T${t.turn}: ${e}\n`;
-            }
-        }
-        s+=`\nStats: ${founded} cities founded, ${captured} captured, ${deaths} combat deaths\n`;
-        // IDLE analysis
-        let idle=0;
-        for(const t of log.turns)for(const e of t.events)if(typeof e==='object')idle+=e.cities.filter(c=>c.producing==='IDLE').length;
-        s+=`IDLE city-turns: ${idle}\n`;
-        s+=`\nFull log: saves/sim_log.json`;
-        out.textContent=s;
-    }catch(e){out.textContent='Error: '+e.message}
-    btn.textContent='Run Simulation';btn.disabled=false;
-}
-
 // ======== AUTOSAVE ========
 async function autoSave(){
     if(!gameId)return;
@@ -403,7 +353,28 @@ async function startGame(){
     setTimeout(()=>{initCanvas();centerOn();requestAnimationFrame(loop);updateUI();selectNextUnit();drawMini();autoSave()},50);
     }catch(e){alert('Error: '+e.message);console.error(e)}
 }
-function quitGame(){if(!confirm('Save and quit?'))return;autoSave();gameId=null;state=null;selectedUnit=selectedCity=null;document.getElementById('game-screen').style.display='none';document.getElementById('menu-screen').style.display='flex'}
+function quitGame(){openSaveDialog('quit')}
+function openSaveDialog(mode){
+const m=document.getElementById('prod-modal');const t=document.getElementById('prod-modal-title');const c=document.getElementById('prod-modal-content');
+t.textContent=mode==='quit'?'Save & Quit':'Save Game';
+const defName=state?`Turn ${state.turn}`:'Save';
+c.innerHTML=`<div style="padding:.5rem">
+<label style="font-size:.85rem;color:#a0b0c0">Save name:</label>
+<input id="save-name-input" type="text" value="${defName}" style="width:100%;padding:.5rem;margin:.4rem 0;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:6px;color:#e0e0e0;font-size:.9rem">
+<div style="display:flex;gap:.5rem;margin-top:.8rem">
+<button class="btn btn-primary" style="flex:1;padding:.6rem" onclick="doSave('${mode}')">Save${mode==='quit'?' & Quit':''}</button>
+${mode==='quit'?'<button class="action-btn" style="flex:1;padding:.6rem;color:#e74c3c" onclick="doQuitNoSave()">Quit Without Saving</button>':''}
+<button class="action-btn" style="padding:.6rem" onclick="closeProdModal()">Cancel</button>
+</div></div>`;
+m.classList.add('active');
+setTimeout(()=>{const inp=document.getElementById('save-name-input');if(inp){inp.focus();inp.select()}},100)}
+async function doSave(mode){
+const name=document.getElementById('save-name-input')?.value||'Save';
+closeProdModal();
+if(currentUser){const d=await api('/api/user/save','POST',{name});if(d.ok)showEvent('Saved: '+name);else showEvent('Save failed')}
+else{const d=await api(`/api/game/${gameId}/save`,'POST');if(d.ok)showEvent('Saved')}
+if(mode==='quit'){gameId=null;state=null;selectedUnit=selectedCity=null;document.getElementById('game-screen').style.display='none';document.getElementById('menu-screen').style.display='flex'}}
+function doQuitNoSave(){closeProdModal();gameId=null;state=null;selectedUnit=selectedCity=null;document.getElementById('game-screen').style.display='none';document.getElementById('menu-screen').style.display='flex'}
 let holdTimer=null,isHold=false;
 function initCanvas(){const c=document.getElementById('map-container');canvas.width=c.clientWidth;canvas.height=c.clientHeight;
 canvas.onmousedown=e=>{isDragging=true;isHold=false;dragStartX=e.clientX;dragStartY=e.clientY;dragCamX=camX;dragCamY=camY;
@@ -414,19 +385,28 @@ canvas.onmouseup=e=>{clearTimeout(holdTimer);holdTimer=null;if(!isHold&&Math.abs
 canvas.onwheel=e=>{e.preventDefault();const o=camZoom;camZoom=Math.max(.3,Math.min(3,camZoom*(e.deltaY>0?.9:1.1)));const r=canvas.getBoundingClientRect(),mx=e.clientX-r.left,my=e.clientY-r.top;camX=(camX+mx)*(camZoom/o)-mx;camY=(camY+my)*(camZoom/o)-my};canvas.oncontextmenu=e=>e.preventDefault();document.onkeydown=onKey;onresize=()=>{canvas.width=document.getElementById('map-container').clientWidth;canvas.height=document.getElementById('map-container').clientHeight}}
 function centerOn(){const u=state.units.find(u=>u.player===0)||state.cities.find(c=>c.player===0);if(!u)return;const[px,py]=h2p(u.q,u.r);camX=px-canvas.width/2;camY=py-canvas.height/2}
 function loop(t){T=t*.001;try{render()}catch(e){console.error('render error:',e);ctx.fillStyle='red';ctx.font='16px sans-serif';ctx.fillText('RENDER ERROR: '+e.message,10,50)}requestAnimationFrame(loop)}
-function onKey(e){if(e.key==='Escape'){rangedMode=false;selectedUnit=selectedCity=null;closeTechTree();closeDiplomacy();closeLoadDialog();closeCityDialog();closeProdModal();closeAccount();updatePanel()}if(e.key==='r'&&selectedUnit){const ru=state.units.find(u=>u.id===selectedUnit);if(ru&&(ru.cat==='ranged'||ru.cat==='siege'||(ru.cat==='air'&&ru.type==='bomber')))startRangedAttack()}if(e.key==='f'&&selectedUnit)fortifyUnit();if(e.key==='x'&&selectedUnit)exploreUnit();if(e.key==='a'&&selectedUnit){const uu=state.units.find(u=>u.id===selectedUnit);if(uu?.type==='worker')autoWorker();}if(e.key==='s'&&!e.ctrlKey&&selectedUnit)sentryUnit();if(e.key==='Delete'&&selectedUnit)disbandUnit();if(e.key==='Tab'&&selectedUnit){e.preventDefault();cycleNextUnit()}if(e.key==='b'&&selectedUnit){const u=state.units.find(u=>u.id===selectedUnit);if(u?.type==='settler')openCityDialog()}if(e.key===' '&&!isM()){e.preventDefault();spaceAction()}if((e.key==='Enter'||e.key==='e')&&!isM())endTurn();if(e.key==='s'&&e.ctrlKey){e.preventDefault();saveGame()}}
+function onKey(e){if(e.key==='Escape'){rangedMode=false;selectedUnit=selectedCity=null;closeTechTree();closeDiplomacy();closeLoadDialog();closeCityDialog();closeProdModal();closeAccount();updatePanel()}if(e.key==='r'&&selectedUnit){const ru=state.units.find(u=>u.id===selectedUnit);if(ru&&(ru.cat==='ranged'||ru.cat==='siege'||(ru.cat==='air'&&ru.type==='bomber')))startRangedAttack()}if(e.key==='f'&&selectedUnit)fortifyUnit();if(e.key==='x'&&selectedUnit)exploreUnit();if(e.key==='a'&&selectedUnit){const uu=state.units.find(u=>u.id===selectedUnit);if(uu?.type==='worker')autoWorker();}
+if(selectedUnit&&'123456'.includes(e.key)){const wu=state.units.find(u=>u.id===selectedUnit);if(wu?.type==='worker'){const wm={'1':'farm','2':'mine','3':'lumber_mill','4':'road','5':'railroad','6':'trading_post'};if(wm[e.key])workerBuild(wm[e.key])}}if(e.key==='s'&&!e.ctrlKey&&selectedUnit)sentryUnit();if(e.key==='Delete'&&selectedUnit)disbandUnit();if(e.key==='Tab'&&selectedUnit){e.preventDefault();cycleNextUnit()}if(e.key==='b'&&selectedUnit){const u=state.units.find(u=>u.id===selectedUnit);if(u?.type==='settler')openCityDialog()}if(e.key===' '&&!isM()){e.preventDefault();spaceAction()}if((e.key==='Enter'||e.key==='e')&&!isM())endTurn();if(e.key==='s'&&e.ctrlKey){e.preventDefault();saveGame()}}
 function isM(){return['tech-modal','diplo-modal','load-modal','prod-modal','account-modal'].some(id=>document.getElementById(id).classList.contains('active'))||document.getElementById('city-name-dialog').style.display==='block'}
 function handleClick(q,r,right){if(!state)return;if(rangedMode&&selectedUnit&&!right){doRangedAttack(q,r);return}if(selectedUnit&&!right){const u=state.units.find(u=>u.id===selectedUnit);if(u){const adj=hNb(u.q,u.r).some(([a,b])=>a===q&&b===r);if(adj&&u.moves_left>0){moveUnit(selectedUnit,q,r);return}}}const cu=state.units.find(u=>u.q===q&&u.r===r&&u.player===0);if(cu){selectedUnit=cu.id;selectedCity=null;updatePanel();return}const cc=state.cities.find(c=>c.q===q&&c.r===r&&c.player===0);if(cc){selectedCity=cc.id;selectedUnit=null;updatePanel();return}selectedUnit=selectedCity=null;updatePanel()}
 
-async function moveUnit(uid,q,r){const d=await api(`/api/game/${gameId}/move`,'POST',{unit_id:uid,q,r});if(d.needs_war){if(confirm(d.msg)){await api(`/api/game/${gameId}/diplomacy`,'POST',{target_player:d.war_target,action:'war'});const d2=await api(`/api/game/${gameId}/move`,'POST',{unit_id:uid,q,r});if(d2.ok){state=d2.state;if(d2.combat)showEvent(d2.msg);const u=state.units.find(u=>u.id===uid);if(!u||u.moves_left<=0){selectedUnit=null;selectNextUnit()}}else showEvent(d2.msg)}updateUI();updatePanel();drawMini();return}if(d.ok){state=d.state;if(d.combat)showEvent(d.msg);const u=state.units.find(u=>u.id===uid);if(!u||u.moves_left<=0){selectedUnit=null;selectNextUnit()}}else showEvent(d.msg);updateUI();updatePanel();drawMini()}
+async function moveUnit(uid,q,r){const d=await api(`/api/game/${gameId}/move`,'POST',{unit_id:uid,q,r});if(d.needs_war){if(confirm(d.msg)){await api(`/api/game/${gameId}/diplomacy`,'POST',{target_player:d.war_target,action:'war'});const d2=await api(`/api/game/${gameId}/move`,'POST',{unit_id:uid,q,r});if(d2.ok){state=d2.state;if(d2.combat)showEvent(d2.msg);const u=state.units.find(u=>u.id===uid);if(!u||u.moves_left<=0){selectedUnit=null;setTimeout(()=>selectNextUnit(),500)}}else showEvent(d2.msg)}updateUI();updatePanel();drawMini();return}if(d.ok){state=d.state;if(d.combat)showEvent(d.msg);updateUI();updatePanel();drawMini();const u=state.units.find(u=>u.id===uid);if(u)centerOnTile(u.q,u.r);if(!u||u.moves_left<=0){setTimeout(()=>{selectedUnit=null;selectNextUnit();updatePanel()},600)}}else{showEvent(d.msg);updateUI();updatePanel();drawMini()}}
 async function endTurn(){
     // Check for units without orders — select first idle one
-    if(state){const idle=state.units.filter(u=>u.player===0&&u.moves_left>0&&!u.fortified&&!u.sentry&&!u.exploring&&!u.goto);
+    if(state){const idle=state.units.filter(u=>u.player===0&&u.moves_left>0&&!u.fortified&&!u.sentry&&!u.exploring&&!u.goto&&!u.building);
     if(idle.length>0){
         selectedUnit=idle[0].id;selectedCity=null;centerOnTile(idle[0].q,idle[0].r);updatePanel();
         showEvent(`${idle.length} unit(s) without orders!`);
         if(!confirm(`${idle.length} unit(s) without orders. End turn anyway?`))return}}
-    const d=await api(`/api/game/${gameId}/end_turn`,'POST');state=d.state;selectedUnit=selectedCity=null;d.events?.forEach(e=>showEvent(e));updateUI();updatePanel();drawMini();autoSave();if(state.game_over){showGameOver();return}const me=state.players.find(p=>p.id===0);if(me&&!me.researching&&state.cities.some(c=>c.player===0)){showEvent('Choose research!');openTechTree();return}focusNextNeed()}
+    const d=await api(`/api/game/${gameId}/end_turn`,'POST');state=d.state;selectedUnit=selectedCity=null;
+    // Show events and detect completed production
+    let lastProduced=null;
+    if(d.events){for(const e of d.events){showEvent(e);
+        if(typeof e==='string'&&(e.includes(' produced ')||e.includes(' built '))){lastProduced=e}}}
+    // Show last production in top bar
+    if(lastProduced){const lp=document.getElementById('last-produced');if(lp)lp.textContent=lastProduced}
+    updateUI();updatePanel();drawMini();autoSave();if(state.game_over){showGameOver();return}
+    const me=state.players.find(p=>p.id===0);if(me&&!me.researching&&state.cities.some(c=>c.player===0)){showEvent('Choose research!');openTechTree();return}focusNextNeed()}
 function focusNextNeed(){const idle=state.cities.find(c=>c.player===0&&!c.producing);if(idle){selectedCity=idle.id;selectedUnit=null;centerOnTile(idle.q,idle.r);updatePanel();openProdModal(idle.id);return}selectNextUnit()}
 async function fortifyUnit(){if(!selectedUnit)return;const d=await api(`/api/game/${gameId}/fortify/${selectedUnit}`,'POST');if(d.ok){state=d.state;showEvent(d.msg)}selectedUnit=null;selectNextUnit();updateUI();updatePanel()}
 async function exploreUnit(){if(!selectedUnit)return;const d=await api(`/api/game/${gameId}/explore/${selectedUnit}`,'POST');if(d.ok){state=d.state;showEvent(d.msg)}selectedUnit=null;selectNextUnit();updateUI();updatePanel()}
@@ -439,11 +419,9 @@ let rangedMode=false;
 function startRangedAttack(){if(!selectedUnit)return;rangedMode=true;showEvent('Select target for ranged attack (click hex within range, ESC to cancel)')}
 async function doRangedAttack(q,r){if(!selectedUnit||!rangedMode)return;rangedMode=false;const d=await api(`/api/game/${gameId}/ranged_attack`,'POST',{unit_id:selectedUnit,q,r});if(d.ok){state=d.state;showEvent(d.msg||'Ranged attack!');selectedUnit=null;selectNextUnit();updateUI();updatePanel()}else{showEvent(d.msg||'Cannot attack there')}}
 async function spaceAction(){if(selectedUnit){const d=await api(`/api/game/${gameId}/skip/${selectedUnit}`,'POST');if(d.ok)state=d.state;selectedUnit=null;if(!selectNextUnit()){endTurn()}}else if(!selectNextUnit()){endTurn()}}
-function selectNextUnit(){if(!state)return false;const u=state.units.find(u=>u.player===0&&u.moves_left>0&&!u.fortified&&!u.sentry&&!u.exploring&&!u.goto);if(u){selectedUnit=u.id;selectedCity=null;centerOnTile(u.q,u.r);updatePanel();return true}return false}
+function selectNextUnit(){if(!state)return false;const u=state.units.find(u=>u.player===0&&u.moves_left>0&&!u.fortified&&!u.sentry&&!u.exploring&&!u.goto&&!u.building);if(u){selectedUnit=u.id;selectedCity=null;centerOnTile(u.q,u.r);updatePanel();return true}return false}
 function centerOnTile(q,r){const[px,py]=h2p(q,r);camX=px*camZoom-canvas.width/2;camY=py*camZoom-canvas.height/2}
-async function saveGame(){if(!gameId)return;
-    if(currentUser){const d=await api('/api/user/save','POST');if(d.ok)showEvent(d.msg);else showEvent('Save failed')}
-    else{const d=await api(`/api/game/${gameId}/save`,'POST');if(d.ok)showEvent(d.msg)}}
+async function saveGame(){if(!gameId)return;openSaveDialog('save')}
 async function openLoadDialog(){const sv=await api('/api/saves'),c=document.getElementById('load-content');c.innerHTML=sv.length?sv.map(s=>`<div class="save-item" onclick="loadGame('${s.filename}')"><div><b style="color:#c0c8e0">Turn ${s.turn} - ${s.players[0]||'?'}</b><div style="font-size:.8rem;color:#5060a0">${s.width}x${s.height} | ${s.players.length}p</div></div><div style="color:#ffd700">Load</div></div>`).join(''):'<p style="color:#5060a0;text-align:center;padding:2rem">No saves</p>';document.getElementById('load-modal').classList.add('active')}
 function closeLoadDialog(){document.getElementById('load-modal').classList.remove('active')}
 async function loadGame(fn){const d=await api(`/api/load/${fn}`,'POST');gameId=d.game_id;state=d.state;for(const k in tileCache)delete tileCache[k];closeLoadDialog();document.getElementById('menu-screen').style.display='none';document.getElementById('game-screen').style.display='block';setTimeout(()=>{initCanvas();centerOn();requestAnimationFrame(loop);updateUI();selectNextUnit();drawMini();showEvent('Game loaded!')},50)}
@@ -453,15 +431,25 @@ let names;try{const r=await fetch('/static/city_names.json');if(r.ok){const d=aw
 if(!names)names=['Roma','Athena','Memphis','Babylon','Persepolis','Kyoto','Tenochtitlan','Carthago','Sparta','Troy','Delhi','Constantinople','Alexandria','Corinth','Thebes'];
 const used=new Set(state.cities.map(c=>c.name));inp.value=names.find(n=>!used.has(n))||`City`;inp.focus();inp.select()}
 function closeCityDialog(){document.getElementById('city-name-dialog').style.display='none';pendingSettler=null}
-async function confirmFoundCity(){if(!pendingSettler)return;const n=document.getElementById('city-name-input').value.trim()||'City',d=await api(`/api/game/${gameId}/found_city`,'POST',{unit_id:pendingSettler,name:n});closeCityDialog();if(d.ok){state=d.state;selectedUnit=null;showEvent(d.msg);autoSave()}else showEvent(d.msg);updateUI();updatePanel();drawMini()}
+async function confirmFoundCity(){if(!pendingSettler)return;const n=document.getElementById('city-name-input').value.trim()||'City',d=await api(`/api/game/${gameId}/found_city`,'POST',{unit_id:pendingSettler,name:n});closeCityDialog();if(d.ok){state=d.state;selectedUnit=null;showEvent(d.msg);autoSave();updateUI();updatePanel();drawMini();
+// Open production for the new city
+const newCity=state.cities.find(c=>c.name===n&&c.player===0);if(newCity){selectedCity=newCity.id;centerOnTile(newCity.q,newCity.r);openProdModal(newCity.id)}}else{showEvent(d.msg);updateUI();updatePanel();drawMini()}}
 async function setProduction(cid,t,n){const d=await api(`/api/game/${gameId}/production`,'POST',{city_id:cid,item_type:t,item_name:n});if(d.ok){state=d.state;showEvent(d.msg);focusNextNeed()}else{showEvent(d.msg);updatePanel()}}
 async function setResearch(tn){const d=await api(`/api/game/${gameId}/research`,'POST',{tech_name:tn});if(d.ok){state=d.state;showEvent(d.msg);closeTechTree()}else showEvent(d.msg);updateUI()}
 async function doDiplomacy(tp,a){const d=await api(`/api/game/${gameId}/diplomacy`,'POST',{target_player:tp,action:a});state=d.state;openDiplomacy()}
 function showEvent(m){const l=document.getElementById('events-log'),d=document.createElement('div');d.className='event-msg';d.textContent=m;l.appendChild(d);setTimeout(()=>d.remove(),4000)}
-function updateUI(){const me=state.players.find(p=>p.id===0);if(!me)return;document.getElementById('res-gold').textContent=me.gold||0;document.getElementById('res-science').textContent=me.researching?`${me.researching.name.replace(/_/g,' ')} ${me.researching.progress}/${me.researching.cost}`:'None';document.getElementById('res-culture').textContent=me.culture_pool||0;document.getElementById('res-military').textContent=state.units.filter(u=>u.player===0).length;document.getElementById('turn-info').textContent=`Turn ${state.turn}`}
-function cycleNextUnit(){const units=state.units.filter(u=>u.player===0&&u.moves_left>0&&!u.fortified&&!u.sentry&&!u.exploring&&!u.goto);if(units.length<2)return;const idx=units.findIndex(u=>u.id===selectedUnit);const next=units[(idx+1)%units.length];selectedUnit=next.id;centerOnTile(next.q,next.r);updatePanel()}
+let _prevGold=null;
+function updateUI(){const me=state.players.find(p=>p.id===0);if(!me)return;
+const goldNow=me.gold||0;
+let goldStr=''+goldNow;
+if(_prevGold!==null){const diff=goldNow-_prevGold;if(diff!==0)goldStr+=` (${diff>=0?'+':''}${diff})`}
+_prevGold=goldNow;
+document.getElementById('res-gold').textContent=goldStr;
+document.getElementById('res-gold').style.color=goldNow<0?'#e74c3c':'#ffd700';
+document.getElementById('res-science').textContent=me.researching?`${me.researching.name.replace(/_/g,' ')} ${me.researching.progress}/${me.researching.cost}`:'None';document.getElementById('res-culture').textContent=me.culture_pool||0;document.getElementById('res-military').textContent=state.units.filter(u=>u.player===0).length;document.getElementById('turn-info').textContent=`Turn ${state.turn}`}
+function cycleNextUnit(){const units=state.units.filter(u=>u.player===0&&u.moves_left>0&&!u.fortified&&!u.sentry&&!u.exploring&&!u.goto&&!u.building);if(units.length<2)return;const idx=units.findIndex(u=>u.id===selectedUnit);const next=units[(idx+1)%units.length];selectedUnit=next.id;centerOnTile(next.q,next.r);updatePanel()}
 function updatePanel(){const P=document.getElementById('panel-content');if(selectedUnit){const u=state.units.find(u=>u.id===selectedUnit);if(!u){selectedUnit=null;updatePanel();return}const hc=u.hp>60?'#2ecc71':u.hp>30?'#f1c40f':'#e74c3c';
-const activeCount=state.units.filter(x=>x.player===0&&x.moves_left>0&&!x.fortified&&!x.sentry&&!x.exploring&&!x.goto).length;
+const activeCount=state.units.filter(x=>x.player===0&&x.moves_left>0&&!x.fortified&&!x.sentry&&!x.exploring&&!x.goto&&!x.building).length;
 const terrain=state.tiles[`${u.q},${u.r}`]||'?';
 P.innerHTML=`<div class="panel-section">
 <div style="display:flex;align-items:center;gap:8px;margin-bottom:.4rem">
@@ -482,7 +470,14 @@ ${u.goto?`<div style="color:#ffd700;font-size:.83rem">Goto (${u.goto.q},${u.goto
 ${u.building?`<div style="color:#e67e22;font-size:.83rem">Building ${u.building.type} (${u.building.turns_left}t)</div>`:''}
 <div style="margin-top:.5rem;display:flex;flex-wrap:wrap;gap:3px">
 ${u.type==='settler'?'<button class="action-btn" onclick="openCityDialog()">City (B)</button>':''}
-${u.type==='worker'?`<button class="action-btn" onclick="autoWorker()">Auto (A)</button><button class="action-btn" onclick="workerBuild('farm')">Farm</button><button class="action-btn" onclick="workerBuild('mine')">Mine</button><button class="action-btn" onclick="workerBuild('lumber_mill')">Mill</button><button class="action-btn" onclick="workerBuild('road')">Road</button><button class="action-btn" onclick="workerBuild('railroad')">Rail</button><button class="action-btn" onclick="workerBuild('trading_post')">Trade</button>`:''}
+${u.type==='worker'?(()=>{const me=state.players.find(p=>p.id===0);const t=me?.techs||[];let b='<button class="action-btn" onclick="autoWorker()">Auto (A)</button>';
+if(t.includes('agriculture'))b+='<button class="action-btn" onclick="workerBuild(\'farm\')">Farm (1)</button>';
+if(t.includes('mining'))b+='<button class="action-btn" onclick="workerBuild(\'mine\')">Mine (2)</button>';
+if(t.includes('construction'))b+='<button class="action-btn" onclick="workerBuild(\'lumber_mill\')">Mill (3)</button>';
+b+='<button class="action-btn" onclick="workerBuild(\'road\')">Road (4)</button>';
+if(t.includes('railroad'))b+='<button class="action-btn" onclick="workerBuild(\'railroad\')">Rail (5)</button>';
+if(t.includes('currency'))b+='<button class="action-btn" onclick="workerBuild(\'trading_post\')">Trade (6)</button>';
+return b})():''}
 ${u.cat!=='civilian'?'<button class="action-btn" onclick="fortifyUnit()">Fortify (F)</button>':''}
 ${u.cat!=='civilian'?'<button class="action-btn" onclick="sentryUnit()">Sentry (S)</button>':''}
 ${u.cat!=='civilian'?`<button class="action-btn" onclick="exploreUnit()">${u.exploring?'Stop':'Explore'} (X)</button>`:''}
@@ -575,7 +570,13 @@ for(const b of pr.buildings){let bn=[];if(b.food)bn.push(`+${b.food}f`);if(b.pro
 ph+='</div></div>';document.getElementById('prod-modal-content').innerHTML=ph;document.getElementById('prod-modal').classList.add('active')}
 function closeProdModal(){document.getElementById('prod-modal').classList.remove('active')}
 async function setProductionModal(cid,t,n){closeProdModal();await setProduction(cid,t,n)}
-async function openTechTree(){const ts=await api(`/api/game/${gameId}/techs`),me=state.players.find(p=>p.id===0),rn=me.researching?.name,eras={};for(const t of ts)(eras[t.era]??=[]).push(t);const ec={Ancient:'#c08040',Classical:'#4080c0',Medieval:'#808080',Renaissance:'#c06080',Industrial:'#a08040',Modern:'#40a0a0'};let h='';for(const e of['Ancient','Classical','Medieval','Renaissance','Industrial','Modern']){if(!eras[e])continue;h+=`<div class="tech-era"><h4 style="color:${ec[e]}">${e}</h4><div class="tech-grid">`;for(const t of eras[e]){const d=me.techs?.includes(t.name),c=t.name===rn,cl=d?'researched':c?'current':!t.available?'unavailable':'',oc=t.available&&!d?`onclick="setResearch('${t.name}')"`:'';h+=`<div class="tech-card ${cl}" ${oc}><div class="tech-name">${t.name.replace(/_/g,' ')}${d?' \u2713':''}</div><div class="tech-cost">${d?'Done':c?`${me.researching.progress}/${t.cost}`:`${t.cost}`}</div><div class="tech-unlocks">\u2192 ${t.unlocks.join(', ').replace(/_/g,' ')}</div></div>`}h+='</div></div>'}document.getElementById('tech-tree-content').innerHTML=h;document.getElementById('tech-modal').classList.add('active')}
+async function openTechTree(){const ts=await api(`/api/game/${gameId}/techs`),me=state.players.find(p=>p.id===0),rn=me.researching?.name,eras={};for(const t of ts)(eras[t.era]??=[]).push(t);const ec={Ancient:'#c08040',Classical:'#4080c0',Medieval:'#808080',Renaissance:'#c06080',Industrial:'#a08040',Modern:'#40a0a0'};
+// Tech descriptions
+const desc={agriculture:'Allows farms (+1 food per tile)',pottery:'Foundation of civilization',mining:'Allows mines (+2 prod on hills)',bronze_working:'Unlocks spearman + barracks',archery:'Unlocks archers (ranged combat)',sailing:'Opens the seas: galleys + harbors',writing:'Unlocks library (+3 science)',iron_working:'Stronger swordsman + forge (+2 prod)',mathematics:'Siege warfare: catapults',construction:'City walls (+50 def), aqueduct, colosseum',currency:'Marketplace (+4 gold), trading posts',horseback:'Mounted units: horseman + stable',feudalism:'Knights (fast, strong mounted)',engineering:'Castle (+80 def), workshop (+3 prod)',theology:'Temple (+3 culture), monastery',education:'University (+5 science), school',gunpowder:'Musketman (first gunpowder unit)',printing_press:'Bank (+5 gold)',navigation:'Caravel (ocean exploration)',astronomy:'Observatory (+5 science)',aesthetics:'Museum (+5 culture), theater',industrialization:'Factory (+5 prod), rifleman, hospital',steam_power:'Ironclad warship, enables railroad',railroad:'Railroad improvement (+1 prod, +80% speed)',dynamite:'Artillery + infantry (modern army)',military_science:'Military academy (+15 XP for units)',electricity:'Power plant (+5 prod), stadium (+4 happy)',flight:'Fighter + bomber aircraft, airport',nuclear_fission:'Nuclear plant (+8 prod), bunker (+60 def)',rocketry:'Tank (strongest ground unit)',space_program:'Space victory: accumulate production to win'};
+let h='';for(const e of['Ancient','Classical','Medieval','Renaissance','Industrial','Modern']){if(!eras[e])continue;h+=`<div class="tech-era"><h4 style="color:${ec[e]}">${e}</h4><div class="tech-grid">`;for(const t of eras[e]){const d=me.techs?.includes(t.name),c=t.name===rn,cl=d?'researched':c?'current':!t.available?'unavailable':'',oc=t.available&&!d?`onclick="setResearch('${t.name}')"`:'';
+const prereqStr=t.prereqs?.length?`<div style="font-size:.65rem;color:#888">Requires: ${t.prereqs.join(', ').replace(/_/g,' ')}</div>`:'';
+const descStr=desc[t.name]?`<div style="font-size:.65rem;color:#a0b0c0;margin-top:2px">${desc[t.name]}</div>`:'';
+h+=`<div class="tech-card ${cl}" ${oc}><div class="tech-name">${t.name.replace(/_/g,' ')}${d?' \u2713':''}</div><div class="tech-cost">${d?'Done':c?`${me.researching.progress}/${t.cost}`:`${t.cost}`}</div><div class="tech-unlocks">\u2192 ${t.unlocks.join(', ').replace(/_/g,' ')}</div>${prereqStr}${descStr}</div>`}h+='</div></div>'}document.getElementById('tech-tree-content').innerHTML=h;document.getElementById('tech-modal').classList.add('active')}
 function closeTechTree(){document.getElementById('tech-modal').classList.remove('active')}
 function openDiplomacy(){const me=state.players.find(p=>p.id===0);let h='';for(const p of state.players){if(p.id===0)continue;const r=me.diplomacy?.[p.id]||'peace';const sc=r==='alliance'?'color:#3498db':r==='war'?'color:#e74c3c':r==='peace'?'color:#2ecc71':'color:#f1c40f';h+=`<div class="diplo-player"><div class="diplo-color" style="background:${p.color}"></div><div><b style="color:#c0c8e0">${p.name}</b><div style="font-size:.8rem;color:#5060a0">${p.leader} | ${p.score}</div></div><div class="diplo-status" style="${sc}">${r.toUpperCase()}</div>${p.alive?`<div style="display:flex;gap:3px">${r!=='war'?`<button class="diplo-btn" style="color:#e74c3c;border-color:#e74c3c" onclick="doDiplomacy(${p.id},'war')">War</button>`:''}${r==='war'?`<button class="diplo-btn" style="color:#2ecc71;border-color:#2ecc71" onclick="doDiplomacy(${p.id},'peace')">Peace</button>`:''}${r==='peace'?`<button class="diplo-btn" style="color:#3498db;border-color:#3498db" onclick="doDiplomacy(${p.id},'alliance')">Alliance</button>`:''}${r==='alliance'?`<button class="diplo-btn" style="color:#f1c40f;border-color:#f1c40f" onclick="doDiplomacy(${p.id},'break_alliance')">Break</button>`:''}</div>`:''}</div>`}document.getElementById('diplo-content').innerHTML=h;document.getElementById('diplo-modal').classList.add('active')}
 function closeDiplomacy(){document.getElementById('diplo-modal').classList.remove('active')}
@@ -659,6 +660,32 @@ function render(){
 
     // UNITS
     for(const u of state.units){const[px,py]=h2p(u.q,u.r),sx=px-ox,sy=py-oy;if(sx<-pad||sx>W/camZoom+pad||sy<-pad||sy>H/camZoom+pad)continue;drawUnit(sx,sy,u,state.players.find(p=>p.id===u.player)?.color||'#888',u.id===selectedUnit)}
+
+    // GOTO PATHS — draw for selected unit or all player units with goto
+    for(const u of state.units){
+        if(u.player!==0||!u.goto_path||u.goto_path.length<1)continue;
+        if(u.id!==selectedUnit)continue; // only show for selected unit
+        const path=u.goto_path;
+        // Dashed golden line along path
+        ctx.save();ctx.strokeStyle='#ffd700';ctx.lineWidth=2.5;ctx.globalAlpha=.7;ctx.setLineDash([6,4]);
+        ctx.beginPath();
+        const[ux,uy]=h2p(u.q,u.r);ctx.moveTo(ux-ox,uy-oy);
+        for(const p of path){const[hx,hy]=h2p(p[0],p[1]);ctx.lineTo(hx-ox,hy-oy)}
+        ctx.stroke();ctx.setLineDash([]);
+        // Target marker — pulsing gold diamond
+        if(u.goto){
+            const[gx,gy]=h2p(u.goto.q,u.goto.r);const tx=gx-ox,ty=gy-oy;
+            const pulse=.6+Math.sin(T*3)*.3;
+            ctx.globalAlpha=pulse;ctx.fillStyle='#ffd700';
+            ctx.beginPath();ctx.moveTo(tx,ty-S*.35);ctx.lineTo(tx+S*.2,ty);ctx.lineTo(tx,ty+S*.35);ctx.lineTo(tx-S*.2,ty);ctx.closePath();ctx.fill();
+            ctx.strokeStyle='#b8860b';ctx.lineWidth=1.5;ctx.stroke();
+            // Distance text
+            const dist=u.goto_path.length;
+            ctx.globalAlpha=.9;ctx.fillStyle='#fff';ctx.font='bold 10px sans-serif';ctx.textAlign='center';
+            ctx.fillText(dist+'t',tx,ty+S*.55);
+        }
+        ctx.restore();
+    }
 
     ctx.restore();
 }
@@ -898,8 +925,8 @@ function drawUnit(sx,sy,unit,col,sel){
     if(unit.fortified){ctx.strokeStyle='#5080c0';ctx.lineWidth=1.2;ctx.setLineDash([3,3]);ctx.beginPath();ctx.arc(sx,sy,S*.38,0,6.3);ctx.stroke();ctx.setLineDash([])}
     if(unit.sentry){ctx.strokeStyle='#f1c40f';ctx.lineWidth=1.2;ctx.setLineDash([3,3]);ctx.beginPath();ctx.arc(sx,sy,S*.38,0,6.3);ctx.stroke();ctx.setLineDash([])}
     if(unit.exploring){ctx.strokeStyle='#2ecc71';ctx.lineWidth=1.2;ctx.setLineDash([3,3]);ctx.beginPath();ctx.arc(sx,sy,S*.38,0,6.3);ctx.stroke();ctx.setLineDash([])}
-    if(unit.goto&&unit.player===0&&!window._spectateMode){
-        // Small arrow indicator instead of line (no more off-screen lines)
+    if(unit.goto&&unit.player===0&&!window._spectateMode&&!unit.goto_path){
+        // Fallback arrow if no path computed
         ctx.save();ctx.globalAlpha=.7;ctx.fillStyle='#ffd700';ctx.font='bold 8px sans-serif';ctx.textAlign='center';
         ctx.fillText('\u2192',sx,sy-S*.45);ctx.restore()}
     ctx.restore();

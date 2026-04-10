@@ -34,6 +34,43 @@
 - **Home units list**: which military units are eating from this city
 - API: `GET /api/game/{id}/city/{cid}/manage` for AI bots
 
+### UI/UX Improvements
+- **Save & Quit dialog**: nice popup with save name input, Save & Quit / Quit Without Saving / Cancel
+- **Production popup**: opens automatically after founding city and after production completes
+- **Gold income change**: top bar shows gold delta (+5, -3) each turn, red when negative
+- **Last produced**: top bar shows what was last built/produced
+- **Worker tech filter**: only shows improvements that are researched (Farm needs agriculture, etc.)
+- **Worker keyboard shortcuts**: 1=Farm, 2=Mine, 3=Mill, 4=Road, 5=Rail, 6=Trade
+- **Workers skip during building**: workers building improvements are not selected as active units
+- **Move pause**: 0.6s delay after unit finishes moving before selecting next unit
+- **Simulation removed from menu**: only available via command line (sim_report.py)
+
+### Tech Tree Descriptions
+- Each technology shows what it unlocks and WHY it's useful
+- Shows prerequisite technologies
+- 31 techs with human-readable descriptions
+
+### Explore Fix
+- Explore avoids foreign territory (prevents accidental war declarations)
+- Uses A* for movement instead of raw BFS step
+- If move fails, marks direction as explored (prevents infinite retry)
+
+### Shared Tiles Between Cities
+- If two cities of same player have overlapping borders, each tile is worked by only the NEAREST city
+- Prevents double-harvesting of shared tiles
+
+### Settler Population Cost
+- Settler costs **1 population** from producing city (like Civilization)
+- City must have **pop >= 2** to build settler
+- Food store resets to 0 after settler produced
+- AI won't queue settler in size-1 cities
+
+### Goto Path Visualization
+- Selected unit with goto shows **golden dashed line** along A* path to target
+- **Pulsing diamond marker** on target hex
+- **Distance counter** (number of hexes) shown below target
+- Path computed via A* on server (same algorithm as unit movement)
+
 ### AI Intelligence Fixes
 - **Settler pre-check**: AI verifies real settle spot exists before producing settler (no more blind production)
 - **Settler wander reduced**: avg 5.2t→4.0t, max 33t→8t
