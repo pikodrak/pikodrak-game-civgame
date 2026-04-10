@@ -631,7 +631,17 @@ if(idle){
 selectNextUnit()}
 async function fortifyUnit(){if(!selectedUnit)return;const d=await api(`/api/game/${gameId}/fortify/${selectedUnit}`,'POST');if(d.ok){state=d.state;showEvent(d.msg)}selectedUnit=null;selectNextUnit();updateUI();updatePanel()}
 async function exploreUnit(){if(!selectedUnit)return;const d=await api(`/api/game/${gameId}/explore/${selectedUnit}`,'POST');if(d.ok){state=d.state;showEvent(d.msg)}selectedUnit=null;selectNextUnit();updateUI();updatePanel()}
-async function gotoUnit(uid,q,r){const d=await api(`/api/game/${gameId}/goto`,'POST',{unit_id:uid,q,r});if(d.ok){state=d.state;showEvent(d.msg)}selectedUnit=null;selectNextUnit();updateUI();updatePanel()}
+async function gotoUnit(uid,q,r){
+const oldU=state.units.find(u=>u.id===uid);
+const oldQ=oldU?oldU.q:q,oldR=oldU?oldU.r:r;
+const d=await api(`/api/game/${gameId}/goto`,'POST',{unit_id:uid,q,r});
+if(d.ok){state=d.state;showEvent(d.msg);
+// Animate if unit moved
+const nu=state.units.find(u=>u.id===uid);
+if(nu&&(nu.q!==oldQ||nu.r!==oldR)){const now=performance.now();if(!window._unitAnims)window._unitAnims={};window._unitAnims[uid]={fromQ:oldQ,fromR:oldR,toQ:nu.q,toR:nu.r,start:now,end:now+250};centerOnTile(nu.q,nu.r)}
+if(!nu||nu.moves_left<=0){setTimeout(()=>{selectedUnit=null;selectNextUnit();updatePanel()},500)}
+else{selectedUnit=null;selectNextUnit()}}
+updateUI();updatePanel()}
 async function workerBuild(imp){if(!selectedUnit)return;const d=await api(`/api/game/${gameId}/worker_build`,'POST',{unit_id:selectedUnit,improvement:imp});if(d.ok){state=d.state;showEvent(d.msg);selectedUnit=null;selectNextUnit()}else showEvent(d.msg);updateUI();updatePanel()}
 async function disbandUnit(){if(!selectedUnit)return;const u=state.units.find(u=>u.id===selectedUnit);if(!u)return;if(!await gameConfirm('Disband Unit',`Disband ${u.type.replace(/_/g,' ')}? This unit will be permanently destroyed.`))return;const d=await api(`/api/game/${gameId}/disband/${selectedUnit}`,'POST');if(d.ok){state=d.state;showEvent(d.msg)}selectedUnit=null;selectNextUnit();updateUI();updatePanel()}
 async function autoWorker(){if(!selectedUnit)return;const d=await api(`/api/game/${gameId}/auto_worker/${selectedUnit}`,'POST');if(d.ok){state=d.state;showEvent(d.msg)}selectedUnit=null;selectNextUnit();updateUI();updatePanel()}
@@ -710,13 +720,16 @@ ${u.goto?`<div style="color:#ffd700;font-size:.83rem">Goto (${u.goto.q},${u.goto
 ${u.building?`<div style="color:#e67e22;font-size:.83rem">Building ${u.building.type} (${u.building.turns_left}t)</div>`:''}
 <div style="margin-top:.5rem;display:flex;flex-wrap:wrap;gap:3px">
 ${u.type==='settler'?'<button class="action-btn" onclick="openCityDialog()">City (B)</button>':''}
-${u.type==='worker'?(()=>{const me=state.players.find(p=>p.id===0);const t=me?.techs||[];let b='<button class="action-btn" onclick="autoWorker()">Auto (A)</button>';
-if(t.includes('agriculture'))b+='<button class="action-btn" onclick="workerBuild(\'farm\')">Farm (1)</button>';
-if(t.includes('mining'))b+='<button class="action-btn" onclick="workerBuild(\'mine\')">Mine (2)</button>';
-if(t.includes('construction'))b+='<button class="action-btn" onclick="workerBuild(\'lumber_mill\')">Mill (3)</button>';
-b+='<button class="action-btn" onclick="workerBuild(\'road\')">Road (4)</button>';
-if(t.includes('railroad'))b+='<button class="action-btn" onclick="workerBuild(\'railroad\')">Rail (5)</button>';
-if(t.includes('currency'))b+='<button class="action-btn" onclick="workerBuild(\'trading_post\')">Trade (6)</button>';
+${u.type==='worker'?(()=>{const me=state.players.find(p=>p.id===0);const t=me?.techs||[];
+const tk=`${u.q},${u.r}`;const hasImp=state.improvements?.[tk];const hasRoad=state.roads?.[tk];
+const terrain=state.tiles?.[tk]||'';
+let b='<button class="action-btn" onclick="autoWorker()">Auto (A)</button>';
+if(t.includes('agriculture')&&!hasImp&&['grass','plains','desert'].includes(terrain))b+='<button class="action-btn" onclick="workerBuild(\'farm\')">Farm (1)</button>';
+if(t.includes('mining')&&!hasImp&&terrain==='hills')b+='<button class="action-btn" onclick="workerBuild(\'mine\')">Mine (2)</button>';
+if(t.includes('construction')&&!hasImp&&terrain==='forest')b+='<button class="action-btn" onclick="workerBuild(\'lumber_mill\')">Mill (3)</button>';
+if(!hasRoad)b+='<button class="action-btn" onclick="workerBuild(\'road\')">Road (4)</button>';
+if(t.includes('railroad')&&hasRoad&&hasRoad.type==='road')b+='<button class="action-btn" onclick="workerBuild(\'railroad\')">Rail (5)</button>';
+if(t.includes('currency')&&!hasImp&&['grass','plains','forest'].includes(terrain))b+='<button class="action-btn" onclick="workerBuild(\'trading_post\')">Trade (6)</button>';
 return b})():''}
 ${u.cat!=='civilian'?'<button class="action-btn" onclick="fortifyUnit()">Fortify (F)</button>':''}
 ${u.cat!=='civilian'?'<button class="action-btn" onclick="sentryUnit()">Sentry (S)</button>':''}

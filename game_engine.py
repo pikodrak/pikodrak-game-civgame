@@ -1653,6 +1653,21 @@ class GameState:
         unit["fortified"] = False
         unit["sentry"] = False
         unit["exploring"] = False
+        # Immediately start moving toward target
+        while unit["id"] in self.units and unit.get("moves_left", 0) > 0 and unit.get("goto"):
+            old_q, old_r = unit["q"], unit["r"]
+            next_step = self._find_path_next(unit, q, r)
+            if next_step:
+                result = self.move_unit(unit["id"], next_step[0], next_step[1])
+                if not result.get("ok") or (unit["q"] == old_q and unit["r"] == old_r):
+                    break
+                if result.get("combat"):
+                    break
+                if unit["q"] == q and unit["r"] == r:
+                    unit["goto"] = None
+                    break
+            else:
+                break
         return {"ok": True, "msg": f"Moving to ({q},{r})"}
 
     def skip_unit(self, unit_id):
