@@ -576,7 +576,11 @@ def api_rules():
             },
             "production": {
                 "how": "Each turn, city prod yield added to prod_progress. When >= cost, item completed.",
-                "auto_queue": "AI cities auto-pick next production via scoring system.",
+                "queue": "Up to 5 items can be queued. After current item completes, next from queue starts automatically.",
+                "auto_produce": "Modes: 'units' (military only), 'buildings' (buildings only), 'auto' (AI decides best), 'off' (manual).",
+                "settler_halts_growth": "While producing a settler, city food surplus is NOT stored — city does not grow.",
+                "api_queue": "POST /api/game/{id}/production/queue {city_id, item_type, item_name}",
+                "api_auto": "POST /api/game/{id}/production/auto {city_id, mode: units/buildings/auto/off}",
             },
             "culture_borders": {
                 "thresholds": {"radius_2": 10, "radius_3": 50, "radius_4": 150, "radius_5": 400},

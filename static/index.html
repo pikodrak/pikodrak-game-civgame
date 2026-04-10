@@ -73,9 +73,23 @@ body{background:#1a1408;color:#e0e0e0;font-family:'Inter',system-ui,sans-serif;o
 .save-item:hover{background:rgba(255,215,0,.06);border-color:rgba(255,215,0,.2)}
 .hp-bar-bg{background:rgba(255,255,255,.1);border-radius:3px;height:4px;margin-top:.3rem;overflow:hidden}.hp-bar-fill{height:100%;border-radius:3px}
 .progress-bar-bg{background:rgba(255,255,255,.08);border-radius:4px;height:6px;margin-top:.3rem;overflow:hidden}.progress-bar-fill{height:100%;border-radius:4px;background:linear-gradient(90deg,#c8960c,#ffd700)}
+#game-dialog{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.6);z-index:9999;align-items:center;justify-content:center}
+#game-dialog.active{display:flex}
+#game-dialog .dlg-box{background:linear-gradient(135deg,#1e1610,#2a1e12);border:2px solid rgba(200,150,0,.3);border-radius:12px;padding:1.5rem;min-width:320px;max-width:460px;box-shadow:0 10px 40px rgba(0,0,0,.6)}
+#game-dialog .dlg-title{font-family:'Cinzel',serif;color:#ffd700;font-size:1.1rem;margin-bottom:.8rem}
+#game-dialog .dlg-msg{color:#c0c8e0;font-size:.9rem;line-height:1.5;margin-bottom:1rem}
+#game-dialog .dlg-input{width:100%;padding:.5rem;margin-bottom:.8rem;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:6px;color:#e0e0e0;font-size:.9rem}
+#game-dialog .dlg-btns{display:flex;gap:.5rem;justify-content:flex-end}
+#game-dialog .dlg-btn{padding:.5rem 1.2rem;border-radius:6px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.05);color:#c0c8e0;cursor:pointer;font-size:.85rem;transition:all .15s}
+#game-dialog .dlg-btn:hover{background:rgba(255,255,255,.1);border-color:rgba(255,215,0,.3)}
+#game-dialog .dlg-btn.primary{background:linear-gradient(135deg,#c8960c,#ffd700);color:#1a1408;font-weight:600;border:none}
+#game-dialog .dlg-btn.primary:hover{filter:brightness(1.1)}
+#game-dialog .dlg-btn.danger{color:#e74c3c;border-color:rgba(231,76,60,.3)}
+#game-dialog .dlg-btn.danger:hover{background:rgba(231,76,60,.15)}
 </style>
 </head>
 <body>
+<div id="game-dialog"><div class="dlg-box"><div class="dlg-title" id="dlg-title"></div><div class="dlg-msg" id="dlg-msg"></div><input class="dlg-input" id="dlg-input" style="display:none"><div class="dlg-btns" id="dlg-btns"></div></div></div>
 <div id="login-screen" style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;background:#1a1408">
 <h1 style="font-family:'Cinzel',serif;font-size:4rem;background:linear-gradient(135deg,#ffd700,#ff8c00,#ffd700);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:1rem">CIVGAME</h1>
 <div class="menu-panel" style="width:340px">
@@ -93,7 +107,8 @@ body{background:#1a1408;color:#e0e0e0;font-family:'Inter',system-ui,sans-serif;o
 <div class="menu-panel" style="position:relative"><div id="user-info" style="position:absolute;top:-30px;right:0;font-size:.75rem;color:#8090b0"></div>
 <button class="btn btn-primary" onclick="openSetupScreen()" style="width:100%;padding:.8rem;font-size:1.1rem">New Game</button>
 <button class="btn btn-secondary" onclick="openLoadDialog()" style="margin-top:.4rem">Load Game</button>
-<button class="btn btn-secondary" onclick="openAccount()" id="btn-account" style="margin-top:.3rem;color:#60a0ff;border-color:rgba(96,160,255,.3)">My Account</button>
+<button class="btn btn-secondary" onclick="openAccount()" id="btn-account" style="margin-top:.3rem;color:#60a0ff;border-color:rgba(96,160,255,.3)">Profile</button>
+<button class="btn btn-secondary" onclick="openHowToPlay()" style="margin-top:.3rem;color:#60c080;border-color:rgba(96,192,128,.3)">How to Play</button>
 </div></div>
 <div class="modal-overlay" id="setup-modal"><div class="modal" style="max-width:700px;max-height:90vh;overflow-y:auto"><button class="close-btn" onclick="closeSetup()">&times;</button><h2 style="color:#ffd700">New Game Setup</h2><div id="setup-content"></div></div></div>
 <div id="game-screen"><div id="top-bar">
@@ -114,7 +129,7 @@ body{background:#1a1408;color:#e0e0e0;font-family:'Inter',system-ui,sans-serif;o
 <div id="city-name-dialog"><h3>Found New City</h3><input type="text" id="city-name-input" maxlength="20"><br><button class="btn btn-primary" onclick="confirmFoundCity()" style="width:auto;padding:.6rem 2rem">Found</button><button class="action-btn" onclick="closeCityDialog()" style="margin-left:.5rem">Cancel</button></div>
 <div class="modal-overlay" id="tech-modal"><div class="modal"><button class="close-btn" onclick="closeTechTree()">&times;</button><h2>Technology Tree</h2><div id="tech-tree-content"></div></div></div>
 <div class="modal-overlay" id="diplo-modal"><div class="modal"><button class="close-btn" onclick="closeDiplomacy()">&times;</button><h2>Diplomacy</h2><div id="diplo-content"></div></div></div>
-<div class="modal-overlay" id="account-modal"><div class="modal" style="max-width:600px"><button class="close-btn" onclick="closeAccount()">&times;</button><h2>My Account</h2><div id="account-content"></div></div></div>
+<div class="modal-overlay" id="account-modal"><div class="modal" style="max-width:600px;max-height:90vh;overflow-y:auto"><button class="close-btn" onclick="closeAccount()">&times;</button><h2>Profile</h2><div id="account-content"></div></div></div>
 <div class="modal-overlay" id="prod-modal"><div class="modal" style="max-width:500px"><button class="close-btn" onclick="closeProdModal()">&times;</button><h2 id="prod-modal-title">Build</h2><div id="prod-modal-content"></div></div></div>
 <div class="modal-overlay" id="load-modal"><div class="modal"><button class="close-btn" onclick="closeLoadDialog()">&times;</button><h2>Load Game</h2><div id="load-content"></div></div></div>
 <div id="game-over-screen"><h1 id="game-over-title"></h1><p id="game-over-msg" style="font-size:1.2rem;margin-bottom:2rem;color:#8090b0"></p><button class="btn btn-primary" onclick="location.reload()" style="width:auto">Play Again</button></div>
@@ -186,25 +201,19 @@ function logout(){authToken=null;currentUser=null;localStorage.removeItem('civga
 
 async function openAccount(){
     if(!currentUser){showEvent('Login required');return}
-    let h=`<div class="panel-section"><h3>User: ${currentUser.username}</h3></div>`;
-
-    // Saved games
-    try{
-        const saves=await api('/api/user/saves');
-        h+=`<div class="panel-section"><h3>Saved Games (${saves.length})</h3>`;
-        if(saves.length===0)h+='<p style="color:#6a7a9a">No saved games</p>';
-        for(const s of saves){
-            const date=new Date(s.updated_at*1000).toLocaleString();
-            h+=`<div class="save-item"><div><b style="color:#c0c8e0">Turn ${s.turn} — ${s.name}</b><div style="font-size:.78rem;color:#5a6a8a">${date}</div></div><div style="display:flex;gap:4px"><button class="action-btn" onclick="loadUserSave(${s.id})">Load</button><button class="action-btn" style="color:#e74c3c" onclick="deleteUserSave(${s.id})">Del</button></div></div>`;
-        }
-        h+='</div>';
-    }catch(e){h+='<div class="panel-section"><h3>Saved Games</h3><p style="color:#e74c3c">Error loading saves</p></div>'}
+    let h=`<div class="panel-section"><h3 style="color:#ffd700">Profile</h3>
+    <div style="display:grid;grid-template-columns:100px 1fr;gap:.4rem;font-size:.85rem">
+    <span style="color:#8090b0">Username</span><span style="color:#e0e0e0">${currentUser.username}</span>
+    <span style="color:#8090b0">Language</span>
+    <select id="prof-lang" style="padding:.3rem;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:4px;color:#e0e0e0;font-size:.82rem">
+    <option value="en" selected>English</option><option value="cs">Czech</option></select>
+    </div></div>`;
 
     // API Tokens
     try{
         const tokens=await api('/api/auth/tokens');
         h+=`<div class="panel-section"><h3>API Tokens (${tokens.length})</h3>`;
-        h+=`<p style="font-size:.75rem;color:#6a7a9a;margin-bottom:.5rem">Use tokens to connect AI bots via REST API</p>`;
+        h+=`<p style="font-size:.75rem;color:#6a7a9a;margin-bottom:.5rem">Connect AI bots via REST API</p>`;
         for(const t of tokens){
             const used=t.last_used?new Date(t.last_used*1000).toLocaleString():'Never';
             h+=`<div style="padding:.4rem;margin:.2rem 0;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:6px;display:flex;justify-content:space-between;align-items:center">
@@ -215,40 +224,16 @@ async function openAccount(){
         }
         h+=`<button class="action-btn" style="margin-top:.5rem" onclick="createToken()">+ New API Token</button>`;
         h+='</div>';
-    }catch(e){h+='<div class="panel-section"><h3>API Tokens</h3><p style="color:#e74c3c">Error</p></div>'}
-
-    // API docs link
-    h+=`<div class="panel-section"><h3>AI API Reference</h3>
-    <div style="font-size:.75rem;color:#8090b0;line-height:1.6">
-    <code>GET /api/game/{id}/ai/state</code> — Full game state<br>
-    <code>GET /api/game/{id}/ai/actions/{player}</code> — Possible actions<br>
-    <code>GET /api/game/{id}/ai/map</code> — Map data<br>
-    <code>POST /api/new_game</code> — Create game<br>
-    <code>POST /api/game/{id}/move</code> — Move unit<br>
-    <code>POST /api/game/{id}/end_turn</code> — End turn<br>
-    <code>POST /api/game/{id}/production</code> — Set production<br>
-    <code>POST /api/game/{id}/research</code> — Set research<br>
-    <code>POST /api/game/{id}/diplomacy</code> — War/Peace/Alliance<br>
-    <div style="margin-top:.3rem">Header: <code>Authorization: Bearer civ_xxx...</code></div>
-    </div></div>`;
+    }catch(e){}
 
     // Admin: spectator
     if(currentUser&&currentUser.username==='pikodrak'){
-        h+=`<div class="panel-section"><h3>Spectator Mode (Admin)</h3>
+        h+=`<div class="panel-section"><h3>Admin</h3>
         <button class="action-btn" onclick="openSpectator()">View Active Games</button></div>`}
 
-    // Version & Changelog
+    // Version
     const vi=window._gameVersion;
-    if(vi){
-        h+=`<div class="panel-section"><h3>Version ${vi.version} (${vi.build})</h3>`;
-        if(vi.changelog){for(const s of vi.changelog){
-            h+=`<p style="color:#ffd700;font-size:.8rem;margin:.4rem 0 .2rem">${s.section}</p>`;
-            for(const it of (s.items||[]).slice(0,5)){
-                h+=`<div style="font-size:.72rem;color:#8090b0;padding-left:.8rem;margin:.1rem 0">${it}</div>`;
-            }
-            if(s.items?.length>5)h+=`<div style="font-size:.7rem;color:#556;padding-left:.8rem">...+${s.items.length-5} more</div>`;
-        }}
-        h+='</div>'}
+    if(vi){h+=`<div class="panel-section"><h3>Version ${vi.version}</h3><p style="font-size:.75rem;color:#6a7a9a">Build: ${vi.build}</p></div>`}
 
     h+=`<button class="btn btn-secondary" onclick="logout()" style="color:#e74c3c;border-color:rgba(224,80,80,.3);margin-top:.5rem">Logout</button>`;
 
@@ -256,10 +241,99 @@ async function openAccount(){
     document.getElementById('account-modal').classList.add('active');
 }
 function closeAccount(){document.getElementById('account-modal').classList.remove('active')}
-async function deleteUserSave(sid){if(!confirm('Delete this save?'))return;await api(`/api/user/save/${sid}`,'DELETE');openAccount()}
+
+function openHowToPlay(){
+const m=document.getElementById('prod-modal');
+document.getElementById('prod-modal-title').textContent='How to Play';
+document.getElementById('prod-modal-content').innerHTML=`<div style="max-height:70vh;overflow-y:auto;font-size:.82rem;color:#c0c8e0;line-height:1.6">
+
+<h3 style="color:#ffd700;margin:.6rem 0 .3rem">Goal</h3>
+<p>Build a civilization from a single settler to a spacefaring empire. Win through <b style="color:#60a0ff">Space</b> (research + production), <b style="color:#c490ff">Culture</b> (accumulate culture points), <b style="color:#ff6060">Domination</b> (control 75%+ cities), or <b style="color:#ffd700">Score</b> (highest score when turn limit reached).</p>
+
+<h3 style="color:#ffd700;margin:.6rem 0 .3rem">Getting Started</h3>
+<p>1. <b>Found your first city</b> — select settler, press <kbd>B</kbd> to build city<br>
+2. <b>Set production</b> — choose what to build (warrior, worker, buildings)<br>
+3. <b>Research technology</b> — click Research button or wait for popup<br>
+4. <b>Explore</b> — select military unit, press <kbd>X</kbd> for auto-explore<br>
+5. <b>Expand</b> — build settlers (costs 1 population!) to found new cities</p>
+
+<h3 style="color:#ffd700;margin:.6rem 0 .3rem">Units</h3>
+<p><b>Military</b> — warriors, archers, knights, etc. Attack enemies, defend cities.<br>
+<b>Settler</b> — founds new cities. Costs 1 population from producing city. City must have pop 2+.<br>
+<b>Worker</b> — builds improvements on tiles: farms (+food), mines (+production), roads (movement + trade).<br>
+<b>Spy</b> — steals tech or sabotages enemy cities. 40% chance of being caught.<br>
+<b>Caravan</b> — trade with foreign cities for gold.</p>
+
+<h3 style="color:#ffd700;margin:.6rem 0 .3rem">City Management</h3>
+<p><b>Population</b> eats 2 food/turn each. Surplus food = city grows. Deficit = city shrinks.<br>
+<b>Military units eat food</b> from their home city: first 2 free, units 3-4 cost 1 food, units 5+ cost 2 food each.<br>
+<b>Happiness</b> — cities above pop 4 become unhappy. Build colosseum, temple, stadium to counter.<br>
+<b>Unhappy cities</b> lose 25% production and science, and barely grow.<br>
+<b>Buildings</b> provide bonuses: granary (+food), library (+science), marketplace (+gold), walls (+defense).<br>
+<b>Production queue</b> — Shift+click items to queue up to 5. Set auto-produce mode (Smart/Units/Buildings).</p>
+
+<h3 style="color:#ffd700;margin:.6rem 0 .3rem">Workers & Improvements</h3>
+<p>Workers build improvements on tiles to boost city yields:<br>
+<kbd>1</kbd> Farm (+1 food) | <kbd>2</kbd> Mine (+2 prod) | <kbd>3</kbd> Lumber Mill (+1 prod)<br>
+<kbd>4</kbd> Road (faster movement + trade income) | <kbd>5</kbd> Railroad (+1 prod, very fast)<br>
+<kbd>6</kbd> Trading Post (+2 gold) | <kbd>A</kbd> Auto-build (AI decides)<br>
+<b>Roads to capital</b> = trade route: +1 gold per 2 population. Build roads between cities!</p>
+
+<h3 style="color:#ffd700;margin:.6rem 0 .3rem">Combat</h3>
+<p>Move a military unit onto an enemy to attack. Damage is based on attack vs defense, terrain, and random factor.<br>
+<b>Ranged units</b> (archer, catapult, artillery, bomber) can attack from distance with <kbd>R</kbd>.<br>
+<b>Fortify</b> (<kbd>F</kbd>) = +25% defense. <b>Sentry</b> (<kbd>S</kbd>) = auto-wake when enemy approaches.<br>
+<b>City attack</b> — melee unit needed for final capture. Ranged units reduce city HP but cannot capture.<br>
+<b>Barracks</b> give new units +10 XP. Military Academy adds +15 XP.</p>
+
+<h3 style="color:#ffd700;margin:.6rem 0 .3rem">Diplomacy</h3>
+<p><b>Peace</b> — default state. Cannot enter territory.<br>
+<b>War</b> — entering foreign territory or attacking triggers war. 10-turn minimum.<br>
+<b>Alliance</b> — free passage + auto-war if ally attacked.<br>
+Entering neutral territory = automatic war declaration!</p>
+
+<h3 style="color:#ffd700;margin:.6rem 0 .3rem">Economy</h3>
+<p><b>Gold</b> — from tiles, buildings, trade routes. Pays unit maintenance (2g per unit, first 2 free).<br>
+<b>Bankruptcy</b> (gold < -50) — weakest military units disbanded, then buildings sold.<br>
+<b>Science</b> — from population + buildings. Researches technologies.<br>
+<b>Culture</b> — from buildings. Expands borders and counts toward culture victory.</p>
+
+<h3 style="color:#ffd700;margin:.6rem 0 .3rem">Keyboard Shortcuts</h3>
+<div style="display:grid;grid-template-columns:60px 1fr;gap:.2rem;font-size:.78rem">
+<kbd>B</kbd><span>Found city (settler)</span>
+<kbd>F</kbd><span>Fortify</span>
+<kbd>S</kbd><span>Sentry</span>
+<kbd>X</kbd><span>Explore</span>
+<kbd>R</kbd><span>Ranged attack</span>
+<kbd>A</kbd><span>Auto-build (worker)</span>
+<kbd>1-6</kbd><span>Worker improvements</span>
+<kbd>Tab</kbd><span>Next unit</span>
+<kbd>Space</kbd><span>Skip unit / End turn</span>
+<kbd>Enter</kbd><span>End turn</span>
+<kbd>Del</kbd><span>Disband unit</span>
+<kbd>Ctrl+S</kbd><span>Save game</span>
+<kbd>Esc</kbd><span>Close dialogs</span>
+</div>
+
+<h3 style="color:#ffd700;margin:.6rem 0 .3rem">Victory Conditions</h3>
+<p><b style="color:#60a0ff">Space Victory</b> — Research space_program + rocketry + nuclear_fission, then accumulate 12000 production.<br>
+<b style="color:#c490ff">Culture Victory</b> — Accumulate 20000 culture points (build temples, museums, theaters).<br>
+<b style="color:#ff6060">Domination</b> — Control 75%+ of all cities on the map.<br>
+<b style="color:#ffd700">Score Victory</b> — Highest score when turn limit (300) is reached.</p>
+
+<h3 style="color:#ffd700;margin:.6rem 0 .3rem">Tips</h3>
+<p>1. Build granary + farm early for food growth<br>
+2. Connect cities to capital with roads for trade gold<br>
+3. Build walls when enemies are near<br>
+4. Don't over-produce military — units eat food from cities<br>
+5. Research agriculture and mining first for improvements<br>
+6. Settlers cost 1 population — grow city to 3+ before building settler</p>
+</div>`;
+m.classList.add('active')}
+async function deleteUserSave(sid){if(!await gameConfirm('Delete Save','Delete this saved game?'))return;await api(`/api/user/save/${sid}`,'DELETE');openAccount()}
 async function loadUserSave(sid){closeAccount();const d=await api(`/api/user/load/${sid}`,'POST');if(d.game_id){gameId=d.game_id;state=d.state;for(const k in tileCache)delete tileCache[k];document.getElementById('menu-screen').style.display='none';document.getElementById('game-screen').style.display='block';setTimeout(()=>{initCanvas();centerOn();requestAnimationFrame(loop);updateUI();selectNextUnit();drawMini();showEvent('Game loaded!')},50)}}
-async function createToken(){const name=prompt('Token name (e.g. my-ai-bot):','ai-bot');if(!name)return;const d=await api('/api/auth/token','POST',{name});if(d.ok){alert('Token created!\\n\\nCopy this token (shown only once):\\n\\n'+d.token);openAccount()}else alert('Error creating token')}
-async function revokeToken(tid){if(!confirm('Revoke this token?'))return;await api(`/api/auth/token/${tid}`,'DELETE');openAccount()}
+async function createToken(){const name=await gamePrompt('New API Token','Enter token name:','ai-bot');if(!name)return;const d=await api('/api/auth/token','POST',{name});if(d.ok){await gameAlert('Token Created','Copy this token (shown only once):<br><br><code style="color:#ffd700;font-size:1rem;word-break:break-all">'+d.token+'</code>');openAccount()}else await gameAlert('Error','Error creating token')}
+async function revokeToken(tid){if(!await gameConfirm('Revoke Token','Revoke this API token? Bots using it will stop working.'))return;await api(`/api/auth/token/${tid}`,'DELETE');openAccount()}
 async function openSpectator(){
     try{const games=await api('/api/spectate/games');
     let h='<h3>Active Games</h3>';
@@ -271,8 +345,8 @@ async function openSpectator(){
         <button class="action-btn" onclick="spectateGame(${g.game_id})">Watch</button>
         <button class="action-btn" style="color:#e74c3c" onclick="deleteGame(${g.game_id})">Delete</button></div>`}
     document.getElementById('account-content').innerHTML=h+'<br><button class="action-btn" onclick="openAccount()">Back</button>';
-    }catch(e){alert('Error: '+e.message)}}
-async function deleteGame(gid){if(!confirm(`Delete game #${gid}?`))return;await api(`/api/game/${gid}`,'DELETE');openSpectator()}
+    }catch(e){gameAlert('Error',e.message)}}
+async function deleteGame(gid){if(!await gameConfirm('Delete Game',`Delete game #${gid}? This cannot be undone.`))return;await api(`/api/game/${gid}`,'DELETE');openSpectator()}
 async function spectateGame(gid){
     try{const d=await api(`/api/spectate/game/${gid}`);
     closeAccount();state=d;gameId=gid;
@@ -286,7 +360,7 @@ async function spectateGame(gid){
     window._spectateInterval=setInterval(async()=>{
         try{const s=await api(`/api/spectate/game/${gid}`);state=s;for(const k in tileCache)delete tileCache[k];updateUI();updatePanel();drawMini()}catch(e){clearInterval(window._spectateInterval)}
     },3000);
-    }catch(e){alert('Error: '+e.message)}}
+    }catch(e){gameAlert('Error',e.message)}}
 
 // Check token on load
 (async function(){
@@ -467,7 +541,7 @@ async function launchGame(){
     document.getElementById('menu-screen').style.display='none';
     document.getElementById('game-screen').style.display='block';
     setTimeout(()=>{initCanvas();centerOn();requestAnimationFrame(loop);updateUI();selectNextUnit();drawMini();autoSave()},50);
-    }catch(e){alert('Error: '+e.message);console.error(e)}
+    }catch(e){gameAlert('Error',e.message);console.error(e)}
 }
 // Keep old startGame as fallback
 async function startGame(){openSetupScreen()}
@@ -514,7 +588,7 @@ async function moveUnit(uid,q,r){
 const oldU=state.units.find(u=>u.id===uid);
 const oldQ=oldU?oldU.q:q,oldR=oldU?oldU.r:r;
 const d=await api(`/api/game/${gameId}/move`,'POST',{unit_id:uid,q,r});
-if(d.needs_war){if(confirm(d.msg)){await api(`/api/game/${gameId}/diplomacy`,'POST',{target_player:d.war_target,action:'war'});const d2=await api(`/api/game/${gameId}/move`,'POST',{unit_id:uid,q,r});if(d2.ok){state=d2.state;if(d2.combat)showEvent(d2.msg);
+if(d.needs_war){if(await gameConfirm('Declare War?',d.msg)){await api(`/api/game/${gameId}/diplomacy`,'POST',{target_player:d.war_target,action:'war'});const d2=await api(`/api/game/${gameId}/move`,'POST',{unit_id:uid,q,r});if(d2.ok){state=d2.state;if(d2.combat)showEvent(d2.msg);
 // Animate
 const nu=state.units.find(u=>u.id===uid);if(nu&&(nu.q!==oldQ||nu.r!==oldR)){const now=performance.now();window._unitAnims[uid]={fromQ:oldQ,fromR:oldR,toQ:nu.q,toR:nu.r,start:now,end:now+250}}
 if(!nu||nu.moves_left<=0){selectedUnit=null;setTimeout(()=>selectNextUnit(),500)}}else showEvent(d2.msg)}updateUI();updatePanel();drawMini();return}
@@ -532,7 +606,7 @@ async function endTurn(){
     if(idle.length>0){
         selectedUnit=idle[0].id;selectedCity=null;centerOnTile(idle[0].q,idle[0].r);updatePanel();
         showEvent(`${idle.length} unit(s) without orders!`);
-        if(!confirm(`${idle.length} unit(s) without orders. End turn anyway?`))return}}
+        if(!await gameConfirm('Units Without Orders',`${idle.length} unit(s) still have movement points.<br>End turn anyway?`))return}}
     const d=await api(`/api/game/${gameId}/end_turn`,'POST');state=d.state;selectedUnit=selectedCity=null;
     // Show events and detect completed production
     let lastProduced=null;
@@ -547,7 +621,7 @@ async function fortifyUnit(){if(!selectedUnit)return;const d=await api(`/api/gam
 async function exploreUnit(){if(!selectedUnit)return;const d=await api(`/api/game/${gameId}/explore/${selectedUnit}`,'POST');if(d.ok){state=d.state;showEvent(d.msg)}selectedUnit=null;selectNextUnit();updateUI();updatePanel()}
 async function gotoUnit(uid,q,r){const d=await api(`/api/game/${gameId}/goto`,'POST',{unit_id:uid,q,r});if(d.ok){state=d.state;showEvent(d.msg)}selectedUnit=null;selectNextUnit();updateUI();updatePanel()}
 async function workerBuild(imp){if(!selectedUnit)return;const d=await api(`/api/game/${gameId}/worker_build`,'POST',{unit_id:selectedUnit,improvement:imp});if(d.ok){state=d.state;showEvent(d.msg);selectedUnit=null;selectNextUnit()}else showEvent(d.msg);updateUI();updatePanel()}
-async function disbandUnit(){if(!selectedUnit)return;const u=state.units.find(u=>u.id===selectedUnit);if(!u)return;if(!confirm(`Disband ${u.type}?`))return;const d=await api(`/api/game/${gameId}/disband/${selectedUnit}`,'POST');if(d.ok){state=d.state;showEvent(d.msg)}selectedUnit=null;selectNextUnit();updateUI();updatePanel()}
+async function disbandUnit(){if(!selectedUnit)return;const u=state.units.find(u=>u.id===selectedUnit);if(!u)return;if(!await gameConfirm('Disband Unit',`Disband ${u.type.replace(/_/g,' ')}? This unit will be permanently destroyed.`))return;const d=await api(`/api/game/${gameId}/disband/${selectedUnit}`,'POST');if(d.ok){state=d.state;showEvent(d.msg)}selectedUnit=null;selectNextUnit();updateUI();updatePanel()}
 async function autoWorker(){if(!selectedUnit)return;const d=await api(`/api/game/${gameId}/auto_worker/${selectedUnit}`,'POST');if(d.ok){state=d.state;showEvent(d.msg)}selectedUnit=null;selectNextUnit();updateUI();updatePanel()}
 async function sentryUnit(){if(!selectedUnit)return;const d=await api(`/api/game/${gameId}/sentry/${selectedUnit}`,'POST');if(d.ok){state=d.state;showEvent(d.msg)}selectedUnit=null;selectNextUnit();updateUI();updatePanel()}
 let rangedMode=false;
@@ -573,6 +647,25 @@ async function setProduction(cid,t,n){const d=await api(`/api/game/${gameId}/pro
 async function setResearch(tn){const d=await api(`/api/game/${gameId}/research`,'POST',{tech_name:tn});if(d.ok){state=d.state;showEvent(d.msg);closeTechTree()}else showEvent(d.msg);updateUI()}
 async function doDiplomacy(tp,a){const d=await api(`/api/game/${gameId}/diplomacy`,'POST',{target_player:tp,action:a});state=d.state;openDiplomacy()}
 function showEvent(m){const l=document.getElementById('events-log'),d=document.createElement('div');d.className='event-msg';d.textContent=m;l.appendChild(d);setTimeout(()=>d.remove(),4000)}
+// ======== CUSTOM DIALOG SYSTEM ========
+function gameDialog(title,msg,buttons,inputOpts){
+return new Promise(resolve=>{
+const d=document.getElementById('game-dialog');
+document.getElementById('dlg-title').textContent=title;
+document.getElementById('dlg-msg').innerHTML=msg;
+const inp=document.getElementById('dlg-input');
+if(inputOpts){inp.style.display='block';inp.value=inputOpts.value||'';inp.placeholder=inputOpts.placeholder||'';setTimeout(()=>{inp.focus();inp.select()},100)}else{inp.style.display='none'}
+const btns=document.getElementById('dlg-btns');btns.innerHTML='';
+for(const b of buttons){const btn=document.createElement('button');btn.className='dlg-btn'+(b.class?' '+b.class:'');btn.textContent=b.text;btn.onclick=()=>{d.classList.remove('active');resolve(b.value!==undefined?b.value:inp?.value)};btns.appendChild(btn)}
+d.classList.add('active');
+// ESC closes with cancel/false
+d.onkeydown=e=>{if(e.key==='Escape'){d.classList.remove('active');resolve(false)}
+if(e.key==='Enter'&&inputOpts){d.classList.remove('active');resolve(inp.value)}}
+})}
+function gameConfirm(title,msg){return gameDialog(title,msg,[{text:'Cancel',value:false},{text:'Confirm',value:true,class:'primary'}])}
+function gameAlert(title,msg){return gameDialog(title,msg,[{text:'OK',value:true,class:'primary'}])}
+function gamePrompt(title,msg,defaultVal){return gameDialog(title,msg,[{text:'Cancel',value:false},{text:'OK',value:null,class:'primary'}],{value:defaultVal||''})}
+
 let _prevGold=null;
 function updateUI(){const me=state.players.find(p=>p.id===0);if(!me)return;
 const goldNow=me.gold||0;

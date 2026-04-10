@@ -34,6 +34,17 @@
 - **Home units list**: which military units are eating from this city
 - API: `GET /api/game/{id}/city/{cid}/manage` for AI bots
 
+### Custom In-Game Dialogs
+- ALL browser native dialogs (confirm/alert/prompt) replaced with styled in-game modals
+- War confirmation, end turn warning, disband, delete save, token creation — all custom UI
+- Consistent dark theme with gold accents, keyboard support (Enter/Escape)
+
+### Menu Overhaul
+- "My Account" renamed to **Profile** — shows username, language selector (EN/CS)
+- Saves removed from profile (available via Load Game)
+- **How to Play** button — comprehensive game manual with all mechanics, shortcuts, tips
+- API tokens and admin tools remain in Profile
+
 ### Pre-Game Setup Screen (NEW)
 - **New Game** opens full setup modal instead of inline selects
 - **29 civilizations** displayed with leader, trait, bonus, strategy, color
