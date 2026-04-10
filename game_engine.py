@@ -82,35 +82,37 @@ TECHNOLOGIES = {
     "agriculture":    {"cost": 20,  "era": "Ancient",     "prereqs": [],                "unlocks": ["granary"]},
     "pottery":        {"cost": 20,  "era": "Ancient",     "prereqs": [],                "unlocks": ["palace"]},
     "mining":         {"cost": 20,  "era": "Ancient",     "prereqs": [],                "unlocks": ["mine_improvement"]},
-    "bronze_working": {"cost": 30,  "era": "Ancient",     "prereqs": ["mining"],        "unlocks": ["spearman"]},
+    "bronze_working": {"cost": 30,  "era": "Ancient",     "prereqs": ["mining"],        "unlocks": ["spearman", "barracks"]},
     "archery":        {"cost": 25,  "era": "Ancient",     "prereqs": [],                "unlocks": ["archer"]},
-    "sailing":        {"cost": 30,  "era": "Ancient",     "prereqs": [],                "unlocks": ["galley"]},
+    "sailing":        {"cost": 30,  "era": "Ancient",     "prereqs": [],                "unlocks": ["galley", "harbor"]},
     "writing":        {"cost": 35,  "era": "Ancient",     "prereqs": ["pottery"],       "unlocks": ["library"]},
     # Classical
-    "iron_working":   {"cost": 50,  "era": "Classical",   "prereqs": ["bronze_working"],"unlocks": ["swordsman"]},
+    "iron_working":   {"cost": 50,  "era": "Classical",   "prereqs": ["bronze_working"],"unlocks": ["swordsman", "forge"]},
     "mathematics":    {"cost": 50,  "era": "Classical",   "prereqs": ["writing"],       "unlocks": ["catapult"]},
-    "construction":   {"cost": 50,  "era": "Classical",   "prereqs": ["mining"],        "unlocks": ["walls", "aqueduct"]},
+    "construction":   {"cost": 50,  "era": "Classical",   "prereqs": ["mining"],        "unlocks": ["walls", "aqueduct", "colosseum"]},
     "currency":       {"cost": 50,  "era": "Classical",   "prereqs": ["writing"],       "unlocks": ["marketplace"]},
-    "horseback":      {"cost": 45,  "era": "Classical",   "prereqs": ["archery"],       "unlocks": ["horseman"]},
+    "horseback":      {"cost": 45,  "era": "Classical",   "prereqs": ["archery"],       "unlocks": ["horseman", "stable"]},
     # Medieval
     "feudalism":      {"cost": 80,  "era": "Medieval",    "prereqs": ["iron_working"],  "unlocks": ["knight"]},
-    "engineering":    {"cost": 80,  "era": "Medieval",    "prereqs": ["mathematics", "construction"], "unlocks": ["castle"]},
+    "engineering":    {"cost": 80,  "era": "Medieval",    "prereqs": ["mathematics", "construction"], "unlocks": ["castle", "workshop"]},
     "theology":       {"cost": 70,  "era": "Medieval",    "prereqs": ["writing"],       "unlocks": ["temple", "monastery"]},
-    "education":      {"cost": 90,  "era": "Medieval",    "prereqs": ["theology", "mathematics"], "unlocks": ["university"]},
+    "education":      {"cost": 90,  "era": "Medieval",    "prereqs": ["theology", "mathematics"], "unlocks": ["university", "school"]},
     # Renaissance
     "gunpowder":      {"cost": 120, "era": "Renaissance", "prereqs": ["engineering"],   "unlocks": ["musketman"]},
     "printing_press": {"cost": 100, "era": "Renaissance", "prereqs": ["education"],     "unlocks": ["bank"]},
     "navigation":     {"cost": 100, "era": "Renaissance", "prereqs": ["sailing", "engineering"], "unlocks": ["caravel"]},
     "astronomy":      {"cost": 110, "era": "Renaissance", "prereqs": ["education"],     "unlocks": ["observatory"]},
+    "aesthetics":     {"cost": 90,  "era": "Renaissance", "prereqs": ["theology", "printing_press"], "unlocks": ["museum", "theater"]},
     # Industrial
-    "industrialization": {"cost": 160, "era": "Industrial", "prereqs": ["gunpowder", "printing_press"], "unlocks": ["factory", "rifleman"]},
+    "industrialization": {"cost": 160, "era": "Industrial", "prereqs": ["gunpowder", "printing_press"], "unlocks": ["factory", "rifleman", "hospital"]},
     "steam_power":       {"cost": 160, "era": "Industrial", "prereqs": ["industrialization"],           "unlocks": ["ironclad"]},
     "railroad":          {"cost": 150, "era": "Industrial", "prereqs": ["steam_power"],                 "unlocks": ["railroad_improvement"]},
     "dynamite":          {"cost": 170, "era": "Industrial", "prereqs": ["industrialization"],           "unlocks": ["artillery", "infantry"]},
+    "military_science":  {"cost": 140, "era": "Industrial", "prereqs": ["gunpowder", "education"],     "unlocks": ["military_academy"]},
     # Modern
-    "electricity":    {"cost": 220, "era": "Modern", "prereqs": ["steam_power"],           "unlocks": ["power_plant"]},
-    "flight":         {"cost": 250, "era": "Modern", "prereqs": ["dynamite"],              "unlocks": ["fighter", "bomber"]},
-    "nuclear_fission":{"cost": 350, "era": "Modern", "prereqs": ["electricity", "flight"], "unlocks": ["nuclear_plant"]},
+    "electricity":    {"cost": 220, "era": "Modern", "prereqs": ["steam_power"],           "unlocks": ["power_plant", "stadium"]},
+    "flight":         {"cost": 250, "era": "Modern", "prereqs": ["dynamite"],              "unlocks": ["fighter", "bomber", "airport"]},
+    "nuclear_fission":{"cost": 350, "era": "Modern", "prereqs": ["electricity", "flight"], "unlocks": ["nuclear_plant", "bunker"]},
     "rocketry":       {"cost": 400, "era": "Modern", "prereqs": ["flight"],               "unlocks": ["tank"]},
     "space_program":  {"cost": 800, "era": "Modern", "prereqs": ["nuclear_fission", "rocketry"], "unlocks": ["spaceship"]},
 }
@@ -127,18 +129,18 @@ UNIT_TYPES = {
     "caravan":       {"atk": 0,  "def": 0,  "mov": 3, "cost": 30, "tech": "currency",        "cat": "civilian"},
     "warrior":       {"atk": 2,  "def": 1,  "mov": 2, "cost": 15, "tech": None,              "cat": "melee"},
     "spearman":      {"atk": 2,  "def": 3,  "mov": 2, "cost": 20, "tech": "bronze_working",  "cat": "melee"},
-    "archer":        {"atk": 3,  "def": 1,  "mov": 2, "cost": 20, "tech": "archery",         "cat": "ranged"},
+    "archer":        {"atk": 3,  "def": 1,  "mov": 2, "cost": 20, "tech": "archery",         "cat": "ranged", "range": 2},
     "horseman":      {"atk": 4,  "def": 2,  "mov": 3, "cost": 30, "tech": "horseback",       "cat": "mounted"},
     "swordsman":     {"atk": 5,  "def": 3,  "mov": 2, "cost": 30, "tech": "iron_working",    "cat": "melee"},
-    "catapult":      {"atk": 6,  "def": 1,  "mov": 1, "cost": 35, "tech": "mathematics",     "cat": "siege"},
+    "catapult":      {"atk": 6,  "def": 1,  "mov": 1, "cost": 35, "tech": "mathematics",     "cat": "siege",  "range": 2},
     "knight":        {"atk": 7,  "def": 4,  "mov": 3, "cost": 45, "tech": "feudalism",       "cat": "mounted"},
     "musketman":     {"atk": 8,  "def": 5,  "mov": 2, "cost": 50, "tech": "gunpowder",       "cat": "melee"},
     "rifleman":      {"atk": 12, "def": 8,  "mov": 2, "cost": 60, "tech": "industrialization","cat": "melee"},
-    "artillery":     {"atk": 14, "def": 2,  "mov": 1, "cost": 55, "tech": "dynamite",        "cat": "siege"},
+    "artillery":     {"atk": 14, "def": 2,  "mov": 1, "cost": 55, "tech": "dynamite",        "cat": "siege",  "range": 3},
     "infantry":      {"atk": 16, "def": 12, "mov": 2, "cost": 70, "tech": "dynamite",        "cat": "melee"},
     "tank":          {"atk": 24, "def": 15, "mov": 3, "cost": 90, "tech": "rocketry",        "cat": "mounted"},
     "fighter":       {"atk": 18, "def": 10, "mov": 5, "cost": 80, "tech": "flight",          "cat": "air"},
-    "bomber":        {"atk": 25, "def": 5,  "mov": 5, "cost": 90, "tech": "flight",          "cat": "air"},
+    "bomber":        {"atk": 25, "def": 5,  "mov": 5, "cost": 90, "tech": "flight",          "cat": "air",    "range": 3},
     "galley":        {"atk": 2,  "def": 2,  "mov": 3, "cost": 25, "tech": "sailing",         "cat": "naval"},
     "caravel":       {"atk": 4,  "def": 3,  "mov": 4, "cost": 40, "tech": "navigation",      "cat": "naval"},
     "ironclad":      {"atk": 10, "def": 8,  "mov": 4, "cost": 60, "tech": "steam_power",     "cat": "naval"},
@@ -149,21 +151,35 @@ UNIT_TYPES = {
 # ============================================================
 
 BUILDINGS = {
-    "palace":      {"cost": 1,   "tech": None,            "food": 0, "prod": 2, "gold": 2, "science": 3, "culture": 1, "defense": 10, "happiness": 0},
-    "granary":     {"cost": 30,  "tech": "agriculture",   "food": 3, "prod": 0, "gold": 0, "science": 0, "culture": 0, "defense": 0,  "happiness": 0},
-    "library":     {"cost": 40,  "tech": "writing",       "food": 0, "prod": 0, "gold": 0, "science": 3, "culture": 1, "defense": 0,  "happiness": 0},
-    "walls":       {"cost": 35,  "tech": "construction",  "food": 0, "prod": 0, "gold": 0, "science": 0, "culture": 0, "defense": 50, "happiness": 0},
-    "marketplace": {"cost": 45,  "tech": "currency",      "food": 0, "prod": 0, "gold": 4, "science": 0, "culture": 0, "defense": 0,  "happiness": 1},
-    "aqueduct":    {"cost": 50,  "tech": "construction",  "food": 3, "prod": 0, "gold": 0, "science": 0, "culture": 0, "defense": 0,  "happiness": 0},
-    "temple":      {"cost": 40,  "tech": "theology",      "food": 0, "prod": 0, "gold": 0, "science": 0, "culture": 3, "defense": 0,  "happiness": 2},
-    "monastery":   {"cost": 50,  "tech": "theology",      "food": 0, "prod": 0, "gold": 0, "science": 2, "culture": 2, "defense": 0,  "happiness": 1},
-    "castle":      {"cost": 60,  "tech": "engineering",   "food": 0, "prod": 0, "gold": 0, "science": 0, "culture": 1, "defense": 80, "happiness": 0},
-    "university":  {"cost": 80,  "tech": "education",     "food": 0, "prod": 0, "gold": 0, "science": 5, "culture": 2, "defense": 0,  "happiness": 0},
-    "bank":        {"cost": 70,  "tech": "printing_press","food": 0, "prod": 0, "gold": 5, "science": 0, "culture": 0, "defense": 0,  "happiness": 1},
-    "observatory": {"cost": 90,  "tech": "astronomy",     "food": 0, "prod": 0, "gold": 0, "science": 5, "culture": 0, "defense": 0,  "happiness": 0},
-    "factory":     {"cost": 100, "tech": "industrialization","food": 0, "prod": 5, "gold": 0, "science": 0, "culture": 0, "defense": 0, "happiness": -1},
-    "power_plant": {"cost": 120, "tech": "electricity",   "food": 0, "prod": 5, "gold": 0, "science": 0, "culture": 0, "defense": 0,  "happiness": -1},
-    "nuclear_plant":{"cost": 160,"tech": "nuclear_fission","food": 0, "prod": 8, "gold": 0, "science": 3, "culture": 0, "defense": 0, "happiness": -2},
+    "palace":      {"cost": 1,   "tech": None,              "food": 0, "prod": 2, "gold": 2, "science": 3, "culture": 1, "defense": 10, "happiness": 0},
+    "granary":     {"cost": 30,  "tech": "agriculture",     "food": 3, "prod": 0, "gold": 0, "science": 0, "culture": 0, "defense": 0,  "happiness": 0},
+    "barracks":    {"cost": 30,  "tech": "bronze_working",  "food": 0, "prod": 0, "gold": 0, "science": 0, "culture": 0, "defense": 10, "happiness": 0},
+    "harbor":      {"cost": 35,  "tech": "sailing",         "food": 1, "prod": 0, "gold": 3, "science": 0, "culture": 0, "defense": 0,  "happiness": 0},
+    "library":     {"cost": 40,  "tech": "writing",         "food": 0, "prod": 0, "gold": 0, "science": 3, "culture": 1, "defense": 0,  "happiness": 0},
+    "walls":       {"cost": 35,  "tech": "construction",    "food": 0, "prod": 0, "gold": 0, "science": 0, "culture": 0, "defense": 50, "happiness": 0},
+    "colosseum":   {"cost": 50,  "tech": "construction",    "food": 0, "prod": 0, "gold": 0, "science": 0, "culture": 1, "defense": 0,  "happiness": 3},
+    "marketplace": {"cost": 45,  "tech": "currency",        "food": 0, "prod": 0, "gold": 4, "science": 0, "culture": 0, "defense": 0,  "happiness": 1},
+    "aqueduct":    {"cost": 50,  "tech": "construction",    "food": 3, "prod": 0, "gold": 0, "science": 0, "culture": 0, "defense": 0,  "happiness": 0},
+    "forge":       {"cost": 45,  "tech": "iron_working",    "food": 0, "prod": 2, "gold": 0, "science": 0, "culture": 0, "defense": 0,  "happiness": 0},
+    "stable":      {"cost": 40,  "tech": "horseback",       "food": 0, "prod": 1, "gold": 1, "science": 0, "culture": 0, "defense": 0,  "happiness": 0},
+    "temple":      {"cost": 40,  "tech": "theology",        "food": 0, "prod": 0, "gold": 0, "science": 0, "culture": 3, "defense": 0,  "happiness": 2},
+    "monastery":   {"cost": 50,  "tech": "theology",        "food": 0, "prod": 0, "gold": 0, "science": 2, "culture": 2, "defense": 0,  "happiness": 1},
+    "castle":      {"cost": 60,  "tech": "engineering",     "food": 0, "prod": 0, "gold": 0, "science": 0, "culture": 1, "defense": 80, "happiness": 0},
+    "workshop":    {"cost": 55,  "tech": "engineering",     "food": 0, "prod": 3, "gold": 0, "science": 0, "culture": 0, "defense": 0,  "happiness": 0},
+    "school":      {"cost": 50,  "tech": "education",       "food": 0, "prod": 0, "gold": 0, "science": 2, "culture": 0, "defense": 0,  "happiness": 1},
+    "university":  {"cost": 80,  "tech": "education",       "food": 0, "prod": 0, "gold": 0, "science": 5, "culture": 2, "defense": 0,  "happiness": 0},
+    "bank":        {"cost": 70,  "tech": "printing_press",  "food": 0, "prod": 0, "gold": 5, "science": 0, "culture": 0, "defense": 0,  "happiness": 1},
+    "museum":      {"cost": 80,  "tech": "aesthetics",      "food": 0, "prod": 0, "gold": 0, "science": 0, "culture": 5, "defense": 0,  "happiness": 2},
+    "theater":     {"cost": 60,  "tech": "aesthetics",      "food": 0, "prod": 0, "gold": 0, "science": 0, "culture": 3, "defense": 0,  "happiness": 2},
+    "observatory": {"cost": 90,  "tech": "astronomy",       "food": 0, "prod": 0, "gold": 0, "science": 5, "culture": 0, "defense": 0,  "happiness": 0},
+    "military_academy": {"cost": 80, "tech": "military_science", "food": 0, "prod": 0, "gold": 0, "science": 0, "culture": 0, "defense": 20, "happiness": 0},
+    "factory":     {"cost": 100, "tech": "industrialization","food": 0, "prod": 5, "gold": 0, "science": 0, "culture": 0, "defense": 0,  "happiness": -1},
+    "power_plant": {"cost": 120, "tech": "electricity",     "food": 0, "prod": 5, "gold": 0, "science": 0, "culture": 0, "defense": 0,  "happiness": -1},
+    "hospital":    {"cost": 80,  "tech": "industrialization","food": 4, "prod": 0, "gold": 0, "science": 0, "culture": 0, "defense": 0,  "happiness": 1},
+    "airport":     {"cost": 100, "tech": "flight",          "food": 0, "prod": 0, "gold": 2, "science": 0, "culture": 0, "defense": 10, "happiness": 0},
+    "stadium":     {"cost": 100, "tech": "electricity",     "food": 0, "prod": 0, "gold": 0, "science": 0, "culture": 2, "defense": 0,  "happiness": 4},
+    "bunker":      {"cost": 80,  "tech": "nuclear_fission", "food": 0, "prod": 0, "gold": 0, "science": 0, "culture": 0, "defense": 60, "happiness": 0},
+    "nuclear_plant":{"cost": 160,"tech": "nuclear_fission", "food": 0, "prod": 8, "gold": 0, "science": 3, "culture": 0, "defense": 0,  "happiness": -2},
 }
 
 # ============================================================
@@ -490,6 +506,15 @@ class GameState:
         uid = self.next_unit_id
         self.next_unit_id += 1
         stats = UNIT_TYPES[unit_type]
+        # Find home city (nearest own city to production location)
+        home_city = None
+        best_dist = 999
+        for c in self.cities.values():
+            if c["player"] == player_id:
+                d = hex_distance(c["q"], c["r"], q, r)
+                if d < best_dist:
+                    best_dist = d
+                    home_city = c["id"]
         self.units[uid] = {
             "id": uid,
             "player": player_id,
@@ -509,6 +534,7 @@ class GameState:
             "building": None,      # {"type": str, "turns_left": int} for workers
             "goto": None,          # {"q": int, "r": int} auto-move target
             "born_turn": self.turn,
+            "home_city": home_city,  # city that feeds this unit
         }
         return uid
 
@@ -536,12 +562,65 @@ class GameState:
     # YIELDS
     # --------------------------------------------------------
 
-    def get_city_yields(self, city_id):
+    def is_connected_to_capital(self, city_id):
+        """Check if city is connected to player's capital via roads/railroads.
+        Uses cached result per turn to avoid repeated BFS."""
+        # Cache key: (turn, city_id)
+        cache = getattr(self, '_road_cache', None)
+        cache_turn = getattr(self, '_road_cache_turn', -1)
+        if cache_turn != self.turn:
+            self._road_cache = {}
+            self._road_cache_turn = self.turn
+        if city_id in self._road_cache:
+            return self._road_cache[city_id]
+
+        city = self.cities.get(city_id)
+        if not city:
+            return False
+        pid = city["player"]
+        capital = None
+        for c in self.cities.values():
+            if c["player"] == pid and "palace" in c["buildings"]:
+                capital = c
+                break
+        if not capital:
+            for c in self.cities.values():
+                if c["player"] == pid:
+                    capital = c
+                    break
+        if not capital or capital["id"] == city_id:
+            self._road_cache[city_id] = True
+            return True
+
+        start = (city["q"], city["r"])
+        goal = (capital["q"], capital["r"])
+        visited = {start}
+        queue = [start]
+        while queue:
+            pos = queue.pop(0)
+            if pos == goal:
+                self._road_cache[city_id] = True
+                return True
+            for nq, nr in hex_neighbors(pos[0], pos[1]):
+                npos = (nq, nr)
+                if npos in visited:
+                    continue
+                if npos not in self.roads:
+                    if npos == goal:
+                        self._road_cache[city_id] = True
+                        return True
+                    continue
+                visited.add(npos)
+                queue.append(npos)
+        self._road_cache[city_id] = False
+        return False
+
+    def get_city_yields(self, city_id, detail=False):
         city = self.cities[city_id]
         player = self.players[city["player"]]
         civ_bonus = CIVILIZATIONS[player["civ"]]["bonus"]
 
-        food = 2  # base
+        food = 2  # base (city center)
         prod = 1  # base
         gold = 0
         science = 0
@@ -550,12 +629,11 @@ class GameState:
         # Tile yields (work radius = border_radius) + improvements
         brd = city.get("border_radius", 1)
         max_work = city["population"] + 1  # +1 for city center
-        tiles_by_value = []
+        tiles_detail = []  # for city management UI
         for dq in range(-brd, brd + 1):
             for dr in range(-brd, brd + 1):
                 tq, tr = city["q"] + dq, city["r"] + dr
                 if hex_distance(city["q"], city["r"], tq, tr) <= brd:
-                    # Only harvest from tiles we own (culture pressure)
                     tile_owner = self.get_tile_owner(tq, tr)
                     if tile_owner is not None and tile_owner != city["player"]:
                         continue  # foreign culture controls this tile
@@ -563,39 +641,52 @@ class GameState:
                     if t:
                         y = TERRAIN_YIELDS[t]
                         tf, tp, tg = y["food"], y["prod"], y["gold"]
-                        # Add improvement yields (farm, mine, etc)
+                        imp_name = None
                         imp = self.improvements.get((tq, tr))
                         if imp:
                             idata = IMPROVEMENTS.get(imp["type"], {})
                             tf += idata.get("food", 0)
                             tp += idata.get("prod", 0)
                             tg += idata.get("gold", 0)
-                        # Road/railroad layer — railroad gives +1 prod
+                            imp_name = imp["type"]
                         road = self.roads.get((tq, tr))
+                        road_name = road["type"] if road else None
                         if road and road["type"] == "railroad":
                             tp += 1
-                        tiles_by_value.append((tf + tp + tg, {"food": tf, "prod": tp, "gold": tg}))
+                        tiles_detail.append({
+                            "q": tq, "r": tr,
+                            "terrain": t.value,
+                            "food": tf, "prod": tp, "gold": tg,
+                            "total": tf + tp + tg,
+                            "improvement": imp_name,
+                            "road": road_name,
+                        })
 
-        tiles_by_value.sort(key=lambda x: -x[0])
-        for _, y in tiles_by_value[:max_work]:
-            food += y["food"]
-            prod += y["prod"]
-            gold += y["gold"]
+        # Sort by total value, best tiles first
+        tiles_detail.sort(key=lambda x: -x["total"])
+        # Mark which tiles are worked vs available
+        for i, td in enumerate(tiles_detail):
+            td["worked"] = i < max_work
+
+        for td in tiles_detail[:max_work]:
+            food += td["food"]
+            prod += td["prod"]
+            gold += td["gold"]
 
         # Leader trait bonuses
         trait = player.get("trait", "")
         if trait == "creative":
-            culture += 4  # strong culture for culture victory
+            culture += 4
         elif trait == "expansive":
-            food += 1  # nerfed from 2
+            food += 1
         elif trait == "financial":
-            gold += max(2, gold // 3)  # buffed: +33% gold
+            gold += max(2, gold // 3)
         elif trait == "industrious":
-            prod += max(1, prod // 5)  # nerfed from +25% to +20%
+            prod += max(1, prod // 5)
         elif trait == "aggressive":
             prod += 1
         elif trait == "protective":
-            science += max(1, science // 5)  # +20% science (turtle = tech victory)
+            science += max(1, science // 5)
 
         # Building bonuses
         for bname in city["buildings"]:
@@ -609,6 +700,12 @@ class GameState:
         # Population contributes science
         science += city["population"]
 
+        # Trade route bonus
+        connected = self.is_connected_to_capital(city_id)
+        if connected:
+            trade_bonus = max(1, city["population"] // 2)
+            gold += trade_bonus
+
         # Civ bonuses
         if civ_bonus == "food":
             food = int(food * 1.15)
@@ -621,14 +718,58 @@ class GameState:
         elif civ_bonus == "culture":
             culture = int(culture * 1.15)
 
-        # Food consumed by population
-        food_surplus = food - city["population"] * 2
+        # Happiness
+        happiness = 0
+        for bname in city["buildings"]:
+            happiness += BUILDINGS.get(bname, {}).get("happiness", 0)
+        happiness -= max(0, city["population"] - 4)
 
-        return {
+        if happiness < 0:
+            prod = max(1, int(prod * 0.75))
+            science = max(0, int(science * 0.75))
+
+        # Food consumed by population (2 per pop)
+        pop_food_cost = city["population"] * 2
+
+        # Food consumed by units — scales: first 2 free, then 1 each, above 4 costs 2 each
+        home_mil = sum(1 for u in self.units.values()
+                       if u.get("home_city") == city_id and u["cat"] != "civilian")
+        unit_food_cost = 0
+        for i in range(home_mil):
+            if i < 2:
+                unit_food_cost += 0  # first 2 units free
+            elif i < 4:
+                unit_food_cost += 1  # units 3-4 cost 1 food each
+            else:
+                unit_food_cost += 2  # units 5+ cost 2 food each
+
+        total_food_cost = pop_food_cost + unit_food_cost
+        food_surplus = food - total_food_cost
+        if happiness < 0:
+            food_surplus = min(food_surplus, 1)
+
+        # Growth info
+        growth_needed = 10 + city["population"] * 5
+        turns_to_grow = max(0, (growth_needed - city["food_store"]) // max(1, food_surplus)) if food_surplus > 0 else -1
+        turns_to_starve = abs(city["food_store"] // min(-1, food_surplus)) if food_surplus < 0 else -1
+
+        result = {
             "food": food, "food_surplus": food_surplus,
+            "food_cost_pop": pop_food_cost, "food_cost_units": unit_food_cost,
             "prod": prod, "gold": gold,
-            "science": science, "culture": culture
+            "science": science, "culture": culture,
+            "happiness": happiness,
+            "connected": connected,
+            "growth_needed": growth_needed,
+            "food_stored": city["food_store"],
+            "turns_to_grow": turns_to_grow,
+            "turns_to_starve": turns_to_starve,
         }
+        if detail:
+            result["tiles"] = tiles_detail
+            result["max_work"] = max_work
+            result["unit_count"] = unit_food_cost
+        return result
 
     def get_city_defense(self, city_id):
         city = self.cities[city_id]
@@ -754,9 +895,10 @@ class GameState:
                             "war_target": territory_owner,
                             "war_target_name": self.players[territory_owner]["name"],
                             "msg": f"Enter {self.players[territory_owner]['name']} territory? This means WAR!"}
-                # AI: auto-declare war
-                self.declare_war(unit["player"], territory_owner)
-                self._log_ai(unit["player"], f"DIPLO: entered {self.players[territory_owner]['name']} territory — WAR!")
+                # AI: auto-declare war (only log if not already at war)
+                if self.players[unit["player"]]["diplomacy"].get(territory_owner) != "war":
+                    self.declare_war(unit["player"], territory_owner)
+                    self._log_ai(unit["player"], f"DIPLO: entered {self.players[territory_owner]['name']} territory — WAR!")
 
         # Check for enemy units
         enemy_units = [u for u in self.units.values()
@@ -890,12 +1032,66 @@ class GameState:
             city["hp"] = city["max_hp"] // 2
             if city["population"] > 1:
                 city["population"] = max(1, city["population"] - 1)
+            # Reset production for new owner
+            city["producing"] = None
+            city["prod_progress"] = 0
             attacker["q"] = city["q"]
             attacker["r"] = city["r"]
             result["msg"] = f"City {city['name']} captured!"
             result["captured"] = True
             self._log_ai(attacker["player"],
                 f"CITY CAPTURED: {city['name']} from {old_owner} by {attacker['type']}(hp={attacker['hp']})")
+            # Push old owner's units out of captured city borders
+            old_pid = [p["id"] for p in self.players if p["name"] == old_owner]
+            if old_pid:
+                br = city.get("border_radius", 1)
+                for u in list(self.units.values()):
+                    if u["player"] != old_pid[0] or u["id"] == attacker["id"]:
+                        continue
+                    if hex_distance(city["q"], city["r"], u["q"], u["r"]) > br:
+                        continue
+                    # BFS outward to find nearest tile outside city borders
+                    from collections import deque
+                    queue = deque([(u["q"], u["r"])])
+                    visited = {(u["q"], u["r"])}
+                    exit_tile = None
+                    while queue and not exit_tile:
+                        cq, cr = queue.popleft()
+                        for nq, nr in hex_neighbors(cq, cr):
+                            if (nq, nr) in visited:
+                                continue
+                            visited.add((nq, nr))
+                            t = self.tiles.get((nq, nr))
+                            if not t or t in (Terrain.WATER, Terrain.COAST, Terrain.MOUNTAIN):
+                                continue
+                            if hex_distance(city["q"], city["r"], nq, nr) > br:
+                                exit_tile = (nq, nr)
+                                break
+                            queue.append((nq, nr))
+                        if len(visited) > 100:
+                            break
+                    if exit_tile:
+                        u["q"], u["r"] = exit_tile
+                        self._log_ai(old_pid[0], f"PUSHED OUT: {u['type']} from {city['name']} to ({exit_tile[0]},{exit_tile[1]})")
+                    else:
+                        self._log_ai(old_pid[0], f"DISBANDED: {u['type']} trapped in captured {city['name']}")
+                        del self.units[u["id"]]
+                # Reassign home_city for old owner's remaining units
+                for u in self.units.values():
+                    if u.get("home_city") == city["id"] and u["player"] == old_pid[0]:
+                        nearest = None
+                        best_d = 999
+                        for c in self.cities.values():
+                            if c["player"] == old_pid[0] and c["id"] != city["id"]:
+                                d = hex_distance(c["q"], c["r"], u["q"], u["r"])
+                                if d < best_d:
+                                    best_d = d
+                                    nearest = c["id"]
+                        u["home_city"] = nearest
+            # AI: immediately set production in captured city
+            new_owner = self.players[attacker["player"]]
+            if not new_owner.get("is_human"):
+                self._ai_auto_produce(city, new_owner, attacker["player"])
             self._check_elimination()
         elif attacker["hp"] <= 0:
             self._log_ai(attacker["player"],
@@ -905,6 +1101,157 @@ class GameState:
             result["attacker_killed"] = True
         else:
             result["msg"] = f"City attacked: dealt {dmg_to_city} dmg, took {dmg_to_atk} dmg (City HP: {city['hp']}/{city['max_hp']})"
+
+        return result
+
+    def ranged_attack(self, unit_id, target_q, target_r):
+        """Ranged attack: unit fires at target hex without moving. Only for ranged/siege units."""
+        unit = self.units.get(unit_id)
+        if not unit or unit["player"] != self.current_player:
+            return {"ok": False, "msg": "Not your unit"}
+        if unit["moves_left"] <= 0:
+            return {"ok": False, "msg": "No moves left"}
+
+        unit_range = UNIT_TYPES.get(unit["type"], {}).get("range", 0)
+        if unit_range == 0:
+            return {"ok": False, "msg": "This unit cannot make ranged attacks"}
+
+        dist = hex_distance(unit["q"], unit["r"], target_q, target_r)
+        if dist < 1 or dist > unit_range:
+            return {"ok": False, "msg": f"Target out of range (range={unit_range}, distance={dist})"}
+
+        terrain = self.tiles.get((target_q, target_r))
+        if not terrain:
+            return {"ok": False, "msg": "Off map"}
+
+        # Find enemy unit on target hex
+        enemy_units = [u for u in self.units.values()
+                       if u["q"] == target_q and u["r"] == target_r and u["player"] != unit["player"]]
+        # Find enemy city on target hex
+        enemy_cities = [c for c in self.cities.values()
+                        if c["q"] == target_q and c["r"] == target_r and c["player"] != unit["player"]]
+
+        if not enemy_units and not enemy_cities:
+            return {"ok": False, "msg": "No enemy target at that hex"}
+
+        # Check war status
+        if enemy_units:
+            target_player = enemy_units[0]["player"]
+        else:
+            target_player = enemy_cities[0]["player"]
+
+        rel = self.players[unit["player"]]["diplomacy"].get(target_player, "peace")
+        if rel != "war":
+            if self.players[unit["player"]].get("is_human"):
+                return {"ok": False, "needs_war": True,
+                        "war_target": target_player,
+                        "war_target_name": self.players[target_player]["name"],
+                        "msg": f"Attack {self.players[target_player]['name']}? This means WAR!"}
+            self.declare_war(unit["player"], target_player)
+
+        # Attack enemy unit (priority over city)
+        if enemy_units:
+            return self._ranged_combat(unit, enemy_units[0])
+
+        # Attack enemy city
+        if enemy_cities:
+            return self._ranged_city_attack(unit, enemy_cities[0])
+
+        return {"ok": False, "msg": "No valid target"}
+
+    def _ranged_combat(self, attacker, defender):
+        """Ranged combat: attacker deals damage but takes reduced return fire. Attacker stays in place."""
+        terrain = self.tiles.get((defender["q"], defender["r"]), Terrain.GRASS)
+        terrain_def = TERRAIN_DEFENSE.get(terrain, 0)
+
+        atk_str = attacker["atk"] * (attacker["hp"] / 100)
+        atk_player = self.players[attacker["player"]]
+        if atk_player.get("trait") == "aggressive":
+            atk_str *= 1.15
+        def_str = defender["def"] * (defender["hp"] / 100) * (1 + terrain_def / 100)
+        def_player = self.players[defender["player"]]
+        if def_player.get("trait") == "protective":
+            near_own_city = any(c["player"] == defender["player"]
+                                and hex_distance(c["q"], c["r"], defender["q"], defender["r"]) <= 3
+                                for c in self.cities.values())
+            if near_own_city:
+                def_str *= 1.15
+        if defender["fortified"]:
+            def_str *= 1.25
+
+        atk_roll = atk_str * (0.8 + random.random() * 0.4)
+        def_roll = def_str * (0.8 + random.random() * 0.4)
+        total = atk_roll + def_roll
+        if total == 0:
+            total = 1
+
+        # Ranged: full damage to defender, but only 25% return fire (distance protection)
+        dmg_to_def = int(50 * atk_roll / total + 15)
+        dmg_to_atk = int((40 * def_roll / total + 10) * 0.25)
+
+        defender["hp"] -= dmg_to_def
+        attacker["hp"] -= dmg_to_atk
+        attacker["moves_left"] = 0
+
+        result = {"ok": True, "combat": True, "ranged": True, "atk_dmg": dmg_to_atk, "def_dmg": dmg_to_def}
+        atk_name = self.players[attacker["player"]]["name"]
+        def_name = self.players[defender["player"]]["name"]
+
+        if defender["hp"] <= 0:
+            result["defender_killed"] = True
+            result["msg"] = f"Ranged kill! Enemy {defender['type']} destroyed"
+            self._log_ai(attacker["player"],
+                f"RANGED KILL: {attacker['type']}(hp={attacker['hp']}) killed {def_name} {defender['type']} at range")
+            # Ranged unit does NOT move to target hex
+            attacker["xp"] += 5
+            del self.units[defender["id"]]
+        elif attacker["hp"] <= 0:
+            result["attacker_killed"] = True
+            result["msg"] = f"Your {attacker['type']} was destroyed by return fire"
+            self._log_ai(defender["player"],
+                f"RANGED COUNTER: {defender['type']}(hp={defender['hp']}) killed {atk_name} {attacker['type']} via return fire")
+            del self.units[attacker["id"]]
+        else:
+            result["msg"] = f"Ranged attack: dealt {dmg_to_def} dmg, took {dmg_to_atk} return fire"
+            self._log_ai(attacker["player"],
+                f"RANGED: {attacker['type']}(hp={attacker['hp']}) vs {def_name} {defender['type']}(hp={defender['hp']}) | dealt {dmg_to_def} took {dmg_to_atk}")
+
+        self._check_elimination()
+        return result
+
+    def _ranged_city_attack(self, attacker, city):
+        """Ranged attack on city: deals damage without entering city hex. Cannot capture."""
+        city_def = self.get_city_defense(city["id"])
+        atk_str = attacker["atk"] * (attacker["hp"] / 100)
+        def_str = city_def / 10
+
+        atk_roll = atk_str * (0.8 + random.random() * 0.4)
+        def_roll = def_str * (0.8 + random.random() * 0.4)
+
+        dmg_to_city = int(25 * atk_roll / (atk_roll + def_roll + 1) + 5)
+        # Ranged: only 25% return fire from city
+        dmg_to_atk = int((15 * def_roll / (atk_roll + def_roll + 1) + 3) * 0.25)
+
+        city["hp"] -= dmg_to_city
+        attacker["hp"] -= dmg_to_atk
+        attacker["moves_left"] = 0
+
+        result = {"ok": True, "combat": True, "city_attack": True, "ranged": True}
+
+        # Ranged cannot capture — city HP floors at 1
+        if city["hp"] <= 0:
+            city["hp"] = 1
+            result["msg"] = f"Ranged bombardment: {city['name']} reduced to 1 HP! Send melee unit to capture."
+            self._log_ai(attacker["player"],
+                f"RANGED SIEGE: {attacker['type']} bombarded {city['name']} to 1 HP — needs melee capture")
+        elif attacker["hp"] <= 0:
+            self._log_ai(attacker["player"],
+                f"RANGED SIEGE FAILED: {attacker['type']} destroyed bombarding {city['name']}")
+            del self.units[attacker["id"]]
+            result["msg"] = f"Bombardment failed! {attacker['type']} destroyed by return fire"
+            result["attacker_killed"] = True
+        else:
+            result["msg"] = f"Bombardment: dealt {dmg_to_city} dmg to {city['name']}, took {dmg_to_atk} return fire (City HP: {city['hp']}/{city['max_hp']})"
 
         return result
 
@@ -1152,16 +1499,19 @@ class GameState:
             min(-50, self.players[player_a].get("relations", {}).get(player_b, 0) - 50)
         self.players[player_b].setdefault("relations", {})[player_a] = \
             min(-50, self.players[player_b].get("relations", {}).get(player_a, 0) - 50)
-        # Alliance auto-war: all allies of player_b declare war on player_a
+        # Alliance auto-war: allies of player_b may join (loyalty-based)
         for p in self.players:
             if p["id"] == player_a or p["id"] == player_b or not p["alive"]:
                 continue
             if p["diplomacy"].get(player_b) == "alliance" and p["diplomacy"].get(player_a) != "war":
-                p["diplomacy"][player_a] = "war"
-                self.players[player_a]["diplomacy"][p["id"]] = "war"
-                p.setdefault("diplo_cooldown", {})[player_a] = cd
-                self.players[player_a].setdefault("diplo_cooldown", {})[p["id"]] = cd
-                self._log_ai(p["id"], f"ALLIANCE WAR: joined war against {self.players[player_a]['name']} (ally {self.players[player_b]['name']} attacked)")
+                # Higher loyalty = more likely to honor alliance (min 50%, max 90%)
+                join_chance = min(0.9, 0.5 + p.get("loyalty", 0.5) * 0.4)
+                if random.random() < join_chance:
+                    p["diplomacy"][player_a] = "war"
+                    self.players[player_a]["diplomacy"][p["id"]] = "war"
+                    p.setdefault("diplo_cooldown", {})[player_a] = cd
+                    self.players[player_a].setdefault("diplo_cooldown", {})[p["id"]] = cd
+                    self._log_ai(p["id"], f"ALLIANCE WAR: joined war against {self.players[player_a]['name']} (ally {self.players[player_b]['name']} attacked)")
 
     def make_peace(self, player_a, player_b):
         # Check cooldown
@@ -1311,7 +1661,14 @@ class GameState:
                 if city["prod_progress"] >= city["producing"]["cost"]:
                     item = city["producing"]
                     if item["type"] == "unit":
-                        self._create_unit(pid, item["name"], city["q"], city["r"])
+                        uid = self._create_unit(pid, item["name"], city["q"], city["r"])
+                        # Barracks/military academy bonus for military units
+                        u = self.units.get(uid)
+                        if u and u["cat"] not in ("civilian",):
+                            if "barracks" in city["buildings"]:
+                                u["xp"] += 10
+                            if "military_academy" in city["buildings"]:
+                                u["xp"] += 15
                         events.append(f"{city['name']} produced {item['name']}")
                     elif item["type"] == "building":
                         city["buildings"].append(item["name"])
@@ -1421,13 +1778,30 @@ class GameState:
                     player["gold"] += 20
                     events.append(f"Disbanded {u['type']} (bankrupt)")
 
+            # No military units left — sell buildings to recover
+            if not mil_units and player["gold"] < GAME_CONFIG.get("bankruptcy_threshold", -50):
+                my_cities = [c for c in self.cities.values() if c["player"] == pid]
+                for city in my_cities:
+                    if player["gold"] >= 0:
+                        break
+                    sellable = [b for b in city["buildings"] if b != "palace"]
+                    if sellable:
+                        # Sell cheapest building first
+                        sellable.sort(key=lambda b: BUILDINGS.get(b, {}).get("cost", 50))
+                        bld = sellable[0]
+                        sell_gold = BUILDINGS.get(bld, {}).get("cost", 50) // 2
+                        city["buildings"].remove(bld)
+                        player["gold"] += sell_gold
+                        events.append(f"Sold {bld} in {city['name']} for {sell_gold}g (bankrupt)")
+
         # Research
         if player["researching"]:
             player["researching"]["progress"] += total_science
             if player["researching"]["progress"] >= player["researching"]["cost"]:
                 tech_name = player["researching"]["name"]
-                player["techs"].append(tech_name)
-                events.append(f"Discovered: {tech_name}!")
+                if tech_name not in player["techs"]:  # prevent duplicates (spy could have stolen it)
+                    player["techs"].append(tech_name)
+                    events.append(f"Discovered: {tech_name}!")
                 player["researching"] = None
 
         # Culture
@@ -1447,12 +1821,7 @@ class GameState:
                     u["hp"] = min(100, u["hp"] + 5)
 
         # Calculate score
-        player["score"] = (
-            len([c for c in self.cities.values() if c["player"] == pid]) * 100 +
-            sum(c["population"] for c in self.cities.values() if c["player"] == pid) * 20 +
-            len(player["techs"]) * 30 +
-            player["culture_pool"] // 10
-        )
+        player["score"] = self._calc_score(pid)
 
         # --- VICTORY CONDITIONS ---
 
@@ -1461,13 +1830,13 @@ class GameState:
         if all(t in player["techs"] for t in space_techs):
             player["space_progress"] = player.get("space_progress", 0) + sum(
                 self.get_city_yields(c["id"])["prod"] for c in self.cities.values() if c["player"] == pid)
-            if player.get("space_progress", 0) >= GAME_CONFIG.get("space_victory_production", 2000):
+            if player.get("space_progress", 0) >= GAME_CONFIG.get("space_victory_production", 5000):
                 self.game_over = True
                 self.winner = pid
                 events.append(f"{player['name']} achieves SPACE victory!")
 
         # Culture victory — accumulate 5000 culture
-        if not self.game_over and player["culture_pool"] >= GAME_CONFIG.get("culture_victory_threshold", 3000):
+        if not self.game_over and player["culture_pool"] >= GAME_CONFIG.get("culture_victory_threshold", 8000):
             self.game_over = True
             self.winner = pid
             events.append(f"{player['name']} achieves CULTURE victory!")
@@ -1480,6 +1849,17 @@ class GameState:
                 self.game_over = True
                 self.winner = pid
                 events.append(f"{player['name']} achieves DOMINATION victory!")
+
+        # Turn limit — score victory
+        max_turns = GAME_CONFIG.get("max_turns", 0)
+        if not self.game_over and max_turns > 0 and self.turn >= max_turns:
+            # Score victory: highest score wins
+            best_pid = max(
+                (p["id"] for p in self.players if p["alive"]),
+                key=lambda pid2: self._calc_score(pid2))
+            self.game_over = True
+            self.winner = best_pid
+            events.append(f"Turn limit reached! {self.players[best_pid]['name']} wins by SCORE ({self._calc_score(best_pid)})!")
 
         # Advance to next player
         self._advance_turn()
@@ -1508,6 +1888,16 @@ class GameState:
             self._run_ai(self.current_player)
             self.end_turn()
 
+    def _calc_score(self, pid):
+        """Calculate player score."""
+        player = self.players[pid]
+        return (
+            len([c for c in self.cities.values() if c["player"] == pid]) * 100 +
+            sum(c["population"] for c in self.cities.values() if c["player"] == pid) * 20 +
+            len(player["techs"]) * 30 +
+            player["culture_pool"] // 10
+        )
+
     def _check_elimination(self):
         """Check if any player is eliminated."""
         for p in self.players:
@@ -1532,6 +1922,50 @@ class GameState:
     # AI
     # --------------------------------------------------------
 
+    def _ai_redistribute_home_cities(self, pid):
+        """Rebalance home_city assignments so food cost is spread across cities."""
+        my_cities = [c for c in self.cities.values() if c["player"] == pid]
+        if len(my_cities) < 2:
+            return
+        mil_units = [u for u in self.units.values()
+                     if u["player"] == pid and u["cat"] != "civilian"]
+        if not mil_units:
+            return
+
+        # Compute base food capacity per city (food production - pop*2, ignoring units)
+        # Temporarily clear home_city to get yields without unit food cost
+        old_homes = {u["id"]: u.get("home_city") for u in mil_units}
+        for u in mil_units:
+            u["home_city"] = None
+
+        city_capacity = {}
+        for c in my_cities:
+            y = self.get_city_yields(c["id"])
+            # food - pop*2 = capacity available for units + growth
+            # Reserve 2 food for growth, rest for units
+            city_capacity[c["id"]] = max(0, y["food"] - c["population"] * 2 - 2)
+
+        # Assign units to cities with most capacity, closest first
+        city_assigned = {c["id"]: 0 for c in my_cities}
+        # Sort units: assign those nearest to high-capacity cities first
+        for u in mil_units:
+            best_city = None
+            best_score = -999
+            for c in my_cities:
+                remaining = city_capacity[c["id"]] - city_assigned[c["id"]]
+                d = hex_distance(u["q"], u["r"], c["q"], c["r"])
+                # Score: prefer capacity, then proximity
+                score = remaining * 10 - d
+                if score > best_score:
+                    best_score = score
+                    best_city = c["id"]
+            if best_city:
+                u["home_city"] = best_city
+                city_assigned[best_city] += 1
+            else:
+                # Fallback to nearest city
+                u["home_city"] = min(my_cities, key=lambda c: hex_distance(u["q"], u["r"], c["q"], c["r"]))["id"]
+
     def _log_ai(self, pid, msg):
         """Add AI debug message to log."""
         if hasattr(self, 'ai_log'):
@@ -1547,6 +1981,12 @@ class GameState:
         my_military = [u for u in my_units if u["cat"] not in ("civilian",)]
         aggression = player.get("aggression", 0.5)
         loyalty = player.get("loyalty", 0.5)
+
+        # Redistribute home_city: balance food load across cities
+        self._ai_redistribute_home_cities(pid)
+        # Refresh after redistribution
+        my_units = [u for u in self.units.values() if u["player"] == pid]
+        my_military = [u for u in my_units if u["cat"] not in ("civilian",)]
 
         # Diplomacy — power-based + personality (respect cooldowns)
         for other in self.players:
@@ -1595,9 +2035,9 @@ class GameState:
         alive_players = [p for p in self.players if p["alive"] and p["id"] != pid]
         if alive_players:
             leader = max(alive_players, key=lambda p: p["score"])
-            gang_ratio = GAME_CONFIG.get("gang_up_score_ratio", 1.3)
-            gang_min = GAME_CONFIG.get("gang_up_min_score", 800)
-            gang_chance = GAME_CONFIG.get("gang_up_chance", 0.15)
+            gang_ratio = GAME_CONFIG.get("gang_up_score_ratio", 1.5)
+            gang_min = GAME_CONFIG.get("gang_up_min_score", 1000)
+            gang_chance = GAME_CONFIG.get("gang_up_chance", 0.10)
             if leader["score"] > player["score"] * gang_ratio and leader["score"] > gang_min:
                 rel = player["diplomacy"].get(leader["id"], "neutral")
                 if rel != "war" and random.random() < gang_chance:
@@ -1605,21 +2045,24 @@ class GameState:
                     self._log_ai(pid, f"DIPLO: gang-up WAR on leader {leader['name']} (score {leader['score']} vs my {player['score']})")
 
         # Alliance AI — loyal/peaceful civs seek alliances against common enemies
+        current_alliances = sum(1 for p in self.players if p["alive"] and player["diplomacy"].get(p["id"]) == "alliance")
+        max_alliances = 2  # max 2 alliances per player to prevent web of obligations
         for other in self.players:
             if other["id"] == pid or not other["alive"]:
                 continue
             rel = player["diplomacy"].get(other["id"], "peace")
-            # Form alliance: both at peace AND share a common enemy
-            if rel == "peace" and loyalty > 0.5:
+            # Form alliance: both at peace AND share a common enemy AND not too many alliances
+            if rel == "peace" and loyalty > 0.5 and current_alliances < max_alliances:
                 common_enemy = any(
                     player["diplomacy"].get(e["id"]) == "war" and other["diplomacy"].get(e["id"]) == "war"
                     for e in self.players if e["id"] != pid and e["id"] != other["id"] and e["alive"]
                 )
-                if common_enemy and random.random() < loyalty * 0.2:
+                if common_enemy and random.random() < loyalty * 0.1:
                     self.form_alliance(pid, other["id"])
+                    current_alliances += 1
                     self._log_ai(pid, f"DIPLO: ALLIANCE with {other['name']} (common enemy, loyalty={loyalty})")
             # Break alliance if disloyal and strong enough
-            elif rel == "alliance" and random.random() < (1 - loyalty) * aggression * 0.02:
+            elif rel == "alliance" and random.random() < (1 - loyalty) * aggression * 0.03:
                 self.break_alliance(pid, other["id"])
                 self._log_ai(pid, f"DIPLO: broke alliance with {other['name']} (disloyal)")
 
@@ -1632,12 +2075,12 @@ class GameState:
             available = []
             # Priority techs by strategy
             priority_techs = {
-                "conqueror": ["bronze_working", "iron_working", "horseback", "feudalism", "gunpowder", "dynamite", "industrialization", "flight"],
-                "warmonger": ["archery", "bronze_working", "iron_working", "gunpowder", "dynamite", "flight"],
-                "turtle": ["construction", "engineering", "education", "astronomy", "electricity", "nuclear_fission", "rocketry", "space_program"],
-                "builder": ["mining", "construction", "engineering", "industrialization", "steam_power", "railroad", "rocketry", "space_program"],
-                "culturalist": ["pottery", "writing", "theology", "education", "printing_press"],
-                "economist": ["pottery", "writing", "currency", "printing_press", "navigation"],
+                "conqueror": ["bronze_working", "iron_working", "horseback", "feudalism", "gunpowder", "military_science", "dynamite", "industrialization", "flight"],
+                "warmonger": ["archery", "bronze_working", "iron_working", "horseback", "gunpowder", "military_science", "dynamite", "flight"],
+                "turtle": ["construction", "engineering", "education", "astronomy", "printing_press", "electricity", "nuclear_fission", "rocketry", "space_program"],
+                "builder": ["mining", "construction", "engineering", "education", "industrialization", "steam_power", "railroad", "rocketry", "space_program"],
+                "culturalist": ["pottery", "writing", "theology", "education", "printing_press", "aesthetics", "astronomy"],
+                "economist": ["pottery", "writing", "currency", "printing_press", "navigation", "sailing"],
                 "expansionist": ["agriculture", "pottery", "writing", "construction"],
             }
             prio_list = priority_techs.get(strategy, [])
@@ -1713,10 +2156,9 @@ class GameState:
         num_players = len([p for p in self.players if p["alive"]])
         land_per_player = (self.width * self.height) // max(1, num_players)
         base_max = max(4, land_per_player // 35)
-        max_cities = base_max + 3 if trait == "expansive" else base_max
-        game_phase = min(1.0, self.turn / 120)  # 0=early, 1=late
-
         strategy = player.get("strategy", "balanced")
+        max_cities = base_max + 3 if trait == "expansive" else base_max + 2 if strategy == "culturalist" else base_max
+        game_phase = min(1.0, self.turn / 120)  # 0=early, 1=late
         candidates = []  # (score, type, name, reason)
 
         # --- UNITS ---
@@ -1730,19 +2172,18 @@ class GameState:
         # Settler
         max_settlers = min(3, max(1, max_cities // 3))
         if len(my_cities) + len(my_settlers) < max_cities and len(my_settlers) < max_settlers:
-            has_spot = any(
-                self.tiles.get((q, r)) not in (None, Terrain.WATER, Terrain.COAST, Terrain.MOUNTAIN)
-                and not any(hex_distance(c["q"], c["r"], q, r) < 4 for c in self.cities.values())
-                for q in range(0, self.width, 3) for r in range(0, self.height, 3)
-            )
-            if has_spot:
+            # Use real settle spot search from city position
+            settle_target = self._ai_find_settle_spot((city["q"], city["r"]), pid)
+            if settle_target:
                 score = 55 - len(my_cities) * 4
                 if trait == "expansive":
                     score += 15
                 if strategy == "expansionist":
-                    score += 25  # China loves expanding
+                    score += 25
+                elif strategy == "culturalist":
+                    score += 10  # culturalists need more cities for culture victory
                 elif strategy == "warmonger":
-                    score -= 10  # Aztec prefers fighting over settling
+                    score -= 10
                 if game_phase < 0.4:
                     score += 15
                 candidates.append((score, "unit", "settler", f"expand ({len(my_cities)}/{max_cities})"))
@@ -1778,17 +2219,31 @@ class GameState:
         # Diminishing returns: strong penalty when already have lots of units
         mil_per_city = len(my_military) / max(1, len(my_cities))
         if mil_per_city > 3:
-            mil_score -= int((mil_per_city - 3) * 12)
-        if mil_per_city > 5:
-            mil_score -= int((mil_per_city - 5) * 20)  # very harsh above 5 per city
-        # Don't build military when bankrupt
+            mil_score -= int((mil_per_city - 3) * 15)
+        if mil_per_city > 4:
+            mil_score -= int((mil_per_city - 4) * 25)  # harsh above 4 per city
+        # HARD CAP: never build military above 4 per city (unless at war and losing)
+        if mil_per_city > 4 and not at_war:
+            mil_score = -100
+        if mil_per_city > 6:
+            mil_score = -100  # absolute hard cap even during war
+        # Economy check: don't build military when gold is negative or maintenance too high
+        unit_count = sum(1 for u in self.units.values() if u["player"] == pid)
+        free = GAME_CONFIG.get("unit_maintenance_free", 2)
+        mcost = GAME_CONFIG.get("unit_maintenance_cost", 2)
+        maintenance = max(0, unit_count - free) * mcost
+        total_income = sum(self.get_city_yields(c["id"])["gold"] for c in my_cities)
+        if maintenance > total_income:
+            mil_score -= 40  # spending more on army than earning
         if player["gold"] < -30:
             mil_score -= 30
+        if player["gold"] < 0:
+            mil_score -= 15
         if mil_score > 0:
             candidates.append((mil_score, "unit", best_mil, f"military (ratio={mil_ratio:.1f}/{desired_ratio:.1f}, war={at_war})"))
 
-        # Spy
-        if "writing" in player["techs"] and len(my_spies) < max(1, len(my_cities) // 3):
+        # Spy — max 1 per player
+        if "writing" in player["techs"] and len(my_spies) < 1:
             score = 25
             if aggression > 0.6:
                 score += 15
@@ -1887,6 +2342,63 @@ class GameState:
                 score += 18
             elif bname == "walls" and (at_war or nearby_enemies > 0):
                 score += 20
+            elif bname == "barracks":
+                score += 20  # always useful for any civ
+                if at_war or strategy in ("conqueror", "warmonger"):
+                    score += 15
+                if len(my_military) > 3:
+                    score += 10  # more valuable with larger army
+            elif bname == "forge":
+                score += 12
+            elif bname == "workshop":
+                score += 15
+                if trait == "industrious":
+                    score += 10
+            elif bname == "stable":
+                score += 10
+                if strategy in ("conqueror", "warmonger"):
+                    score += 8
+            elif bname == "harbor":
+                # Only valuable in coastal cities
+                has_coast = any(self.tiles.get(pos) in (Terrain.WATER, Terrain.COAST)
+                               for pos in [(city["q"]+dq, city["r"]+dr) for dq in range(-1,2) for dr in range(-1,2)])
+                if has_coast:
+                    score += 18
+                else:
+                    score -= 50  # can't build harbor without coast
+            elif bname == "colosseum":
+                score += 18
+                if city["population"] >= 4:
+                    score += 10  # more valuable in larger cities
+            elif bname == "school":
+                score += 18
+            elif bname == "museum":
+                score += 15
+                if strategy == "culturalist":
+                    score += 20
+            elif bname == "theater":
+                score += 15
+                if strategy == "culturalist":
+                    score += 15
+            elif bname == "military_academy":
+                score += 10
+                if at_war or strategy in ("conqueror", "warmonger"):
+                    score += 15
+            elif bname == "airport":
+                score += 12
+            elif bname == "bunker":
+                score += 10
+                if at_war or nearby_enemies > 2:
+                    score += 20
+            elif bname == "hospital":
+                score += 18
+                if city["population"] >= 5:
+                    score += 10  # more valuable in large cities
+            elif bname == "stadium":
+                score += 15
+                # Counter factory/power_plant unhappiness
+                if "factory" in city["buildings"] or "power_plant" in city["buildings"]:
+                    score += 15
 
             if score > 0:
                 candidates.append((score, "building", bname, " ".join(reason_parts)))
@@ -2060,12 +2572,38 @@ class GameState:
             self._ai_step_toward(unit, task[0], task[1])
 
     def _ai_worker_find_task(self, unit, pid, my_cities, has_railroad):
-        """Find best tile for worker. Priority: improvements > roads between cities > local roads."""
+        """Find best tile for worker. Priority: 2 improvements per city > roads to capital > more improvements."""
         player = self.players[pid]
         candidates = []  # (priority, q, r, reason)
 
-        # Task 1: Improvements near cities (farms, mines — highest priority)
+        # Count improvements per city
+        city_imp_count = {}
         for city in my_cities:
+            br = city.get("border_radius", 1) + 1
+            count = 0
+            for dq in range(-br, br + 1):
+                for dr in range(-br, br + 1):
+                    tq, tr = city["q"] + dq, city["r"] + dr
+                    if hex_distance(city["q"], city["r"], tq, tr) <= br and (tq, tr) in self.improvements:
+                        count += 1
+            city_imp_count[city["id"]] = count
+
+        # Check if cities need food (any city with food_surplus <= 1)
+        cities_need_food = False
+        for city in my_cities:
+            try:
+                y = self.get_city_yields(city["id"])
+                if y["food_surplus"] <= 1:
+                    cities_need_food = True
+                    break
+            except:
+                pass
+
+        # Task 1: Improvements near cities — always highest priority when food is needed
+        need_threshold = 999 if cities_need_food else 2  # if food needed: build ALL improvements; if not: only first 2
+        for city in my_cities:
+            if city_imp_count[city["id"]] >= need_threshold:
+                continue
             br = city.get("border_radius", 1) + 1
             for dq in range(-br, br + 1):
                 for dr in range(-br, br + 1):
@@ -2076,47 +2614,91 @@ class GameState:
                     if not t or t in (Terrain.WATER, Terrain.COAST, Terrain.MOUNTAIN):
                         continue
                     d = hex_distance(unit["q"], unit["r"], tq, tr)
-                    if d > 20:
+                    if d > 15 or (tq, tr) in self.improvements:
                         continue
-                    if (tq, tr) not in self.improvements and self._ai_pick_improvement(t.value, player):
+                    if self._ai_pick_improvement(t.value, player):
                         candidates.append((d, tq, tr, "improve"))
+
+        # Task 2: Roads to CAPITAL — connect unconnected cities (HIGH priority)
+        if len(my_cities) >= 2:
+            import heapq
+            capital = None
+            for c in my_cities:
+                if "palace" in c["buildings"]:
+                    capital = c
+                    break
+            if not capital:
+                capital = my_cities[0]
+
+            # Find up to 3 nearest unconnected cities
+            unconnected = []
+            for city in my_cities:
+                if city["id"] == capital["id"]:
+                    continue
+                if not self.is_connected_to_capital(city["id"]):
+                    unconnected.append(city)
+            unconnected.sort(key=lambda c: hex_distance(capital["q"], capital["r"], c["q"], c["r"]))
+
+            for city in unconnected[:3]:
+                # A* path from capital to city, preferring existing roads
+                start = (capital["q"], capital["r"])
+                goal = (city["q"], city["r"])
+                heap = [(0, 0, start, [start])]
+                visited = {}
+                path_found = None
+                step = 0
+                while heap:
+                    cost, _, (cq, cr), path = heapq.heappop(heap)
+                    if (cq, cr) == goal:
+                        path_found = path
+                        break
+                    if (cq, cr) in visited:
+                        continue
+                    visited[(cq, cr)] = cost
+                    if len(visited) > 300:
+                        break
+                    for nq, nr in hex_neighbors(cq, cr):
+                        if (nq, nr) in visited:
+                            continue
+                        t = self.tiles.get((nq, nr))
+                        if not t or t in (Terrain.WATER, Terrain.COAST, Terrain.MOUNTAIN):
+                            continue
+                        mc = TERRAIN_MOVE_COST.get(t, 1)
+                        if (nq, nr) in self.roads:
+                            mc = 0.1  # heavily prefer existing roads
+                        h = hex_distance(nq, nr, goal[0], goal[1])
+                        step += 1
+                        heapq.heappush(heap, (cost + mc + h, step, (nq, nr), path + [(nq, nr)]))
+
+                if path_found:
+                    # Find nearest unroaded tile on this path
+                    for pq, pr in path_found:
+                        if (pq, pr) not in self.roads:
+                            d = hex_distance(unit["q"], unit["r"], pq, pr)
+                            # Priority BOOST: roads to capital are very important (d - 5)
+                            candidates.append((max(0, d - 5), pq, pr, "road->%s" % city["name"][:8]))
+                            break
+
+        # Task 3: Remaining improvements (lower priority — after roads)
+        for city in my_cities:
+            if city_imp_count[city["id"]] < 2:
+                continue  # already handled above
+            br = city.get("border_radius", 1) + 1
+            for dq in range(-br, br + 1):
+                for dr in range(-br, br + 1):
+                    tq, tr = city["q"] + dq, city["r"] + dr
+                    if hex_distance(city["q"], city["r"], tq, tr) > br:
+                        continue
+                    t = self.tiles.get((tq, tr))
+                    if not t or t in (Terrain.WATER, Terrain.COAST, Terrain.MOUNTAIN):
+                        continue
+                    d = hex_distance(unit["q"], unit["r"], tq, tr)
+                    if d > 20 or (tq, tr) in self.improvements:
+                        continue
+                    if self._ai_pick_improvement(t.value, player):
+                        candidates.append((d + 2, tq, tr, "improve"))
                     if has_railroad and (tq, tr) in self.roads and self.roads[(tq, tr)]["type"] == "road":
                         candidates.append((d + 20, tq, tr, "railroad"))
-
-        # Task 2: Roads BETWEEN cities — HIGHEST priority after basic improvements
-        if len(my_cities) >= 2:
-            from collections import deque
-            for i, c1 in enumerate(my_cities):
-                for c2 in my_cities[i+1:]:
-                    dist = hex_distance(c1["q"], c1["r"], c2["q"], c2["r"])
-                    if dist > 15:
-                        continue
-                    # BFS from c1 to c2 — find path
-                    visited = {(c1["q"], c1["r"])}
-                    queue = deque([((c1["q"], c1["r"]), [(c1["q"], c1["r"])])])
-                    path_found = None
-                    while queue:
-                        (cq, cr), path = queue.popleft()
-                        if cq == c2["q"] and cr == c2["r"]:
-                            path_found = path
-                            break
-                        if len(visited) > 150:
-                            break
-                        for nq, nr in hex_neighbors(cq, cr):
-                            if (nq, nr) in visited:
-                                continue
-                            t = self.tiles.get((nq, nr))
-                            if not t or t in (Terrain.WATER, Terrain.COAST, Terrain.MOUNTAIN):
-                                continue
-                            visited.add((nq, nr))
-                            queue.append(((nq, nr), path + [(nq, nr)]))
-                    if path_found:
-                        # Find first unroaded tile on path
-                        for pq, pr in path_found:
-                            if (pq, pr) not in self.roads:
-                                d = hex_distance(unit["q"], unit["r"], pq, pr)
-                                candidates.append((d + 3, pq, pr, f"road {c1['name'][:6]}-{c2['name'][:6]}"))
-                                break  # only first gap per city pair
 
         if not candidates:
             return None
@@ -2168,11 +2750,14 @@ class GameState:
         for _ in range(unit["mov"]):
             if unit["id"] not in self.units or unit["moves_left"] <= 0:
                 break
-            # Can we settle here?
+            # Can we settle here? Use same checks as found_city
             terrain = self.tiles.get((unit["q"], unit["r"]))
-            too_close = any(hex_distance(c["q"], c["r"], unit["q"], unit["r"]) < 3 for c in self.cities.values())
-            if not too_close and terrain not in (Terrain.WATER, Terrain.COAST, Terrain.MOUNTAIN):
-                # Use per-civilization city names
+            too_close = any(hex_distance(c["q"], c["r"], unit["q"], unit["r"]) < 4 for c in self.cities.values())
+            # Check foreign city proximity
+            near_foreign = any(c["player"] != pid and hex_distance(c["q"], c["r"], unit["q"], unit["r"]) <= max(c.get("border_radius", 1) + 1, 3)
+                               for c in self.cities.values())
+            in_foreign = self.get_tile_owner(unit["q"], unit["r"]) not in (None, pid)
+            if not too_close and not near_foreign and not in_foreign and terrain and terrain not in (Terrain.WATER, Terrain.COAST, Terrain.MOUNTAIN):
                 player_civ = self.players[pid]["civ"]
                 city_names = CITY_NAMES.get(player_civ, [])
                 if not city_names:
@@ -2183,10 +2768,30 @@ class GameState:
                 used = {c["name"] for c in self.cities.values()}
                 name = next((n for n in city_names if n not in used), f"City {self.next_city_id}")
                 self.current_player = pid
-                wander_turns = self.turn - unit.get("born_turn", self.turn)
-                self._log_ai(pid, f"SETTLE: founding {name} at ({unit['q']},{unit['r']}) terrain={terrain.value} wandered={wander_turns}t")
-                self.found_city(unit["id"], name)
+                result = self.found_city(unit["id"], name)
+                if result.get("ok"):
+                    wander_turns = self.turn - unit.get("born_turn", self.turn)
+                    self._log_ai(pid, f"SETTLE: founded {name} at ({unit['q']},{unit['r']}) terrain={terrain.value} wandered={wander_turns}t")
                 return
+
+            # Timeout: settler wandering too long — force settle
+            wander_turns = self.turn - unit.get("born_turn", self.turn)
+            if wander_turns >= 10:
+                terrain_here = self.tiles.get((unit["q"], unit["r"]))
+                too_close = any(hex_distance(c["q"], c["r"], unit["q"], unit["r"]) < 3 for c in self.cities.values())
+                in_foreign = self.get_tile_owner(unit["q"], unit["r"]) not in (None, pid)
+                if not too_close and not in_foreign and terrain_here and terrain_here not in (Terrain.WATER, Terrain.COAST, Terrain.MOUNTAIN):
+                    player_civ = self.players[pid]["civ"]
+                    city_names = CITY_NAMES.get(player_civ, [])
+                    if not city_names:
+                        city_names = CITY_NAMES.get("default", [f"City {i}" for i in range(50)])
+                    used = {c["name"] for c in self.cities.values()}
+                    name = next((n for n in city_names if n not in used), f"City {self.next_city_id}")
+                    self.current_player = pid
+                    result = self.found_city(unit["id"], name)
+                    if result.get("ok"):
+                        self._log_ai(pid, f"SETTLE: founded {name} at ({unit['q']},{unit['r']}) terrain={terrain_here.value} wandered={wander_turns}t (TIMEOUT)")
+                    return
 
             if target:
                 old_q, old_r = unit["q"], unit["r"]
@@ -2197,10 +2802,8 @@ class GameState:
                     too_close = any(hex_distance(c["q"], c["r"], unit["q"], unit["r"]) < 3 for c in self.cities.values())
                     in_foreign = self.get_tile_owner(unit["q"], unit["r"]) not in (None, pid)
                     if not too_close and not in_foreign and terrain_here and terrain_here not in (Terrain.WATER, Terrain.COAST, Terrain.MOUNTAIN):
-                        # Settle here instead of target
                         self._log_ai(pid, f"SETTLER: stuck, settling here instead at ({unit['q']},{unit['r']})")
                     else:
-                        # Try random adjacent move to get unstuck
                         neighbors = hex_neighbors(unit["q"], unit["r"])
                         valid = [(nq, nr) for nq, nr in neighbors
                                  if self.tiles.get((nq, nr)) not in (None, Terrain.WATER, Terrain.COAST, Terrain.MOUNTAIN)]
@@ -2212,8 +2815,13 @@ class GameState:
             else:
                 break
 
-    def _ai_find_settle_spot(self, unit, pid):
-        """Find best settlement location — weighs food heavily, considers 2-ring radius."""
+    def _ai_find_settle_spot(self, origin, pid, exclude_uid=None):
+        """Find best settlement location. origin can be unit dict or (q,r) tuple."""
+        if isinstance(origin, dict):
+            oq, oR = origin["q"], origin["r"]
+            exclude_uid = origin.get("id")
+        else:
+            oq, oR = origin[0], origin[1]
         player = self.players[pid]
         strategy = player.get("strategy", "balanced")
         best = None
@@ -2225,15 +2833,15 @@ class GameState:
                     continue
                 if any(hex_distance(c["q"], c["r"], q, r) < 5 for c in self.cities.values()):
                     continue
-                # Cannot settle in foreign territory
                 owner = self.get_tile_owner(q, r)
                 if owner is not None and owner != pid:
                     continue
                 # Avoid spots where another settler is already heading
-                if any(u["player"] == pid and u["type"] == "settler" and u["id"] != unit["id"]
+                if any(u["player"] == pid and u["type"] == "settler"
+                       and (exclude_uid is None or u["id"] != exclude_uid)
                        and hex_distance(u["q"], u["r"], q, r) < 4 for u in self.units.values()):
                     continue
-                d = hex_distance(unit["q"], unit["r"], q, r)
+                d = hex_distance(oq, oR, q, r)
                 if d > 20:
                     continue
                 # Score all tiles in 2-ring radius
@@ -2268,9 +2876,9 @@ class GameState:
                     best_score = score
                     best = (q, r)
         if best:
-            self._log_ai(pid, f"SETTLER: target ({best[0]},{best[1]}) score={best_score} dist={hex_distance(unit['q'],unit['r'],best[0],best[1])}")
+            self._log_ai(pid, f"SETTLER: target ({best[0]},{best[1]}) score={best_score} dist={hex_distance(oq,oR,best[0],best[1])}")
         else:
-            self._log_ai(pid, f"SETTLER: no good spot from ({unit['q']},{unit['r']})")
+            self._log_ai(pid, f"SETTLER: no good spot from ({oq},{oR})")
         return best
 
     def _ai_military_move(self, unit, pid):
@@ -2282,6 +2890,37 @@ class GameState:
         trait = player.get("trait", "")
         my_military = [u for u in self.units.values() if u["player"] == pid and u["cat"] != "civilian"]
         my_cities = [c for c in self.cities.values() if c["player"] == pid]
+
+        unit_range = UNIT_TYPES.get(unit["type"], {}).get("range", 0)
+
+        # Ranged units: try to fire at enemies within range before moving
+        if unit_range > 0:
+            best_target = None
+            best_dist = unit_range + 1
+            # Check enemy units in range
+            for eu in list(self.units.values()):
+                if eu["player"] != pid and eu["cat"] != "civilian":
+                    d = hex_distance(unit["q"], unit["r"], eu["q"], eu["r"])
+                    if 1 <= d <= unit_range:
+                        rel = self.players[pid]["diplomacy"].get(eu["player"], "peace")
+                        if rel == "war" and d < best_dist:
+                            best_target = ("unit", eu)
+                            best_dist = d
+            # Check enemy cities in range
+            for ec in list(self.cities.values()):
+                if ec["player"] != pid:
+                    d = hex_distance(unit["q"], unit["r"], ec["q"], ec["r"])
+                    if 1 <= d <= unit_range:
+                        rel = self.players[pid]["diplomacy"].get(ec["player"], "peace")
+                        if rel == "war" and d < best_dist:
+                            best_target = ("city", ec)
+                            best_dist = d
+            if best_target:
+                ttype, target = best_target
+                self._log_ai(pid, f"RANGED: {unit['type']}(hp={unit['hp']}) fires at {target.get('type') or target.get('name')} at range {best_dist}")
+                self.current_player = pid
+                self.ranged_attack(unit["id"], target["q"], target["r"])
+                return
 
         # Adjacent enemies — attack military units, or any unit if at war
         for nq, nr in hex_neighbors(unit["q"], unit["r"]):
@@ -2302,7 +2941,7 @@ class GameState:
                         self.move_unit(unit["id"], nq, nr)
                         return
 
-        # Adjacent enemy city — attack if at war
+        # Adjacent enemy city — attack if at war (melee only for capture, ranged already handled above)
         for nq, nr in hex_neighbors(unit["q"], unit["r"]):
             for ec in list(self.cities.values()):
                 if ec["player"] != pid and ec["q"] == nq and ec["r"] == nr:
@@ -2697,9 +3336,23 @@ class GameState:
         for p in game.players:
             p["is_human"] = False
 
+        # Build terrain summary for map log
+        terrain_counts = {}
+        for pos, t in game.tiles.items():
+            terrain_counts[t.value] = terrain_counts.get(t.value, 0) + 1
+
         log = {
             "settings": {"width": width, "height": height, "players": num_players, "seed": seed, "turns": num_turns},
-            "players": [{"id": p["id"], "name": p["name"], "civ": p["civ"]} for p in game.players],
+            "map": {
+                "terrain_counts": terrain_counts,
+                "total_tiles": len(game.tiles),
+                "passable_tiles": sum(1 for t in game.tiles.values() if t not in (Terrain.WATER, Terrain.COAST, Terrain.MOUNTAIN)),
+            },
+            "players": [{"id": p["id"], "name": p["name"], "civ": p["civ"],
+                         "trait": CIVILIZATIONS.get(p["civ"], {}).get("trait", ""),
+                         "strategy": CIVILIZATIONS.get(p["civ"], {}).get("strategy", ""),
+                         "start_pos": next(((u["q"], u["r"]) for u in game.units.values() if u["player"] == p["id"] and u["type"] == "settler"), None),
+                         } for p in game.players],
             "turns": [],
             "result": None,
         }
@@ -2735,9 +3388,9 @@ class GameState:
                 space_techs = ["space_program", "rocketry", "nuclear_fission"]
                 space_tech_done = sum(1 for t in space_techs if t in p["techs"])
                 space_prog = p.get("space_progress", 0)
-                space_need = GAME_CONFIG.get("space_victory_production", 2000)
+                space_need = GAME_CONFIG.get("space_victory_production", 5000)
                 culture_prog = p["culture_pool"]
-                culture_need = GAME_CONFIG.get("culture_victory_threshold", 3000)
+                culture_need = GAME_CONFIG.get("culture_victory_threshold", 8000)
                 total_cities_all = len(game.cities)
                 my_city_count = len(my_cities)
                 domin_pct = my_city_count / max(1, total_cities_all)
@@ -2766,13 +3419,19 @@ class GameState:
                         "name": c["name"],
                         "pop": c["population"],
                         "producing": c["producing"]["name"] if c.get("producing") else "IDLE",
-                        "buildings": len(c["buildings"]),
+                        "buildings": list(c["buildings"]),
+                        "connected_to_capital": game.is_connected_to_capital(c["id"]),
+                        "hp": c.get("hp", 200),
                     } for c in my_cities],
                     "units": {},
                 }
                 for u in my_units:
                     utype = u["type"]
                     plog["units"][utype] = plog["units"].get(utype, 0) + 1
+                # Diplomacy snapshot
+                plog["diplomacy"] = {game.players[op]["name"]: rel
+                                     for op, rel in p.get("diplomacy", {}).items()
+                                     if op < len(game.players) and game.players[op]["alive"]}
                 turn_log["events"].append(plog)
 
             log["turns"].append(turn_log)
@@ -2798,11 +3457,15 @@ class GameState:
                 # Add AI decisions to turn log
                 if game.ai_log:
                     turn_log["events"].extend(game.ai_log)
-                # Detect combat results
+                # Detect combat results (exclude settlers consumed by founding cities)
                 units_after = set(game.units.keys())
-                killed = units_before - units_after
-                if killed:
-                    turn_log["events"].append(f"[{pname}] {len(killed)} unit(s) destroyed in combat")
+                disappeared = units_before - units_after
+                # Filter out settlers that were consumed to found cities
+                new_cities = set(game.cities.keys()) - set(cities_before.keys())
+                settlers_consumed = len(new_cities)  # each new city consumes 1 settler
+                combat_killed = len(disappeared) - settlers_consumed
+                if combat_killed > 0:
+                    turn_log["events"].append(f"[{pname}] {combat_killed} unit(s) destroyed in combat")
                 for cid, cdata in game.cities.items():
                     old_owner = cities_before.get(cid)
                     if old_owner is not None and old_owner != cdata["player"]:
@@ -2828,17 +3491,48 @@ class GameState:
                 log["turns"][-1]["events"].append(f"{best['name']} achieves SCORE victory! ({best['score']} pts)")
 
         # Final result
+        victory_type = None
+        if game.winner is not None:
+            wp = game.players[game.winner]
+            space_techs = ["space_program", "rocketry", "nuclear_fission"]
+            if all(t in wp["techs"] for t in space_techs):
+                victory_type = "space"
+            elif wp["culture_pool"] >= GAME_CONFIG.get("culture_victory_threshold", 8000):
+                victory_type = "culture"
+            elif len([c for c in game.cities.values() if c["player"] == game.winner]) / max(1, len(game.cities)) >= GAME_CONFIG.get("domination_city_percent", 0.75):
+                victory_type = "domination"
+            else:
+                victory_type = "score"
+
+        # Final map state
+        final_improvements = {}
+        for pos, imp in game.improvements.items():
+            final_improvements[f"{pos[0]},{pos[1]}"] = imp["type"]
+        final_roads = {}
+        for pos, road in game.roads.items():
+            final_roads[f"{pos[0]},{pos[1]}"] = road["type"]
+
         log["result"] = {
             "game_over": game.game_over,
             "winner": game.players[game.winner]["name"] if game.winner is not None else None,
+            "victory_type": victory_type,
             "final_turn": game.turn,
+            "total_improvements": len(game.improvements),
+            "total_roads": len(game.roads),
+            "total_cities": len(game.cities),
             "scores": [{
                 "name": p["name"],
+                "civ": p["civ"],
                 "score": p["score"],
                 "alive": p["alive"],
+                "gold": p["gold"],
                 "techs": len(p["techs"]),
+                "tech_list": list(p["techs"]),
+                "culture_pool": p["culture_pool"],
                 "cities": len([c for c in game.cities.values() if c["player"] == p["id"]]),
+                "city_names": [c["name"] for c in game.cities.values() if c["player"] == p["id"]],
                 "units": len([u for u in game.units.values() if u["player"] == p["id"]]),
+                "buildings_total": sum(len(c["buildings"]) for c in game.cities.values() if c["player"] == p["id"]),
             } for p in game.players],
         }
         return log
@@ -2883,7 +3577,13 @@ class GameState:
                 if city["prod_progress"] >= city["producing"]["cost"]:
                     item = city["producing"]
                     if item["type"] == "unit":
-                        self._create_unit(pid, item["name"], city["q"], city["r"])
+                        uid = self._create_unit(pid, item["name"], city["q"], city["r"])
+                        u = self.units.get(uid)
+                        if u and u["cat"] not in ("civilian",):
+                            if "barracks" in city["buildings"]:
+                                u["xp"] += 10
+                            if "military_academy" in city["buildings"]:
+                                u["xp"] += 15
                         events.append(f"{city['name']} produced {item['name']}")
                     elif item["type"] == "building":
                         city["buildings"].append(item["name"])
@@ -2953,22 +3653,42 @@ class GameState:
         total_gold -= maintenance
         player["gold"] += total_gold
 
-        # Bankruptcy
-        if player["gold"] < -50:
+        # Bankruptcy — disband units, then sell buildings
+        if player["gold"] < GAME_CONFIG.get("bankruptcy_threshold", -50):
             mil_units = [u for u in self.units.values()
                          if u["player"] == pid and u["cat"] != "civilian"]
             if mil_units:
-                weakest = min(mil_units, key=lambda u: u["hp"])
-                del self.units[weakest["id"]]
-                player["gold"] += 20
-                events.append(f"Disbanded {weakest['type']} (bankrupt)")
+                disband_count = max(1, abs(player["gold"]) // 50)
+                mil_units.sort(key=lambda u: u["hp"])
+                for i in range(min(disband_count, len(mil_units))):
+                    u = mil_units[i]
+                    if u["id"] in self.units:
+                        del self.units[u["id"]]
+                        player["gold"] += 20
+                        events.append(f"Disbanded {u['type']} (bankrupt)")
+
+            # No military units left — sell buildings
+            if not mil_units and player["gold"] < GAME_CONFIG.get("bankruptcy_threshold", -50):
+                my_cities = [c for c in self.cities.values() if c["player"] == pid]
+                for city in my_cities:
+                    if player["gold"] >= 0:
+                        break
+                    sellable = [b for b in city["buildings"] if b != "palace"]
+                    if sellable:
+                        sellable.sort(key=lambda b: BUILDINGS.get(b, {}).get("cost", 50))
+                        bld = sellable[0]
+                        sell_gold = BUILDINGS.get(bld, {}).get("cost", 50) // 2
+                        city["buildings"].remove(bld)
+                        player["gold"] += sell_gold
+                        events.append(f"Sold {bld} in {city['name']} for {sell_gold}g (bankrupt)")
 
         if player["researching"]:
             player["researching"]["progress"] += total_science
             if player["researching"]["progress"] >= player["researching"]["cost"]:
                 tech_name = player["researching"]["name"]
-                player["techs"].append(tech_name)
-                events.append(f"Discovered: {tech_name}")
+                if tech_name not in player["techs"]:
+                    player["techs"].append(tech_name)
+                    events.append(f"Discovered: {tech_name}")
                 player["researching"] = None
 
         player["culture_pool"] += total_culture
@@ -2984,22 +3704,17 @@ class GameState:
                 else:
                     u["hp"] = min(100, u["hp"] + 5)
 
-        player["score"] = (
-            len([c for c in self.cities.values() if c["player"] == pid]) * 100 +
-            sum(c["population"] for c in self.cities.values() if c["player"] == pid) * 20 +
-            len(player["techs"]) * 30 +
-            player["culture_pool"] // 10
-        )
+        player["score"] = self._calc_score(pid)
 
         space_techs = ["space_program", "rocketry", "nuclear_fission"]
         if all(t in player["techs"] for t in space_techs):
             player["space_progress"] = player.get("space_progress", 0) + sum(
                 self.get_city_yields(c["id"])["prod"] for c in self.cities.values() if c["player"] == pid)
-            if player.get("space_progress", 0) >= GAME_CONFIG.get("space_victory_production", 2000):
+            if player.get("space_progress", 0) >= GAME_CONFIG.get("space_victory_production", 5000):
                 self.game_over = True
                 self.winner = pid
                 events.append(f"{player['name']} achieves SPACE victory!")
-        if not self.game_over and player["culture_pool"] >= GAME_CONFIG.get("culture_victory_threshold", 3000):
+        if not self.game_over and player["culture_pool"] >= GAME_CONFIG.get("culture_victory_threshold", 8000):
             self.game_over = True
             self.winner = pid
             events.append(f"{player['name']} achieves CULTURE victory!")

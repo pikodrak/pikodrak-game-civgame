@@ -81,7 +81,7 @@ def load_config():
         if section.startswith("unit."):
             unit_key = section[5:]
             u = dict(cfg[section])
-            data["unit_types"][unit_key] = {
+            unit_data = {
                 "atk": int(u.get("atk", "0")),
                 "def": int(u.get("def", "0")),
                 "mov": int(u.get("mov", "2")),
@@ -89,6 +89,9 @@ def load_config():
                 "tech": _parse_tech(u.get("tech", "")),
                 "cat": u.get("cat", "melee"),
             }
+            if u.get("range"):
+                unit_data["range"] = int(u["range"])
+            data["unit_types"][unit_key] = unit_data
 
     # [building.*] sections
     for section in cfg.sections():

@@ -14,10 +14,13 @@ import auth
 
 config_loader.start_watcher(interval=2)
 
+GAME_VERSION = "0.9.0"
+GAME_BUILD = "2026-04-10c"
+
 SAVE_DIR = Path("saves")
 SAVE_DIR.mkdir(exist_ok=True)
 
-app = FastAPI(title="CivGame")
+app = FastAPI(title="CivGame", version=GAME_VERSION)
 
 # Per-user game state: user_id -> {game_id -> GameState}
 user_games = {}
@@ -285,6 +288,26 @@ def ai_possible_actions(game_id: int, player_id: int, request: Request):
             if u["cat"] != "civilian":
                 unit_info["actions"].extend(["fortify", "sentry", "explore"])
 
+            # Ranged attack targets
+            unit_range = UNIT_TYPES.get(u["type"], {}).get("range", 0)
+            if unit_range > 0:
+                unit_info["actions"].append("ranged_attack")
+                unit_info["range"] = unit_range
+                ranged_targets = []
+                for eu in game.units.values():
+                    if eu["player"] != player_id:
+                        d = hex_distance(u["q"], u["r"], eu["q"], eu["r"])
+                        if 1 <= d <= unit_range:
+                            ranged_targets.append({"q": eu["q"], "r": eu["r"], "type": eu["type"],
+                                                   "hp": eu["hp"], "player": eu["player"], "distance": d})
+                for ec in game.cities.values():
+                    if ec["player"] != player_id:
+                        d = hex_distance(u["q"], u["r"], ec["q"], ec["r"])
+                        if 1 <= d <= unit_range:
+                            ranged_targets.append({"q": ec["q"], "r": ec["r"], "type": "city",
+                                                   "name": ec["name"], "hp": ec["hp"], "player": ec["player"], "distance": d})
+                unit_info["ranged_targets"] = ranged_targets
+
         unit_info["actions"].append("disband")
         result["units"].append(unit_info)
 
@@ -378,6 +401,33 @@ def spectate_analysis(game_id: int, request: Request):
 from game_engine import hex_neighbors, hex_distance, Terrain, IMPROVEMENTS, TERRAIN_YIELDS, TECHNOLOGIES, UNIT_TYPES, BUILDINGS, GAME_CONFIG, CITY_NAMES
 
 
+@app.get("/api/version")
+def api_version():
+    """Game version, build, and recent changelog."""
+    changelog = []
+    try:
+        with open("CHANGELOG.md") as f:
+            lines = f.readlines()
+            section = None
+            for line in lines:
+                line = line.rstrip()
+                if line.startswith("## "):
+                    if section:
+                        break  # only latest session
+                    section = line[3:].strip()
+                elif section and line.startswith("### "):
+                    changelog.append({"section": line[4:].strip(), "items": []})
+                elif section and line.startswith("- ") and changelog:
+                    changelog[-1]["items"].append(line[2:].strip())
+    except:
+        pass
+    return {
+        "version": GAME_VERSION,
+        "build": GAME_BUILD,
+        "changelog": changelog,
+    }
+
+
 @app.get("/api/rules")
 def api_rules():
     """Complete game rules, mechanics, formulas — everything AI needs to understand the game."""
@@ -431,7 +481,7 @@ def api_rules():
                 "aggressive": "+15% attack strength",
                 "protective": "+15% defense when near own city (within 3 hexes)",
             },
-            "fortify_bonus": "+25% defense when fortified",
+            "fortify_bonus": "+25% defense when fortified (fortify only uses current turn movement, next turn unit moves normally; setting goto/move clears fortified state)",
             "terrain_defense": {k.value: v for k, v in game_engine.TERRAIN_DEFENSE.items()},
             "unit_hp": 100,
             "healing": {
@@ -443,6 +493,28 @@ def api_rules():
                 "damage_to_city": "25 * atk_roll / (atk_roll + def_roll + 1) + 5",
                 "damage_to_attacker": "15 * def_roll / (atk_roll + def_roll + 1) + 3",
                 "city_captured_when": "city.hp <= 0 (population -1, hp reset to half)",
+                "capture_requires": "Melee unit must deliver final blow. Ranged attacks cannot capture (city HP floors at 1).",
+            },
+            "ranged_combat": {
+                "description": "Ranged/siege units can attack from distance WITHOUT moving to target hex",
+                "units_with_range": {
+                    "archer": "range 2 (tech: archery)",
+                    "catapult": "range 2 (tech: mathematics)",
+                    "artillery": "range 3 (tech: dynamite)",
+                    "bomber": "range 3 (tech: flight)",
+                },
+                "mechanics": [
+                    "Ranged units attack at distance 1-N (where N = unit range)",
+                    "Attacker stays on their hex (does NOT move to target)",
+                    "Defender takes full damage, attacker takes only 25% return fire",
+                    "Ranged attacks CANNOT capture cities — city HP floors at 1",
+                    "To capture a city, use a melee unit (warrior/swordsman/knight etc.) for the final attack",
+                    "Use ranged to soften targets, then melee to finish/capture",
+                ],
+                "damage_to_defender": "Same as melee: 50 * atk_roll / total + 15",
+                "return_fire_to_attacker": "25% of normal: (40 * def_roll / total + 10) * 0.25",
+                "api": "POST /api/game/{id}/ranged_attack {unit_id, q, r}",
+                "strategy": "Position archers/catapults 2 hexes from target. Bombard to weaken, then send melee to capture.",
             },
         },
 
@@ -477,8 +549,8 @@ def api_rules():
             "road": {
                 "build_time": "3 turns",
                 "movement_bonus": "+60% speed (move cost * 0.4). Forest 2→1, hills 2→1, grass stays 1",
-                "yield_bonus": "None",
-                "strategy": "PRIORITY: build between cities for fast troop movement. A* pathfinding prefers roads — units automatically take fastest route.",
+                "yield_bonus": "Trade route: cities connected to capital via road earn +1 gold per 2 pop",
+                "strategy": "PRIORITY: build between cities and capital for trade income + fast troop movement. A* pathfinding prefers roads.",
             },
             "railroad": {
                 "build_time": "4 turns",
@@ -516,12 +588,20 @@ def api_rules():
                     "strategy": "Build temples/monasteries to push borders. A city surrounded by foreign culture will starve",
                 },
             },
-            "defense": "Base 10 + building defense bonuses. City heals +10 hp/turn.",
+            "defense": "Base 10 + building defense bonuses. City heals +10 hp/turn. Key: Palace=10, Barracks=10, Walls=50, Castle=80, Bunker=60.",
+            "happiness": {
+                "base": "0 per city",
+                "population_penalty": "-1 per population above 4",
+                "building_sources": "colosseum(+3), temple(+2), theater(+2), museum(+2), stadium(+4), marketplace(+1), monastery(+1), school(+1), hospital(+1), bank(+1)",
+                "unhappy_penalties": "If happiness < 0: -25% production, -25% science, food surplus capped at 1 (city barely grows)",
+                "strategy": "Build happiness buildings (colosseum, temple, stadium) before growing cities past pop 4",
+            },
         },
 
         "diplomacy": {
             "states": ["peace", "war", "alliance"],
             "default": "peace (all start at peace)",
+            "api_action_names": "Use: war, peace, alliance, break_alliance (NOT declare_war/make_peace)",
             "cooldown": {
                 "after_war_declaration": f"{GAME_CONFIG.get('diplo_war_cooldown', 10)} turns",
                 "after_peace_treaty": f"{GAME_CONFIG.get('diplo_peace_cooldown', 15)} turns",
@@ -565,9 +645,33 @@ def api_rules():
 
         "economy": {
             "gold": {
-                "income": "Sum of city gold yields + trade",
+                "income": "Sum of city gold yields + trade route bonuses",
+                "trade_routes": {
+                    "description": "Cities connected to capital by road/railroad earn extra gold",
+                    "bonus": "+1 gold per 2 population (minimum 1)",
+                    "connection": "BFS via road/railroad tiles from city to capital (palace city)",
+                    "strategy": "Build roads between cities and capital ASAP for gold income boost",
+                },
                 "maintenance": f"({GAME_CONFIG.get('unit_maintenance_cost', 2)} gold per unit, first {GAME_CONFIG.get('unit_maintenance_free', 2)} free)",
-                "bankruptcy": f"If gold < {GAME_CONFIG.get('bankruptcy_threshold', -50)}: AI disbands weakest units",
+                "bankruptcy": {
+                    "threshold": GAME_CONFIG.get("bankruptcy_threshold", -50),
+                    "step_1": "Disband military units (weakest first, multiple units if deeply in debt)",
+                    "step_2": "If no military units left, sell cheapest building (except palace) for half cost",
+                    "gold_per_disband": 20,
+                    "human_players": "Bankruptcy auto-disband affects CPU players. Human players keep negative gold but still pay maintenance every turn.",
+                "warning": "Negative gold IS a problem — maintenance costs accumulate. Do NOT ignore gold management.",
+                },
+            },
+            "unit_food": {
+                "description": "Military units consume food from their home city",
+                "home_city": "Each unit belongs to the city where it was produced",
+                "cost_first_2": "FREE (no food cost)",
+                "cost_3_to_4": "1 food per unit per turn",
+                "cost_5_plus": "2 food per unit per turn",
+                "example_6_units": "0+0+1+1+2+2 = 6 food/turn total",
+                "redistribution": "AI balances home_city assignments across cities each turn to spread food load",
+                "starvation": "If city food surplus < 0, city population shrinks. Too many units = city starves.",
+                "strategy": "Spread military production across cities. Build farms before armies.",
             },
             "science": {
                 "per_city": "population + building bonuses",
@@ -575,11 +679,21 @@ def api_rules():
             },
         },
 
+        "city_capture": {
+            "mechanics": "Melee unit attacks city with HP <= 0 to capture it",
+            "population": "City loses 1 population on capture (min 1)",
+            "enemy_units": "Old owner's units inside city borders are PUSHED OUT to nearest tile outside borders",
+            "no_exit": "If no valid tile exists (surrounded), unit is disbanded",
+            "home_city": "Orphaned units (home_city was captured) reassign to nearest remaining city",
+            "production": "City production resets to nothing on capture",
+        },
+
         "special_units": {
             "settler": {
                 "cost": UNIT_TYPES.get("settler", {}).get("cost", 60),
                 "action": "found_city — creates new city, settler consumed",
                 "restrictions": "Min 3 hex from other cities, not in foreign territory, not on water/mountain",
+                "important": "Settlers are civilian units — they CANNOT use explore command. Move them manually with move/goto.",
             },
             "worker": {
                 "cost": UNIT_TYPES.get("worker", {}).get("cost", 25),
@@ -606,11 +720,104 @@ def api_rules():
             "protective": {"yield_bonus": "+20% science", "combat": "+15% defense near cities", "ai": "Turtle strategy"},
         },
 
+        "barracks_system": {
+            "barracks": {"effect": "Military units produced here start with +10 XP", "tech": "bronze_working"},
+            "military_academy": {"effect": "Military units produced here start with +15 XP (stacks with barracks)", "tech": "military_science"},
+            "combined": "Barracks + Military Academy = +25 XP for new military units",
+        },
+
+        "technologies": {name: {
+            "cost": data["cost"],
+            "era": data["era"],
+            "prereqs": data["prereqs"],
+            "unlocks": data["unlocks"],
+        } for name, data in game_engine.TECHNOLOGIES.items()},
+
+        "civilizations": {name: {
+            "display_name": data["name"],
+            "bonus": data["bonus"],
+            "leader": data["leader"],
+            "trait": data["trait"],
+            "strategy": data["strategy"],
+            "aggression": data["aggression"],
+            "loyalty": data["loyalty"],
+        } for name, data in game_engine.CIVILIZATIONS.items()},
+
+        "city_yields_formula": {
+            "description": "How city yields (food/prod/gold/science/culture) are calculated each turn",
+            "base": {"food": 2, "prod": 1, "gold": 0, "science": 0, "culture": 1},
+            "tile_yields": "Each worked tile adds food/prod/gold from terrain + improvement bonuses. Max worked tiles = population + 1",
+            "tile_selection": "Best tiles (highest total yield) worked first",
+            "improvements": {
+                "farm": "+1 food", "mine": "+2 prod", "lumber_mill": "+1 prod",
+                "trading_post": "+2 gold", "railroad_tile": "+1 prod",
+            },
+            "buildings": "Each building adds its food/prod/gold/science/culture/defense",
+            "leader_trait": {
+                "creative": "+4 culture", "expansive": "+1 food",
+                "financial": "+33% gold", "industrious": "+20% prod",
+                "aggressive": "+1 prod", "protective": "+20% science",
+            },
+            "civ_bonus": "food/prod/gold/science/culture: +15% to matching yield type",
+            "trade_route": "+1 gold per 2 population if city connected to capital by road (min 1)",
+            "population_science": "+1 science per population",
+            "happiness_penalty": "If happiness < 0: prod * 0.75, science * 0.75, food_surplus capped at 1",
+            "food_surplus": "food - population * 2 - unit_food_cost = surplus for growth",
+            "unit_food_cost": {
+                "description": "Military units consume food from their home city (scaling cost)",
+                "home_city": "Each unit has a home_city (city where it was produced). Food is deducted from that city.",
+                "cost_scaling": "First 2 units: FREE. Units 3-4: 1 food each. Units 5+: 2 food each.",
+                "example": "City with 6 military units: 0+0+1+1+2+2 = 6 food/turn for army",
+                "redistribution": "AI redistributes home_city each turn to balance food across cities",
+                "strategy": "Don't build too many units from one city — it will starve. Spread production across cities.",
+            },
+        },
+
+        "score_formula": {
+            "formula": "cities * 100 + total_population * 20 + techs * 30 + culture_pool / 10",
+            "how": "Calculated dynamically, shown in top bar during game",
+        },
+
+        "pathfinding": {
+            "algorithm": "A* with move cost weighting",
+            "road_bonus": "Road: move cost * 0.4 (60% faster). Railroad: move cost * 0.2 (80% faster)",
+            "terrain_cost": {k.value: v for k, v in game_engine.TERRAIN_MOVE_COST.items()},
+            "impassable": ["water (land units)", "coast (land units)", "mountain"],
+            "naval_only": ["water", "coast"],
+            "foreign_territory": "A* avoids foreign territory unless at war",
+            "preference": "A* prefers roads — units automatically route through fastest path",
+        },
+
+        "culture_pressure": {
+            "how": "When city borders overlap, tile belongs to city with higher culture/distance ratio",
+            "city_hex": "City's own hex ALWAYS belongs to its owner (never taken by culture)",
+            "yield_loss": "City can only harvest resources from tiles it owns. Foreign culture = lost yields",
+            "border_growth": "City borders grow with accumulated culture: radius 1→2(10)→3(50)→4(150)→5(400)",
+        },
+
+        "unit_experience": {
+            "xp_from_barracks": 10,
+            "xp_from_military_academy": 15,
+            "xp_stacking": "Barracks + Military Academy = +25 XP for new military units",
+            "xp_from_combat": "Planned but not yet implemented",
+        },
+
+        "upgrade_chains": {
+            "melee": "warrior → swordsman → musketman → rifleman → infantry",
+            "mounted": "horseman → knight → tank",
+            "ranged": "archer → musketman",
+            "siege": "catapult → artillery",
+            "naval": "galley → caravel → ironclad",
+            "cost": "Half of target unit cost",
+            "requirement": "Must be in own city with enough gold",
+        },
+
         "api_reference": {
             "game_state": "GET /api/game/{id}/ai/state — complete state, no fog",
-            "possible_actions": "GET /api/game/{id}/ai/actions/{player} — all possible actions",
+            "possible_actions": "GET /api/game/{id}/ai/actions/{player} — all possible actions per unit/city",
             "map_data": "GET /api/game/{id}/ai/map — terrain/improvements/roads/territory",
-            "move": "POST /api/game/{id}/move {unit_id, q, r}",
+            "move": "POST /api/game/{id}/move {unit_id, q, r} — melee attack or movement",
+            "ranged_attack": "POST /api/game/{id}/ranged_attack {unit_id, q, r} — ranged fire without moving (archer/catapult/artillery/bomber)",
             "found_city": "POST /api/game/{id}/found_city {unit_id, name}",
             "production": "POST /api/game/{id}/production {city_id, item_type, item_name}",
             "research": "POST /api/game/{id}/research {tech_name}",
@@ -618,13 +825,15 @@ def api_rules():
             "end_turn": "POST /api/game/{id}/end_turn",
             "fortify": "POST /api/game/{id}/fortify/{unit_id}",
             "sentry": "POST /api/game/{id}/sentry/{unit_id}",
-            "explore": "POST /api/game/{id}/explore/{unit_id}",
-            "goto": "POST /api/game/{id}/goto {unit_id, q, r}",
+            "explore": "POST /api/game/{id}/explore/{unit_id} — military units only, civilians (settler/worker/spy/caravan) CANNOT explore",
+            "goto": "POST /api/game/{id}/goto {unit_id, q, r} — multi-turn movement (cancels if: enemy nearby, foreign territory without war, path blocked)",
             "worker_build": "POST /api/game/{id}/worker_build {unit_id, improvement}",
             "auto_worker": "POST /api/game/{id}/auto_worker/{unit_id}",
             "skip": "POST /api/game/{id}/skip/{unit_id}",
             "disband": "POST /api/game/{id}/disband/{unit_id}",
+            "upgrade": "POST /api/game/{id}/upgrade/{unit_id}",
             "save": "POST /api/user/save",
+            "rules": "GET /api/rules — this endpoint, complete game rules",
         },
     }
 
@@ -838,6 +1047,17 @@ def move_unit(game_id: int, req: MoveRequest):
     return result
 
 
+@app.post("/api/game/{game_id}/ranged_attack")
+def ranged_attack(game_id: int, req: MoveRequest):
+    game = games.get(game_id)
+    if not game:
+        raise HTTPException(404, "Game not found")
+    result = game.ranged_attack(req.unit_id, req.q, req.r)
+    auth.log_action(game_id, game.turn, 0, "ranged_attack", {"unit_id": req.unit_id, "target": [req.q, req.r], "result": result.get("msg", "")})
+    result["state"] = game.to_dict(for_player=0)
+    return result
+
+
 @app.post("/api/game/{game_id}/found_city")
 def found_city(game_id: int, req: FoundCityRequest):
     game = games.get(game_id)
@@ -1023,6 +1243,40 @@ def get_yields(game_id: int, city_id: int):
     if not game:
         raise HTTPException(404, "Game not found")
     return game.get_city_yields(city_id)
+
+@app.get("/api/game/{game_id}/city/{city_id}/manage")
+def city_manage(game_id: int, city_id: int):
+    """Detailed city management: worked tiles, yields breakdown, growth info, unit food cost."""
+    game = games.get(game_id)
+    if not game:
+        raise HTTPException(404, "Game not found")
+    city = game.cities.get(city_id)
+    if not city:
+        raise HTTPException(404, "City not found")
+    yields = game.get_city_yields(city_id, detail=True)
+    home_units = [{"id": u["id"], "type": u["type"], "hp": u["hp"]}
+                  for u in game.units.values() if u.get("home_city") == city_id]
+    warnings = []
+    if yields["food_surplus"] < 0:
+        warnings.append({"type": "starvation", "msg": f"Starvation! Food deficit {yields['food_surplus']}/turn. City shrinks in ~{yields['turns_to_starve']} turns."})
+    if yields["food_surplus"] == 0:
+        warnings.append({"type": "stagnant", "msg": "City stagnant — no growth."})
+    if yields["food_cost_units"] > 0:
+        warnings.append({"type": "info", "msg": f"Feeding {yields['food_cost_units']} military unit(s) ({yields['food_cost_units']} food/turn)."})
+    if yields["food_surplus"] > 0:
+        warnings.append({"type": "growth", "msg": f"Grows in ~{yields['turns_to_grow']} turns ({yields['food_stored']}/{yields['growth_needed']} stored)."})
+    if yields["happiness"] < 0:
+        warnings.append({"type": "unhappy", "msg": f"Unhappy ({yields['happiness']}). -25% prod/science, growth stalled."})
+    if not yields.get("connected"):
+        warnings.append({"type": "info", "msg": "Not connected to capital — no trade income."})
+    return {
+        "city": {"id": city["id"], "name": city["name"], "population": city["population"],
+                 "buildings": city["buildings"], "producing": city["producing"],
+                 "prod_progress": city["prod_progress"], "hp": city["hp"]},
+        "yields": yields,
+        "home_units": home_units,
+        "warnings": warnings,
+    }
 
 
 # ----------------------------------------------------------

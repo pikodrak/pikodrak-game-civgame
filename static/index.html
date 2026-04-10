@@ -89,7 +89,7 @@ body{background:#1a1408;color:#e0e0e0;font-family:'Inter',system-ui,sans-serif;o
 </div>
 </div>
 </div>
-<div id="menu-screen" style="display:none"><canvas id="menu-bg"></canvas><h1>CIVGAME</h1><p class="subtitle">Turn-Based Strategy</p>
+<div id="menu-screen" style="display:none"><canvas id="menu-bg"></canvas><h1>CIVGAME</h1><p class="subtitle">Turn-Based Strategy</p><p id="menu-version" style="font-size:.7rem;color:#556;margin-top:-.5rem;margin-bottom:.5rem"></p>
 <div class="menu-panel" style="position:relative"><div id="user-info" style="position:absolute;top:-30px;right:0;font-size:.75rem;color:#8090b0"></div>
 <label>Civilization</label><select id="menu-civ"><option value="rome">Rome +15% Production</option><option value="egypt">Egypt +15% Culture</option><option value="greece">Greece +15% Science</option><option value="china">China +15% Food</option><option value="persia">Persia +15% Gold</option><option value="aztec">Aztec +15% Military</option><option value="japan">Japan +15% Defense</option><option value="czech">Czech +20% Prod & Science</option><option value="mongol">Mongol +15% Movement</option><option value="babylon">Babylon +Gold</option><option value="india">India +Culture</option><option value="arabia">Arabia +Military</option><option value="spain">Spain +Movement</option><option value="england">England +Gold</option><option value="france">France +Military</option><option value="germany">Germany +Production</option><option value="russia">Russia +Food</option><option value="zulu">Zulu +Military</option><option value="inca">Inca +Production</option><option value="maya">Maya +Science</option><option value="korea">Korea +Science</option><option value="ottoman">Ottoman +Military</option><option value="carthage">Carthage +Military</option><option value="viking">Viking +Movement</option><option value="siam">Siam +Culture</option><option value="poland">Poland +Defense</option><option value="ethiopia">Ethiopia +Defense</option><option value="brazil">Brazil +Food</option><option value="sumeria">Sumeria +Science</option></select>
 <label>Map</label><select id="menu-mapsize"><option value="30,20">Small</option><option value="40,30" selected>Medium</option><option value="55,40">Large</option><option value="130,95">Huge (10x)</option></select>
@@ -122,7 +122,7 @@ body{background:#1a1408;color:#e0e0e0;font-family:'Inter',system-ui,sans-serif;o
 <button class="top-btn" style="color:#e07050;border-color:rgba(224,112,80,.3)" onclick="quitGame()">Quit</button>
 <button class="top-btn" style="color:#888;border-color:rgba(136,136,136,.3);font-size:.7rem" onclick="logout()">Logout</button>
 </div>
-<span id="turn-info">Turn 1</span><button id="btn-end-turn" onclick="endTurn()">End Turn</button>
+<span id="turn-info">Turn 1</span><span id="game-version" style="font-size:.6rem;color:#556;margin-left:4px"></span><button id="btn-end-turn" onclick="endTurn()">End Turn</button>
 </div><div id="game-area"><div id="map-container"><canvas id="game-canvas"></canvas><div id="minimap-container"><canvas id="minimap" width="200" height="150"></canvas></div><div id="events-log"></div></div>
 <div id="right-panel"><div id="panel-content"><div class="panel-section"><h3>Welcome</h3><p style="color:#4060a0">Click a unit or city</p></div></div></div></div></div>
 <div id="city-name-dialog"><h3>Found New City</h3><input type="text" id="city-name-input" maxlength="20"><br><button class="btn btn-primary" onclick="confirmFoundCity()" style="width:auto;padding:.6rem 2rem">Found</button><button class="action-btn" onclick="closeCityDialog()" style="margin-left:.5rem">Cancel</button></div>
@@ -136,6 +136,7 @@ body{background:#1a1408;color:#e0e0e0;font-family:'Inter',system-ui,sans-serif;o
 <script>
 'use strict';
 let gameId,state,selectedUnit,selectedCity,pendingSettler,camX=0,camY=0,camZoom=1,isDragging=false,dragStartX=0,dragStartY=0,dragCamX=0,dragCamY=0,T=0;
+const UNIT_RANGES={archer:2,catapult:2,artillery:3,bomber:3};
 // roundRect polyfill for older browsers
 if(!CanvasRenderingContext2D.prototype.roundRect){CanvasRenderingContext2D.prototype.roundRect=function(x,y,w,h,r){r=Math.min(r||0,w/2,h/2);this.beginPath();this.moveTo(x+r,y);this.lineTo(x+w-r,y);this.arcTo(x+w,y,x+w,y+r,r);this.lineTo(x+w,y+h-r);this.arcTo(x+w,y+h,x+w-r,y+h,r);this.lineTo(x+r,y+h);this.arcTo(x,y+h,x,y+h-r,r);this.lineTo(x,y+r);this.arcTo(x,y,x+r,y,r);this.closePath();return this}}
 window.onerror=function(m,s,l){document.title='ERR: '+m;console.error(m,s,l)};
@@ -179,6 +180,14 @@ async function showMenu(){
     const ab=document.getElementById('btn-account');
     if(currentUser){ui.textContent=`Logged in as ${currentUser.username}`;if(ab)ab.style.display=''}
     else{ui.textContent='Playing as guest';if(ab)ab.style.display='none'}
+    // Load version info
+    try{const vi=await fetch('/api/version').then(r=>r.json());
+        const mv=document.getElementById('menu-version');
+        if(mv)mv.textContent=`v${vi.version} (${vi.build})`;
+        const gv=document.getElementById('game-version');
+        if(gv)gv.textContent=`v${vi.version}`;
+        window._gameVersion=vi;
+    }catch(e){}
     // Try auto-load last game
     if(await tryAutoLoad()){
         for(const k in tileCache)delete tileCache[k];
@@ -241,6 +250,19 @@ async function openAccount(){
     if(currentUser&&currentUser.username==='pikodrak'){
         h+=`<div class="panel-section"><h3>Spectator Mode (Admin)</h3>
         <button class="action-btn" onclick="openSpectator()">View Active Games</button></div>`}
+
+    // Version & Changelog
+    const vi=window._gameVersion;
+    if(vi){
+        h+=`<div class="panel-section"><h3>Version ${vi.version} (${vi.build})</h3>`;
+        if(vi.changelog){for(const s of vi.changelog){
+            h+=`<p style="color:#ffd700;font-size:.8rem;margin:.4rem 0 .2rem">${s.section}</p>`;
+            for(const it of (s.items||[]).slice(0,5)){
+                h+=`<div style="font-size:.72rem;color:#8090b0;padding-left:.8rem;margin:.1rem 0">${it}</div>`;
+            }
+            if(s.items?.length>5)h+=`<div style="font-size:.7rem;color:#556;padding-left:.8rem">...+${s.items.length-5} more</div>`;
+        }}
+        h+='</div>'}
 
     h+=`<button class="btn btn-secondary" onclick="logout()" style="color:#e74c3c;border-color:rgba(224,80,80,.3);margin-top:.5rem">Logout</button>`;
 
@@ -392,9 +414,9 @@ canvas.onmouseup=e=>{clearTimeout(holdTimer);holdTimer=null;if(!isHold&&Math.abs
 canvas.onwheel=e=>{e.preventDefault();const o=camZoom;camZoom=Math.max(.3,Math.min(3,camZoom*(e.deltaY>0?.9:1.1)));const r=canvas.getBoundingClientRect(),mx=e.clientX-r.left,my=e.clientY-r.top;camX=(camX+mx)*(camZoom/o)-mx;camY=(camY+my)*(camZoom/o)-my};canvas.oncontextmenu=e=>e.preventDefault();document.onkeydown=onKey;onresize=()=>{canvas.width=document.getElementById('map-container').clientWidth;canvas.height=document.getElementById('map-container').clientHeight}}
 function centerOn(){const u=state.units.find(u=>u.player===0)||state.cities.find(c=>c.player===0);if(!u)return;const[px,py]=h2p(u.q,u.r);camX=px-canvas.width/2;camY=py-canvas.height/2}
 function loop(t){T=t*.001;try{render()}catch(e){console.error('render error:',e);ctx.fillStyle='red';ctx.font='16px sans-serif';ctx.fillText('RENDER ERROR: '+e.message,10,50)}requestAnimationFrame(loop)}
-function onKey(e){if(e.key==='Escape'){selectedUnit=selectedCity=null;closeTechTree();closeDiplomacy();closeLoadDialog();closeCityDialog();closeProdModal();closeAccount();updatePanel()}if(e.key==='f'&&selectedUnit)fortifyUnit();if(e.key==='x'&&selectedUnit)exploreUnit();if(e.key==='a'&&selectedUnit){const uu=state.units.find(u=>u.id===selectedUnit);if(uu?.type==='worker')autoWorker();}if(e.key==='s'&&!e.ctrlKey&&selectedUnit)sentryUnit();if(e.key==='Delete'&&selectedUnit)disbandUnit();if(e.key==='Tab'&&selectedUnit){e.preventDefault();cycleNextUnit()}if(e.key==='b'&&selectedUnit){const u=state.units.find(u=>u.id===selectedUnit);if(u?.type==='settler')openCityDialog()}if(e.key===' '&&!isM()){e.preventDefault();spaceAction()}if((e.key==='Enter'||e.key==='e')&&!isM())endTurn();if(e.key==='s'&&e.ctrlKey){e.preventDefault();saveGame()}}
+function onKey(e){if(e.key==='Escape'){rangedMode=false;selectedUnit=selectedCity=null;closeTechTree();closeDiplomacy();closeLoadDialog();closeCityDialog();closeProdModal();closeAccount();updatePanel()}if(e.key==='r'&&selectedUnit){const ru=state.units.find(u=>u.id===selectedUnit);if(ru&&(ru.cat==='ranged'||ru.cat==='siege'||(ru.cat==='air'&&ru.type==='bomber')))startRangedAttack()}if(e.key==='f'&&selectedUnit)fortifyUnit();if(e.key==='x'&&selectedUnit)exploreUnit();if(e.key==='a'&&selectedUnit){const uu=state.units.find(u=>u.id===selectedUnit);if(uu?.type==='worker')autoWorker();}if(e.key==='s'&&!e.ctrlKey&&selectedUnit)sentryUnit();if(e.key==='Delete'&&selectedUnit)disbandUnit();if(e.key==='Tab'&&selectedUnit){e.preventDefault();cycleNextUnit()}if(e.key==='b'&&selectedUnit){const u=state.units.find(u=>u.id===selectedUnit);if(u?.type==='settler')openCityDialog()}if(e.key===' '&&!isM()){e.preventDefault();spaceAction()}if((e.key==='Enter'||e.key==='e')&&!isM())endTurn();if(e.key==='s'&&e.ctrlKey){e.preventDefault();saveGame()}}
 function isM(){return['tech-modal','diplo-modal','load-modal','prod-modal','account-modal'].some(id=>document.getElementById(id).classList.contains('active'))||document.getElementById('city-name-dialog').style.display==='block'}
-function handleClick(q,r,right){if(!state)return;if(selectedUnit&&!right){const u=state.units.find(u=>u.id===selectedUnit);if(u){const adj=hNb(u.q,u.r).some(([a,b])=>a===q&&b===r);if(adj&&u.moves_left>0){moveUnit(selectedUnit,q,r);return}}}const cu=state.units.find(u=>u.q===q&&u.r===r&&u.player===0);if(cu){selectedUnit=cu.id;selectedCity=null;updatePanel();return}const cc=state.cities.find(c=>c.q===q&&c.r===r&&c.player===0);if(cc){selectedCity=cc.id;selectedUnit=null;updatePanel();return}selectedUnit=selectedCity=null;updatePanel()}
+function handleClick(q,r,right){if(!state)return;if(rangedMode&&selectedUnit&&!right){doRangedAttack(q,r);return}if(selectedUnit&&!right){const u=state.units.find(u=>u.id===selectedUnit);if(u){const adj=hNb(u.q,u.r).some(([a,b])=>a===q&&b===r);if(adj&&u.moves_left>0){moveUnit(selectedUnit,q,r);return}}}const cu=state.units.find(u=>u.q===q&&u.r===r&&u.player===0);if(cu){selectedUnit=cu.id;selectedCity=null;updatePanel();return}const cc=state.cities.find(c=>c.q===q&&c.r===r&&c.player===0);if(cc){selectedCity=cc.id;selectedUnit=null;updatePanel();return}selectedUnit=selectedCity=null;updatePanel()}
 
 async function moveUnit(uid,q,r){const d=await api(`/api/game/${gameId}/move`,'POST',{unit_id:uid,q,r});if(d.needs_war){if(confirm(d.msg)){await api(`/api/game/${gameId}/diplomacy`,'POST',{target_player:d.war_target,action:'war'});const d2=await api(`/api/game/${gameId}/move`,'POST',{unit_id:uid,q,r});if(d2.ok){state=d2.state;if(d2.combat)showEvent(d2.msg);const u=state.units.find(u=>u.id===uid);if(!u||u.moves_left<=0){selectedUnit=null;selectNextUnit()}}else showEvent(d2.msg)}updateUI();updatePanel();drawMini();return}if(d.ok){state=d.state;if(d.combat)showEvent(d.msg);const u=state.units.find(u=>u.id===uid);if(!u||u.moves_left<=0){selectedUnit=null;selectNextUnit()}}else showEvent(d.msg);updateUI();updatePanel();drawMini()}
 async function endTurn(){
@@ -413,6 +435,9 @@ async function workerBuild(imp){if(!selectedUnit)return;const d=await api(`/api/
 async function disbandUnit(){if(!selectedUnit)return;const u=state.units.find(u=>u.id===selectedUnit);if(!u)return;if(!confirm(`Disband ${u.type}?`))return;const d=await api(`/api/game/${gameId}/disband/${selectedUnit}`,'POST');if(d.ok){state=d.state;showEvent(d.msg)}selectedUnit=null;selectNextUnit();updateUI();updatePanel()}
 async function autoWorker(){if(!selectedUnit)return;const d=await api(`/api/game/${gameId}/auto_worker/${selectedUnit}`,'POST');if(d.ok){state=d.state;showEvent(d.msg)}selectedUnit=null;selectNextUnit();updateUI();updatePanel()}
 async function sentryUnit(){if(!selectedUnit)return;const d=await api(`/api/game/${gameId}/sentry/${selectedUnit}`,'POST');if(d.ok){state=d.state;showEvent(d.msg)}selectedUnit=null;selectNextUnit();updateUI();updatePanel()}
+let rangedMode=false;
+function startRangedAttack(){if(!selectedUnit)return;rangedMode=true;showEvent('Select target for ranged attack (click hex within range, ESC to cancel)')}
+async function doRangedAttack(q,r){if(!selectedUnit||!rangedMode)return;rangedMode=false;const d=await api(`/api/game/${gameId}/ranged_attack`,'POST',{unit_id:selectedUnit,q,r});if(d.ok){state=d.state;showEvent(d.msg||'Ranged attack!');selectedUnit=null;selectNextUnit();updateUI();updatePanel()}else{showEvent(d.msg||'Cannot attack there')}}
 async function spaceAction(){if(selectedUnit){const d=await api(`/api/game/${gameId}/skip/${selectedUnit}`,'POST');if(d.ok)state=d.state;selectedUnit=null;if(!selectNextUnit()){endTurn()}}else if(!selectNextUnit()){endTurn()}}
 function selectNextUnit(){if(!state)return false;const u=state.units.find(u=>u.player===0&&u.moves_left>0&&!u.fortified&&!u.sentry&&!u.exploring&&!u.goto);if(u){selectedUnit=u.id;selectedCity=null;centerOnTile(u.q,u.r);updatePanel();return true}return false}
 function centerOnTile(q,r){const[px,py]=h2p(q,r);camX=px*camZoom-canvas.width/2;camY=py*camZoom-canvas.height/2}
@@ -449,6 +474,7 @@ ${activeCount>1?`<button class="action-btn" onclick="cycleNextUnit()" style="mar
 <div class="info-row"><span class="info-label">Attack</span><span class="info-value" style="color:#ff8060">${u.atk}</span></div>
 <div class="info-row"><span class="info-label">Defense</span><span class="info-value" style="color:#60a0ff">${u.def}</span></div>
 <div class="info-row"><span class="info-label">Moves</span><span class="info-value">${u.moves_left}/${u.mov}</span></div>
+${UNIT_RANGES[u.type]?`<div class="info-row"><span class="info-label">Range</span><span class="info-value" style="color:#ff6b35">${UNIT_RANGES[u.type]}</span></div>`:''}
 ${u.fortified?'<div style="color:#60a0ff;font-size:.83rem">Fortified +25%</div>':''}
 ${u.sentry?'<div style="color:#f1c40f;font-size:.83rem">Sentry</div>':''}
 ${u.exploring?'<div style="color:#2ecc71;font-size:.83rem">'+(u.type==='worker'?'Auto-building':'Exploring')+'</div>':''}
@@ -460,6 +486,7 @@ ${u.type==='worker'?`<button class="action-btn" onclick="autoWorker()">Auto (A)<
 ${u.cat!=='civilian'?'<button class="action-btn" onclick="fortifyUnit()">Fortify (F)</button>':''}
 ${u.cat!=='civilian'?'<button class="action-btn" onclick="sentryUnit()">Sentry (S)</button>':''}
 ${u.cat!=='civilian'?`<button class="action-btn" onclick="exploreUnit()">${u.exploring?'Stop':'Explore'} (X)</button>`:''}
+${(u.cat==='ranged'||u.cat==='siege'||(u.cat==='air'&&u.type==='bomber'))?`<button class="action-btn" style="color:#ff6b35" onclick="startRangedAttack()">Ranged (R)</button>`:''}
 <button class="action-btn" onclick="spaceAction()">Skip</button>
 <button class="action-btn" onclick="disbandUnit()" style="color:#e74c3c">Disband</button>
 </div></div>`}else if(selectedCity)showCityPanel();else{let h='';
@@ -493,7 +520,7 @@ for(const p of state.players.sort((a,b)=>b.score-a.score)){
 }
 if(!window._spectateMode){
     h+='<div class="panel-section"><h3>Controls</h3>';
-    for(const[k,v]of[['Move','Click adjacent'],['Goto','Hold click'],['City','B'],['Fortify','F'],['Sentry','S'],['Explore','X'],['Auto-Build','A'],['Skip/End','Space'],['Next Unit','Tab'],['End Turn','Enter'],['Disband','Del'],['Zoom','Scroll'],['Save','Ctrl+S']])
+    for(const[k,v]of[['Move','Click adjacent'],['Goto','Hold click'],['City','B'],['Fortify','F'],['Sentry','S'],['Explore','X'],['Ranged','R'],['Auto-Build','A'],['Skip/End','Space'],['Next Unit','Tab'],['End Turn','Enter'],['Disband','Del'],['Zoom','Scroll'],['Save','Ctrl+S']])
         h+=`<div class="info-row"><span class="info-label">${k}</span><span class="info-value">${v}</span></div>`;
     h+='</div>';
 }else{
@@ -501,7 +528,45 @@ if(!window._spectateMode){
     <button class="action-btn" onclick="window._spectateMode=false;clearInterval(window._spectateInterval);quitGame()">Stop Watching</button></div>`;
 }
 P.innerHTML=h}}
-async function showCityPanel(){const city=state.cities.find(c=>c.id===selectedCity);if(!city)return;const P=document.getElementById('panel-content');let y;try{y=await api(`/api/game/${gameId}/city/${city.id}/yields`)}catch(e){y={food:0,food_surplus:0,prod:0,gold:0,science:0,culture:0}}const gn=10+city.population*5;const br=city.border_radius||1;const cultureTh=[10,50,150,400];const nextTh=cultureTh.find(t=>t>(city.culture||0));const cultPct=nextTh?Math.min(100,((city.culture||0)/(nextTh)*100)|0):100;let h=`<div class="panel-section"><h3>${city.name}</h3><div class="info-row"><span class="info-label">Pop</span><span class="info-value">${city.population}</span></div><div class="info-row"><span class="info-label">HP</span><span class="info-value">${city.hp}/${city.max_hp}</span></div><div class="hp-bar-bg"><div class="hp-bar-fill" style="width:${city.hp/city.max_hp*100}%;background:${city.hp/city.max_hp>.5?'#2ecc71':'#e74c3c'}"></div></div><div class="info-row"><span class="info-label">Growth</span><span class="info-value">${city.food_store||0}/${gn} (${y.food_surplus>=0?'+':''}${y.food_surplus})</span></div><div class="progress-bar-bg"><div class="progress-bar-fill" style="width:${Math.min(100,(city.food_store||0)/gn*100)}%;background:linear-gradient(90deg,#2ecc71,#27ae60)"></div></div></div><div class="panel-section"><h3>Culture &amp; Borders</h3><div class="info-row"><span class="info-label">Culture</span><span class="info-value" style="color:#c490ff">${city.culture||0}${nextTh?' / '+nextTh:' (MAX)'}</span></div><div class="info-row"><span class="info-label">Border radius</span><span class="info-value">${br}${br<5?' \u2192 '+(br+1)+' at '+nextTh:' (max)'}</span></div><div class="info-row"><span class="info-label">Culture/turn</span><span class="info-value" style="color:#c490ff">+${y.culture}</span></div>${nextTh?`<div class="progress-bar-bg"><div class="progress-bar-fill" style="width:${cultPct}%;background:linear-gradient(90deg,#9060d0,#c490ff)"></div></div>`:''}</div><div class="panel-section"><h3>Yields</h3><div class="info-row"><span class="info-label">Food</span><span class="info-value" style="color:#2ecc71">${y.food}</span></div><div class="info-row"><span class="info-label">Prod</span><span class="info-value" style="color:#e67e22">${y.prod}</span></div><div class="info-row"><span class="info-label">Gold</span><span class="info-value" style="color:#ffd700">${y.gold}</span></div><div class="info-row"><span class="info-label">Science</span><span class="info-value" style="color:#60a0ff">${y.science}</span></div><div class="info-row"><span class="info-label">Culture</span><span class="info-value" style="color:#c490ff">${y.culture}</span></div></div>`;if(city.producing){const pct=Math.min(100,city.prod_progress/city.producing.cost*100|0),tl=Math.max(1,Math.ceil((city.producing.cost-city.prod_progress)/Math.max(1,y.prod)));h+=`<div class="panel-section"><h3>${city.producing.name.replace(/_/g,' ')}</h3><div class="info-row"><span class="info-label">Progress</span><span class="info-value">${city.prod_progress}/${city.producing.cost} (~${tl}t)</span></div><div class="progress-bar-bg"><div class="progress-bar-fill" style="width:${pct}%"></div></div></div>`}if(city.buildings?.length){h+='<div class="panel-section"><h3>Buildings</h3><div style="display:flex;flex-wrap:wrap;gap:4px">';for(const b of city.buildings)h+=`<span style="display:inline-flex;align-items:center;gap:3px;padding:.1rem .35rem;background:rgba(46,204,113,.08);border:1px solid rgba(46,204,113,.2);border-radius:4px;font-size:.72rem;color:#60c080"><img src="/static/img/buildings/${b}.png" width="16" height="16" onerror="this.style.display='none'">${b.replace(/_/g,' ')}</span>`;h+='</div></div>'}h+=`<div class="panel-section"><button class="btn btn-primary" style="width:100%;padding:.6rem;font-size:.9rem" onclick="openProdModal(${city.id})">Change Production</button></div>`;P.innerHTML=h}
+async function showCityPanel(){const city=state.cities.find(c=>c.id===selectedCity);if(!city)return;const P=document.getElementById('panel-content');let y;try{y=await api(`/api/game/${gameId}/city/${city.id}/yields`)}catch(e){y={food:0,food_surplus:0,prod:0,gold:0,science:0,culture:0,food_cost_pop:0,food_cost_units:0,happiness:0,turns_to_grow:-1,turns_to_starve:-1,growth_needed:15,food_stored:0}}
+const gn=y.growth_needed||10+city.population*5;const br=city.border_radius||1;const cultureTh=[10,50,150,400];const nextTh=cultureTh.find(t=>t>(city.culture||0));const cultPct=nextTh?Math.min(100,((city.culture||0)/(nextTh)*100)|0):100;
+// Warnings
+let warn='';
+if(y.food_surplus<0)warn+=`<div style="color:#e74c3c;font-size:.75rem;padding:.2rem .4rem;background:rgba(231,76,60,.1);border-radius:3px;margin-bottom:4px">\u26a0 Starvation! ${y.food_surplus}/turn. Shrinks in ~${y.turns_to_starve}t</div>`;
+if(y.happiness<0)warn+=`<div style="color:#e67e22;font-size:.75rem;padding:.2rem .4rem;background:rgba(230,126,34,.1);border-radius:3px;margin-bottom:4px">\u2639 Unhappy (${y.happiness}) — -25% prod/science</div>`;
+if(y.food_surplus>0&&y.turns_to_grow>0)warn+=`<div style="color:#2ecc71;font-size:.75rem;padding:.2rem .4rem;background:rgba(46,204,113,.1);border-radius:3px;margin-bottom:4px">\u2191 Grows in ~${y.turns_to_grow} turns</div>`;
+let h=`<div class="panel-section"><h3>${city.name}</h3>${warn}<div class="info-row"><span class="info-label">Pop</span><span class="info-value">${city.population}</span></div><div class="info-row"><span class="info-label">HP</span><span class="info-value">${city.hp}/${city.max_hp}</span></div><div class="hp-bar-bg"><div class="hp-bar-fill" style="width:${city.hp/city.max_hp*100}%;background:${city.hp/city.max_hp>.5?'#2ecc71':'#e74c3c'}"></div></div></div>`;
+// Food breakdown
+h+=`<div class="panel-section"><h3>Food</h3><div class="info-row"><span class="info-label">Produced</span><span class="info-value" style="color:#2ecc71">+${y.food}</span></div><div class="info-row"><span class="info-label">Pop eats</span><span class="info-value" style="color:#e74c3c">-${y.food_cost_pop||city.population*2}</span></div>`;
+if(y.food_cost_units>0)h+=`<div class="info-row"><span class="info-label">Army eats</span><span class="info-value" style="color:#e74c3c">-${y.food_cost_units} (${y.food_cost_units} units)</span></div>`;
+h+=`<div class="info-row"><span class="info-label">Surplus</span><span class="info-value" style="color:${y.food_surplus>=0?'#2ecc71':'#e74c3c'}">${y.food_surplus>=0?'+':''}${y.food_surplus}</span></div><div class="info-row"><span class="info-label">Stored</span><span class="info-value">${y.food_stored||city.food_store||0} / ${gn}</span></div><div class="progress-bar-bg"><div class="progress-bar-fill" style="width:${Math.min(100,(y.food_stored||city.food_store||0)/gn*100)}%;background:linear-gradient(90deg,#2ecc71,#27ae60)"></div></div></div>`;
+// Yields
+h+=`<div class="panel-section"><h3>Yields</h3><div class="info-row"><span class="info-label">Prod</span><span class="info-value" style="color:#e67e22">${y.prod}</span></div><div class="info-row"><span class="info-label">Gold</span><span class="info-value" style="color:#ffd700">${y.gold}</span></div><div class="info-row"><span class="info-label">Science</span><span class="info-value" style="color:#60a0ff">${y.science}</span></div><div class="info-row"><span class="info-label">Culture</span><span class="info-value" style="color:#c490ff">${y.culture}</span></div><div class="info-row"><span class="info-label">Happiness</span><span class="info-value" style="color:${y.happiness>=0?'#2ecc71':'#e74c3c'}">${y.happiness>=0?'\u263a':'\u2639'} ${y.happiness}</span></div></div>`;
+// Culture & borders
+h+=`<div class="panel-section"><h3>Borders</h3><div class="info-row"><span class="info-label">Culture</span><span class="info-value" style="color:#c490ff">${city.culture||0}${nextTh?' / '+nextTh:' (MAX)'}</span></div><div class="info-row"><span class="info-label">Radius</span><span class="info-value">${br}${br<5?' \u2192 '+(br+1):' (max)'}</span></div>${nextTh?`<div class="progress-bar-bg"><div class="progress-bar-fill" style="width:${cultPct}%;background:linear-gradient(90deg,#9060d0,#c490ff)"></div></div>`:''}</div>`;
+// Production
+if(city.producing){const pct=Math.min(100,city.prod_progress/city.producing.cost*100|0),tl=Math.max(1,Math.ceil((city.producing.cost-city.prod_progress)/Math.max(1,y.prod)));h+=`<div class="panel-section"><h3>${city.producing.name.replace(/_/g,' ')}</h3><div class="info-row"><span class="info-label">Progress</span><span class="info-value">${city.prod_progress}/${city.producing.cost} (~${tl}t)</span></div><div class="progress-bar-bg"><div class="progress-bar-fill" style="width:${pct}%"></div></div></div>`}
+// Buildings
+if(city.buildings?.length){h+='<div class="panel-section"><h3>Buildings</h3><div style="display:flex;flex-wrap:wrap;gap:4px">';for(const b of city.buildings)h+=`<span style="display:inline-flex;align-items:center;gap:3px;padding:.1rem .35rem;background:rgba(46,204,113,.08);border:1px solid rgba(46,204,113,.2);border-radius:4px;font-size:.72rem;color:#60c080"><img src="/static/img/buildings/${b}.png" width="16" height="16" onerror="this.style.display='none'">${b.replace(/_/g,' ')}</span>`;h+='</div></div>'}
+// Buttons
+h+=`<div class="panel-section"><button class="btn btn-primary" style="width:100%;padding:.6rem;font-size:.9rem" onclick="openProdModal(${city.id})">Change Production</button><button class="action-btn" style="width:100%;margin-top:.4rem;font-size:.8rem" onclick="openCityManage(${city.id})">Manage City</button></div>`;P.innerHTML=h}
+async function openCityManage(cid){
+const data=await api(`/api/game/${gameId}/city/${cid}/manage`);if(!data)return;
+const m=document.getElementById('prod-modal');const t=document.getElementById('prod-modal-title');const c=document.getElementById('prod-modal-content');
+t.textContent=`${data.city.name} — City Management`;
+let h='<div style="max-height:70vh;overflow-y:auto">';
+// Warnings
+if(data.warnings?.length){h+='<div style="margin-bottom:.8rem">';for(const w of data.warnings){const col=w.type==='starvation'?'#e74c3c':w.type==='unhappy'?'#e67e22':w.type==='growth'?'#2ecc71':'#888';h+=`<div style="color:${col};font-size:.8rem;padding:.3rem .5rem;background:rgba(255,255,255,.05);border-radius:4px;margin-bottom:3px">${w.msg}</div>`}h+='</div>'}
+// Worked tiles
+if(data.yields?.tiles){h+='<h4 style="color:#ffd700;margin:.5rem 0 .3rem">Worked Tiles</h4><table style="width:100%;font-size:.75rem;border-collapse:collapse">';
+h+='<tr style="color:#888"><th>Tile</th><th>Terrain</th><th style="color:#2ecc71">F</th><th style="color:#e67e22">P</th><th style="color:#ffd700">G</th><th>Imp</th><th>Status</th></tr>';
+for(const tile of data.yields.tiles){const st=tile.worked?'<span style="color:#2ecc71">\u2713</span>':'<span style="color:#555">-</span>';const bg=tile.worked?'rgba(46,204,113,.06)':'transparent';h+=`<tr style="background:${bg}"><td>(${tile.q},${tile.r})</td><td>${tile.terrain}</td><td style="color:#2ecc71">${tile.food}</td><td style="color:#e67e22">${tile.prod}</td><td style="color:#ffd700">${tile.gold}</td><td>${tile.improvement||''}</td><td>${st}</td></tr>`}
+h+='</table><p style="color:#666;font-size:.7rem;margin-top:.3rem">Working ${data.yields.max_work} of ${data.yields.tiles.length} tiles (pop ${data.city.population} + 1 center)</p>'}
+// Home units
+if(data.home_units?.length){h+=`<h4 style="color:#ffd700;margin:.8rem 0 .3rem">Home Units (${data.home_units.length} — eating ${data.yields.food_cost_units} food)</h4><div style="display:flex;flex-wrap:wrap;gap:4px">`;
+for(const u of data.home_units)h+=`<span style="display:inline-flex;align-items:center;gap:2px;padding:.1rem .3rem;background:rgba(255,255,255,.05);border-radius:3px;font-size:.7rem"><img src="/static/img/units/${u.type}.png" width="14" height="14" onerror="this.style.display='none'">${u.type} ${u.hp}hp</span>`;
+h+='</div>'}
+h+='</div>';c.innerHTML=h;m.classList.add('active')}
 async function openProdModal(cid){const city=state.cities.find(c=>c.id===cid);if(!city)return;document.getElementById('prod-modal-title').textContent=`${city.name} — Build`;const pr=await api(`/api/game/${gameId}/city/${cid}/productions`);let y;try{y=await api(`/api/game/${gameId}/city/${cid}/yields`)}catch(e){y={prod:1}}
 let ph='<div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem"><div><p style="color:#ff8060;font-size:.85rem;font-weight:700;margin-bottom:.4rem">UNITS</p>';
 for(const u of pr.units){const tl=Math.max(1,Math.ceil(u.cost/Math.max(1,y.prod)));ph+=`<div class="prod-item" onclick="setProductionModal(${cid},'unit','${u.name}')" style="display:flex;align-items:center;gap:8px;padding:.6rem"><img src="/static/img/units/${u.name}.png" width="36" height="36" onerror="this.style.display='none'" style="flex-shrink:0"><div><div class="prod-name" style="font-size:.9rem">${u.name.replace(/_/g,' ')}</div><div class="prod-stats" style="font-size:.8rem">A${u.atk} D${u.def} M${u.mov} | ${u.cost}p (~${tl}t)</div></div></div>`}
@@ -580,12 +645,13 @@ function render(){
                     d:Math.hypot(sx+S*Math.cos(a)-mx,sy+S*Math.sin(a)-my)});
             }
             verts.sort((a,b)=>a.d-b.d);
-            ctx.save();ctx.globalAlpha=.7;ctx.strokeStyle=pc;ctx.lineWidth=2.5;ctx.lineCap='round';
+            ctx.save();ctx.globalAlpha=.85;ctx.strokeStyle=pc;ctx.lineWidth=4.5;ctx.lineCap='round';
             ctx.beginPath();ctx.moveTo(verts[0].x,verts[0].y);ctx.lineTo(verts[1].x,verts[1].y);
             ctx.stroke();ctx.restore();}}
 
     // SELECTION
-    if(selectedUnit){const u=state.units.find(u=>u.id===selectedUnit);if(u){const[px,py]=h2p(u.q,u.r),sx=px-ox,sy=py-oy;ctx.save();ctx.globalAlpha=.1+Math.sin(T*5)*.07;hexP(ctx,sx,sy,S+3);ctx.strokeStyle='#fff';ctx.lineWidth=3;ctx.stroke();hexP(ctx,sx,sy,S);ctx.fillStyle='#fff';ctx.fill();ctx.restore();if(u.moves_left>0)for(const[nq,nr]of hNb(u.q,u.r)){const k=`${nq},${nr}`;if(!tiles[k])continue;const t=tiles[k];if((t==='water'||t==='coast')&&u.cat!=='naval'&&u.cat!=='air')continue;if(t==='mountain'&&u.cat!=='air')continue;const[np,ny]=h2p(nq,nr),nx=np-ox,ns=ny-oy;const en=state.units.some(x=>x.q===nq&&x.r===nr&&x.player!==0)||state.cities.some(c=>c.q===nq&&c.r===nr&&c.player!==0);ctx.save();ctx.globalAlpha=.15+Math.sin(T*3)*.05;hexP(ctx,nx,ns,S);ctx.fillStyle=en?'#ff3030':'#30ff70';ctx.fill();ctx.globalAlpha=.5;hexP(ctx,nx,ns,S);ctx.strokeStyle=en?'#ff3030':'#30ff70';ctx.lineWidth=2;ctx.setLineDash([5,4]);ctx.stroke();ctx.setLineDash([]);ctx.restore()}}}
+    if(selectedUnit){const u=state.units.find(u=>u.id===selectedUnit);if(u){const[px,py]=h2p(u.q,u.r),sx=px-ox,sy=py-oy;ctx.save();ctx.globalAlpha=.1+Math.sin(T*5)*.07;hexP(ctx,sx,sy,S+3);ctx.strokeStyle='#fff';ctx.lineWidth=3;ctx.stroke();hexP(ctx,sx,sy,S);ctx.fillStyle='#fff';ctx.fill();ctx.restore();if(u.moves_left>0)for(const[nq,nr]of hNb(u.q,u.r)){const k=`${nq},${nr}`;if(!tiles[k])continue;const t=tiles[k];if((t==='water'||t==='coast')&&u.cat!=='naval'&&u.cat!=='air')continue;if(t==='mountain'&&u.cat!=='air')continue;const[np,ny]=h2p(nq,nr),nx=np-ox,ns=ny-oy;const en=state.units.some(x=>x.q===nq&&x.r===nr&&x.player!==0)||state.cities.some(c=>c.q===nq&&c.r===nr&&c.player!==0);ctx.save();ctx.globalAlpha=.15+Math.sin(T*3)*.05;hexP(ctx,nx,ns,S);ctx.fillStyle=en?'#ff3030':'#30ff70';ctx.fill();ctx.globalAlpha=.5;hexP(ctx,nx,ns,S);ctx.strokeStyle=en?'#ff3030':'#30ff70';ctx.lineWidth=2;ctx.setLineDash([5,4]);ctx.stroke();ctx.setLineDash([]);ctx.restore()}
+    if(rangedMode){const ur=u.range||UNIT_RANGES[u.type]||0;if(ur>0)for(let dq=-ur;dq<=ur;dq++)for(let dr=-ur;dr<=ur;dr++){if(hD(0,0,dq,dr)>ur||hD(0,0,dq,dr)<1)continue;const tq=u.q+dq,tr=u.r+dr;const[tp,ty]=h2p(tq,tr),tx=tp-ox,ts=ty-oy;const hasEnemy=state.units.some(x=>x.q===tq&&x.r===tr&&x.player!==0)||state.cities.some(c=>c.q===tq&&c.r===tr&&c.player!==0);ctx.save();ctx.globalAlpha=hasEnemy?.3+Math.sin(T*4)*.1:.08;hexP(ctx,tx,ts,S);ctx.fillStyle=hasEnemy?'#ff6b35':'#ff6b35';ctx.fill();if(hasEnemy){ctx.globalAlpha=.7;hexP(ctx,tx,ts,S);ctx.strokeStyle='#ff6b35';ctx.lineWidth=2;ctx.stroke()}ctx.restore()}}}}
     if(selectedCity){const c=state.cities.find(c=>c.id===selectedCity);if(c){const br=c.border_radius||1;for(let dq=-br;dq<=br;dq++)for(let dr=-br;dr<=br;dr++){if(hD(0,0,dq,dr)>br)continue;const[px,py]=h2p(c.q+dq,c.r+dr);ctx.save();ctx.globalAlpha=.06+Math.sin(T*2+dq)*.03;hexP(ctx,px-ox,py-oy,S);ctx.fillStyle='#ffd700';ctx.fill();ctx.restore()}}}
 
     // CITIES
@@ -816,7 +882,7 @@ function drawUnit(sx,sy,unit,col,sel){
     ctx.strokeStyle=dk(col,40);ctx.lineWidth=.8;ctx.stroke();ctx.shadowBlur=0;
     // Draw unit — PNG sprite with player color ring
     const uImg=unitImgs[unit.type];
-    const us=S*.85;  // bigger units
+    const us=S*.95;  // bigger units
     if(uImg&&uImg.complete&&uImg.naturalWidth>0){
         ctx.drawImage(uImg,sx-us/2,uy-us/2,us,us);
     }else{

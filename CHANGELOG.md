@@ -1,8 +1,192 @@
 # CivGame AI Development Changelog
 
+## Session: 2026-04-10c | v0.9.0 — Unit food, city management, versioning, simulation fixes
+
+### Unit Food System (NEW)
+- Every military unit has a **home city** (city where it was produced)
+- **Scaling food cost**: first 2 units FREE, units 3-4 cost 1 food each, units 5+ cost 2 food each
+- Example: city with 6 military units pays 0+0+1+1+2+2 = 6 food/turn
+- This naturally limits army size — too many units = city starves
+- **AI redistributes home_city** each turn to balance food load across cities (no more Roma pop=1)
+- Civilians (settler, worker, spy, caravan) don't eat food
+- City panel shows food breakdown: produced - pop eats - army eats = surplus
+
+### City Capture Rework
+- Enemy units inside captured city borders are **pushed out** to nearest tile outside borders (BFS)
+- If no valid exit tile exists (surrounded), unit is disbanded
+- Units do NOT desert or switch sides
+- Orphaned units (home_city was captured) reassign to nearest remaining city
+
+### Worker AI Rework
+- Workers prioritize **farms/improvements first** when any city has low food surplus
+- Only switch to **road building** when food surplus is healthy (>1)
+- Road building uses **A* pathfinding** to find optimal path to capital
+- Roads to capital get priority boost (d-5) to ensure trade route connection
+- Result: 77 farms built, cities connected to capital for trade income
+
+### City Management Screen (NEW)
+- New "Manage City" button in city panel
+- Shows **all workable tiles** with terrain, food/prod/gold, improvements, worked status
+- **Food breakdown**: production vs consumption (population + army)
+- **Growth timer**: "Grows in ~X turns" or "Shrinks in ~X turns"
+- **Happiness indicator**: smiley/frown with value
+- **Warnings**: starvation (red), unhappy (orange), growth (green), no road connection
+- **Home units list**: which military units are eating from this city
+- API: `GET /api/game/{id}/city/{cid}/manage` for AI bots
+
+### AI Intelligence Fixes
+- **Settler pre-check**: AI verifies real settle spot exists before producing settler (no more blind production)
+- **Settler wander reduced**: avg 5.2t→4.0t, max 33t→8t
+- **Territory entry dedup**: "entered territory — WAR!" logged only once (not per unit)
+- **Spy cap**: reduced to 1 per player (was 2)
+- **Culturalist expansion**: culturalists get +2 max cities to support culture victory (needs more cities)
+- **Culturalist settler bonus**: +10 settler score for culture strategy
+
+### Simulation & Balance Fixes
+- **Scaling food replaces hard cap**: army size limited by food, not arbitrary cap
+- **T1 false combat fix**: settler consumption no longer counted as "destroyed in combat"
+- **Gang-up rebalanced**: ratio 1.2→1.5, min score 500→1000, chance 25%→10%
+- **Settler timeout**: after 10 turns, force-settle at current location
+- **Results**: max 5.0 units/city (was 21.5), avg settler wander 3.2t (was 22t), 133 growth events
+
+### Versioning System (NEW)
+- Game version v0.9.0 displayed in menu and game top bar
+- `GET /api/version` returns version, build date, and latest changelog
+- My Account panel shows version + changelog sections
+- Changelog parsed from CHANGELOG.md automatically
+
+### DALL-E Graphics (via OpenAI API)
+- 21 unit sprites generated via DALL-E 3 (detailed pixel art style)
+- 29 building icons generated via DALL-E 3 (isometric style)
+- Terrain kept as PIL-generated (DALL-E can't make seamless flat textures for hex tiles)
+- PIL units enhanced with 3px dark outline for map readability
+- Unit size on hex increased from 85% to 95%
+
+## Session: 2026-04-10b | Ranged combat, game length, border visibility
+
+### Ranged Combat Mechanic (NEW)
+- **Ranged units** (archer, catapult, artillery, bomber) can now attack from distance without moving
+- Archer/catapult: range 2, Artillery/bomber: range 3
+- Attacker stays on their hex, takes only 25% return fire
+- Ranged attacks **cannot capture cities** — city HP floors at 1, melee unit needed for final capture
+- New API endpoint: `POST /api/game/{id}/ranged_attack {unit_id, q, r}`
+- AI uses ranged attacks: fires at enemies in range before closing distance
+- Frontend: Ranged button (R key), orange range overlay when targeting, range stat in unit panel
+- Keyboard shortcuts help updated
+
+### Rules Updated for AI Bot Accuracy
+- Diplomacy: clarified API action names (war/peace, NOT declare_war/make_peace)
+- Fortify: clarified it only uses current turn moves, not permanent block
+- Explore: clarified civilians CANNOT explore
+- Settler: added note about manual movement requirement
+- Gold/bankruptcy: clarified negative gold IS a problem with maintenance
+- Walls defense: documented exact values (Palace=10, Walls=50, Castle=80, Bunker=60)
+- City capture: clarified melee required, ranged cannot capture
+
+### Game Length & Visuals
+- Added `max_turns = 300` turn limit (score victory at limit)
+- Increased space victory threshold: 5000 → 12000 production
+- Increased culture victory threshold: 8000 → 20000 culture
+- Territory border lines: thicker (2.5 → 4.5px) and more opaque (.7 → .85) for better visibility
+- Score calculation refactored to `_calc_score()` method
+
+## Session: 2026-04-10 | 14 new buildings, 3 new techs, 15+ simulations
+
+### Simulation-Driven Balance (this session)
+
+**New Buildings (14 total)**
+- barracks (bronze_working): +10 defense, units get +10 XP
+- harbor (sailing): +1 food, +3 gold (coastal cities)
+- colosseum (construction): +1 culture, +3 happiness
+- forge (iron_working): +2 production
+- stable (horseback): +1 prod, +1 gold
+- workshop (engineering): +3 production
+- school (education): +2 science, +1 happiness
+- museum (aesthetics): +5 culture, +2 happiness
+- theater (aesthetics): +3 culture, +2 happiness
+- military_academy (military_science): +20 defense, units get +15 XP (stacks with barracks)
+- hospital (industrialization): +4 food, +1 happiness
+- airport (flight): +2 gold, +10 defense
+- stadium (electricity): +2 culture, +4 happiness (counters factory/power_plant unhappiness)
+- bunker (nuclear_fission): +60 defense
+
+**New Technologies (3)**
+- aesthetics (theology + printing_press): unlocks museum, theater
+- military_science (gunpowder + education): unlocks military_academy
+- Updated existing techs: bronze_working→barracks, sailing→harbor, construction→colosseum, iron_working→forge, horseback→stable, engineering→workshop, education→school, industrialization→hospital, electricity→stadium, flight→airport, nuclear_fission→bunker
+
+**Trade Routes & Economy**
+- Cities connected to capital by road earn +1 gold per 2 population (min 1)
+- BFS road connection check from city to palace
+- Bankruptcy cascade: disband military → sell cheapest building (except palace)
+- Military economy guard: AI won't build military when maintenance > income
+- Spy cap reduced to max 2 per player
+
+**Diplomacy Balance**
+- Alliance join war: loyalty-based chance (50-90%) instead of automatic
+- Max 2 alliances per player (prevents web of obligations)
+- Alliance formation rate halved (loyalty * 0.1)
+- Result: war declarations dropped from 55 → 5-24 per game
+
+**AI Improvements**
+- AI building scoring for all 14 new buildings with strategy-aware bonuses
+- Captured cities immediately get production assignment
+- Tech priorities updated for all strategies (aesthetics, military_science)
+- Duplicate tech prevention (spy steal + research completion race condition)
+- Config loading fixed for simulation mode
+
+**Simulation Logging**
+- Map terrain counts at game start
+- Player start positions, traits, strategies
+- Per-city: building list, trade connection status, HP
+- Diplomacy state per turn
+- Victory type detection (space/culture/domination/score)
+- Final map state: improvement/road positions, per-player building totals
+
+**Victory Thresholds (from config)**
+- Space: 5000 production (was defaulting to 2000)
+- Culture: 8000 (was defaulting to 3000)
+- Domination: 75% of cities
+
+**Happiness System**
+- Cities have happiness score: building bonuses minus population penalty (1 per pop above 4)
+- Unhappy cities (happiness < 0): -25% production, -25% science, food surplus capped at 1
+- Key happiness buildings: colosseum(+3), stadium(+4), temple(+2), theater(+2), museum(+2)
+- Industrial buildings cause unhappiness: factory(-1), power_plant(-1), nuclear_plant(-2)
+- Strategy: build happiness buildings before growing cities past population 4
+
+**Simulation Results (20+ sims)**
+- 25/28 building types consistently built in larger games
+- All 4 victory types active: space, culture (close), domination (early rush), score
+- Disbands: 1-10 per game (down from 47)
+- Wars: 3-24 per game (down from 55)
+- Correct historical city names: Praha, Seoul, Mecca, Roma, Aachen, Karakorum, etc.
+- 29 buildings, 31 technologies, 21 unit types all active
+- Happiness system prevents infinite growth without investment
+
 ## Session: 2026-04-09 | 400+ simulations total
 
 ### Latest Changes
+
+**Buildings & Tech Expansion + Economy Overhaul**
+- 12 new buildings: barracks, harbor, colosseum, forge, stable, workshop, school, museum, theater, military_academy, airport, bunker
+- 3 new technologies: aesthetics (museum/theater), military_science (military_academy), updated prereqs
+- Barracks/military_academy XP bonus: military units produced in cities with barracks get +10 XP, military_academy adds +15 XP
+- AI building scoring: all new buildings properly scored with strategy bonuses
+- AI tech priorities: updated for all strategies to include new techs (aesthetics, military_science)
+- Trade route bonus: cities connected to capital by road earn +1 gold per 2 population (min 1)
+- BFS connection check: traces road/railroad path from city to palace city
+- Building selling: when bankrupt with no military units, cheapest building sold for half cost (except palace)
+- Bankruptcy cascade: disband units → sell buildings, proportional to debt depth
+- Military economy check: AI won't build military when maintenance exceeds income
+- Alliance war join is now loyalty-based (50-90% chance) instead of automatic
+- Max 2 alliances per player to prevent cascade wars
+- Alliance formation rate halved (loyalty * 0.1 instead of 0.2)
+- Config loading fixed: simulations now load game_config.ini properly
+- Victory threshold defaults aligned: space=5000 prod, culture=8000, domination=75%
+- Enhanced simulation logging: map data, terrain counts, trade connections, diplomacy state, building lists, per-city details
+- Settler founding fix: pre-check unified with found_city checks, log only after success
+- /api/rules: full tech tree, all civilizations, barracks system, complete building/unit data
 
 **Advanced Diplomacy Complete**
 - War mobilization: during war ALL military units march toward nearest enemy city
