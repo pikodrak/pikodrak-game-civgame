@@ -37,10 +37,7 @@ class SerializationMixin:
                     gpath = self._compute_path(u["q"], u["r"], u["goto"]["q"], u["goto"]["r"], u["player"])
                     ud["goto_path"] = gpath
                     if gpath:
-                        import math
-                        total = sum(self._hex_move_cost(p[0], p[1]) for p in gpath)
-                        mov = max(1, u.get("mov", 1))
-                        ud["goto_turns"] = max(1, math.ceil(total / mov))
+                        ud["goto_turns"] = self._path_turns(gpath, u.get("mov", 1), u.get("moves_left"))
                 units_data.append(ud)
 
         # Cities

@@ -1,5 +1,20 @@
 # CivGame AI Development Changelog
 
+## Session: 2026-04-20 | Accurate goto turn count (free-first-move rule)
+
+**Bug:** The `goto_turns` display used `ceil(total_cost / mov)`, which ignored
+the "free first move" rule in `move_unit` — a unit at full MP can enter any
+passable tile even if its cost exceeds MP. Catapults (mov=1) crossing forests
+(cost=2) were shown as taking 2 turns per hex when in reality each forest
+costs just 1 turn.
+
+**Fix:** New `_path_turns(path, mov, moves_left)` helper on MovementMixin
+simulates turn-by-turn traversal honouring the free-first-move rule. Both
+`to_dict` (confirmed goto) and `/api/game/{id}/path_preview` now use it.
+
+**Verified** against actual movement simulation for warrior/catapult/horseman
+on grass/forest/hills — all cases match the real in-game turn count.
+
 ## Session: 2026-04-20 | Enemy borders visible through fog of war
 
 **Bug:** Enemy territory drew no border if the owning city was hidden by fog

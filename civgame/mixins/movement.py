@@ -112,6 +112,39 @@ class MovementMixin:
             cost = max(0.25, cost * (0.25 if road["type"] == "railroad" else 0.5))
         return cost
 
+    def _path_turns(self, path, mov, moves_left=None):
+        """Simulate turn-by-turn traversal of path to count turns needed.
+
+        Honors the "free first move" rule: at the start of a turn (moves_left
+        equals max mov), the unit may enter any passable tile regardless of
+        cost. Otherwise requires moves_left >= tile cost.
+        """
+        if not path or mov <= 0:
+            return 0
+        mov = float(mov)
+        # Start this turn with current moves_left (or full if not given).
+        # If moves_left <= 0 we'd have to wait a turn first.
+        if moves_left is None or moves_left <= 0:
+            turns = 1 if moves_left is None or moves_left <= 0 else 0
+            if moves_left is None:
+                turns = 0  # begin simulation counting from turn 1
+            remaining = mov
+            turns = 1
+        else:
+            remaining = float(moves_left)
+            turns = 1
+        for step in path:
+            cost = self._hex_move_cost(step[0], step[1])
+            if remaining >= cost or remaining == mov:
+                # Allowed: full-MP units can enter any tile (free first move)
+                remaining = max(0.0, remaining - cost)
+            else:
+                # Start new turn
+                turns += 1
+                remaining = mov
+                remaining = max(0.0, remaining - cost)
+        return turns
+
     def _compute_path(self, sq, sr, tq, tr, pid):
         """A* full path as list of [q,r] for rendering goto lines."""
         import heapq

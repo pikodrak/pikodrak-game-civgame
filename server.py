@@ -1076,9 +1076,7 @@ def path_preview(game_id: int, req: GotoRequest):
         if (sim["q"], sim["r"]) in seen:
             break
         seen.add((sim["q"], sim["r"]))
-    import math
-    mov = max(1, unit.get("mov", 1))
-    turns = max(1, math.ceil(total_cost / mov)) if path else 0
+    turns = game._path_turns(path, unit.get("mov", 1), unit.get("moves_left"))
     return {"ok": True, "path": path, "dist": len(path), "cost": total_cost, "turns": turns}
 
 
