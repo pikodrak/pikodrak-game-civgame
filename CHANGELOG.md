@@ -1,5 +1,26 @@
 # CivGame AI Development Changelog
 
+## Session: 2026-04-20 | AI balance tuning from simulation data
+
+Ran 5 simulations (5 civs, 25×18, 150 turns, seeds 1-5) and identified
+issues. Averages before fixes: 179 combat kills, 5 direct wars, 11 gang-ups,
+9.4 settles, 2/5 games ended on turn limit (stalemate), Czech/Japan survived
+with 0 military while threatened (death-spiral).
+
+**Fixes:**
+- **Emergency military**: `_ai_choose_production` now scores best military at
+  priority 250 when `len(my_military)==0 AND (at_war OR nearby_enemies>0)`.
+  Overrides every other candidate so defenseless civs auto-rescue.
+- **War bankruptcy**: `turn.py` bankruptcy threshold is −150 while at war
+  (was −50 unconditionally). Stops the "disband army mid-war → lose"
+  death spiral; peacetime behaviour unchanged.
+- **Late-game expansion**: `max_cities += 2` for all strategies once
+  `game_phase > 0.4`. Non-expansive civs plateaued at 2 cities; now they can
+  continue settling mid-game.
+- **Gang-up cooling** (game_config.ini): `gang_up_score_ratio` 1.5 → 1.8,
+  `gang_up_chance` 0.10 → 0.05. Gang-ups were 2× more common than direct
+  wars — now require a clearer leader and fire less often.
+
 ## Session: 2026-04-20 | Accurate goto turn count (free-first-move rule)
 
 **Bug:** The `goto_turns` display used `ceil(total_cost / mov)`, which ignored

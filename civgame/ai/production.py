@@ -21,7 +21,16 @@ class AIProductionMixin:
         strategy = player.get("strategy", "balanced")
         max_cities = base_max + 3 if trait == "expansive" else base_max + 2 if strategy == "culturalist" else base_max
         game_phase = min(1.0, self.turn / 120)  # 0=early, 1=late
+        # Fix 4: Late-game expansion boost for all strategies
+        if game_phase > 0.4:
+            max_cities += 2
         candidates = []  # (score, type, name, reason)
+
+        # Fix 1: Emergency military — defenseless civ under threat. Force production.
+        if len(my_military) == 0 and my_cities and (at_war or nearby_enemies > 0):
+            best_mil_emergency = self._ai_best_military(player)
+            candidates.append((250, "unit", best_mil_emergency,
+                              f"EMERGENCY: no military while threatened (at_war={at_war}, enemies_near={nearby_enemies})"))
 
         # --- UNITS ---
 

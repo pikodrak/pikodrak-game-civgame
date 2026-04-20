@@ -245,8 +245,15 @@ class TurnMixin:
         total_gold -= maintenance
         player["gold"] += total_gold
 
-        # Bankruptcy — disband units aggressively when gold negative
-        if player["gold"] < GAME_CONFIG.get("bankruptcy_threshold", -50) and not player["is_human"]:
+        # Bankruptcy — disband units aggressively when gold negative.
+        # Fix 2: During war, keep the army together unless deeply broke (disbanding
+        # mid-war is a death spiral). Peacetime uses the normal threshold.
+        at_war_now = any(player["diplomacy"].get(op["id"]) == "war"
+                         for op in self.players if op["id"] != pid and op["alive"])
+        threshold = GAME_CONFIG.get("bankruptcy_threshold", -50)
+        if at_war_now:
+            threshold = min(threshold, -150)
+        if player["gold"] < threshold and not player["is_human"]:
             mil_units = [u for u in self.units.values()
                          if u["player"] == pid and u["cat"] != "civilian"]
             # Disband multiple units if deeply in debt
