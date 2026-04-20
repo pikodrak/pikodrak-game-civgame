@@ -14,11 +14,18 @@ class SerializationMixin:
         # Explored tiles (terrain visible but no units/cities info)
         explored = self.explored.get(for_player, set()) if for_player is not None else None
 
-        # Tiles: show currently visible + previously explored
+        # Tiles: show currently visible + previously explored.
+        # Also expose tile ownership so the frontend can draw enemy borders
+        # even when the owning city itself is hidden by fog of war.
         tiles_data = {}
+        tile_owners = {}
         for (q, r), t in self.tiles.items():
             if visible is None or (q, r) in visible or (explored and (q, r) in explored):
-                tiles_data[f"{q},{r}"] = t.value
+                key = f"{q},{r}"
+                tiles_data[key] = t.value
+                owner = self.get_tile_owner(q, r)
+                if owner is not None:
+                    tile_owners[key] = owner
 
         # Units: only show in currently visible tiles
         units_data = []
@@ -84,6 +91,7 @@ class SerializationMixin:
             "game_over": self.game_over,
             "winner": self.winner,
             "tiles": tiles_data,
+            "tile_owners": tile_owners,
             "visible": visible_keys,
             "improvements": {f"{q},{r}": v for (q, r), v in self.improvements.items()
                              if visible is None or (q, r) in visible or (explored and (q, r) in explored)},

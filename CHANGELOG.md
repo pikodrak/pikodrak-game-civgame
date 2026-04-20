@@ -1,5 +1,20 @@
 # CivGame AI Development Changelog
 
+## Session: 2026-04-20 | Enemy borders visible through fog of war
+
+**Bug:** Enemy territory drew no border if the owning city was hidden by fog
+of war. Frontend derived territory from `state.cities` (radius-around-city),
+but enemy cities in fog aren't sent to the client — so the territory
+surrounding them was invisible, yet moving into it still triggered a war
+declaration. Player could walk into "neutral-looking" tiles and accidentally
+start wars.
+
+**Fix:** Backend `to_dict()` now sends `tile_owners` — a `{"q,r": player_id}`
+map for every tile the player has seen (visible or explored), computed via
+`get_tile_owner`. Frontend uses this as the authoritative source for
+territory rendering (colored fill + outer border), falling back to
+city-radius derivation only if the server didn't send it.
+
 ## Session: 2026-04-20 | Package refactor: civgame/
 
 Monolithic `game_engine.py` (4127 lines, one `GameState` class with ~60 methods)

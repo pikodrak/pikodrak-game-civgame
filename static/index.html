@@ -1123,12 +1123,22 @@ function render(){
         const nb=hNb(q,r);for(const[nq,nr]of nb){if(state.roads[`${nq},${nr}`]){const[np2,ny2]=h2p(nq,nr);const nsx=np2-ox,nsy=ny2-oy;ctx.save();ctx.globalAlpha=.5;ctx.strokeStyle=rd.type==='railroad'?'#555':'#8B7355';ctx.lineWidth=rd.type==='railroad'?2.5:2;ctx.beginPath();ctx.moveTo(sx,sy);ctx.lineTo((sx+nsx)/2,(sy+nsy)/2);ctx.stroke();if(rd.type==='railroad'){ctx.strokeStyle='#777';ctx.lineWidth=1;ctx.setLineDash([3,3]);ctx.stroke();ctx.setLineDash([])}ctx.restore()}}}}
 
     // TERRITORY — fill + dashed border on outermost hexes
-    // First pass: collect all territory tiles per player
+    // Prefer authoritative tile_owners map from backend (includes tiles owned by
+    // enemy cities that are hidden by fog of war). Fall back to deriving from
+    // visible cities if server didn't send tile_owners.
     const terrMap={};
-    for(const city of state.cities){const pid=city.player;const pc=state.players.find(p=>p.id===pid)?.color||'#888';const br=city.border_radius||1;
-        for(let dq=-br;dq<=br;dq++)for(let dr=-br;dr<=br;dr++){const tq=city.q+dq,tr=city.r+dr;
-            if(hD(city.q,city.r,tq,tr)>br||!tiles[`${tq},${tr}`])continue;
-            const k=`${tq},${tr}`;if(!terrMap[k])terrMap[k]={player:pid,color:pc}}}
+    if(state.tile_owners){
+        for(const k in state.tile_owners){
+            const pid=state.tile_owners[k];
+            const pc=state.players.find(p=>p.id===pid)?.color||'#888';
+            terrMap[k]={player:pid,color:pc};
+        }
+    } else {
+        for(const city of state.cities){const pid=city.player;const pc=state.players.find(p=>p.id===pid)?.color||'#888';const br=city.border_radius||1;
+            for(let dq=-br;dq<=br;dq++)for(let dr=-br;dr<=br;dr++){const tq=city.q+dq,tr=city.r+dr;
+                if(hD(city.q,city.r,tq,tr)>br||!tiles[`${tq},${tr}`])continue;
+                const k=`${tq},${tr}`;if(!terrMap[k])terrMap[k]={player:pid,color:pc}}}
+    }
     // Second pass: render fill + borders
     for(const k in terrMap){const[q,r]=k.split(',').map(Number);const{player:pid,color:pc}=terrMap[k];
         const[px,py]=h2p(q,r),sx=px-ox,sy=py-oy;
