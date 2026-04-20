@@ -1,5 +1,94 @@
 # CivGame AI Development Changelog
 
+## Session: 2026-04-20 | Package refactor: civgame/
+
+Monolithic `game_engine.py` (4127 lines, one `GameState` class with ~60 methods)
+split into a proper package `civgame/`:
+
+```
+civgame/
+├── __init__.py              re-exports
+├── constants.py             Terrain, TERRAIN_*, GAME_CONFIG, CITY_NAMES
+├── hex.py                   hex_neighbors, hex_distance, offset_to_cube
+├── data/                    static game data
+│   ├── technologies.py
+│   ├── units.py
+│   ├── buildings.py
+│   ├── civilizations.py
+│   └── improvements.py
+├── mapgen/                  map generators
+│   ├── earth.py             real continent outlines
+│   └── random_map.py        random continents
+├── mixins/                  GameState responsibility split
+│   ├── visibility.py        (fog of war, tile ownership)
+│   ├── city.py              (founding, yields, defense)
+│   ├── movement.py          (move_unit, A* pathfinding)
+│   ├── combat.py            (melee + ranged)
+│   ├── actions.py           (worker, fortify, sentry, explore)
+│   ├── diplomacy.py         (war/peace/alliance)
+│   ├── research.py          (set_research)
+│   ├── turn.py              (end_turn, score)
+│   ├── serialization.py     (to_dict, save/load)
+│   └── simulation.py        (classmethod simulate)
+├── ai/                      AI domain-split
+│   ├── core.py              (_run_ai, _log_ai, home_city redist)
+│   ├── production.py        (what to build)
+│   ├── worker.py            (tile improvements)
+│   ├── settler.py           (city placement)
+│   ├── military.py          (move/attack/defend)
+│   └── civilian.py          (spy, caravan)
+└── state.py                 GameState(mixins...) + __init__
+```
+
+**Backward compat:** `game_engine.py` is now a 34-line shim that re-exports
+everything — `server.py`, `config_loader.py`, `run_sim.py`, `sim_report.py`
+work unchanged.
+
+**Fixes found during refactor:**
+- `config_loader.py`: changed `game_engine.GAME_CONFIG = new_dict` to
+  `GAME_CONFIG.clear(); GAME_CONFIG.update(new)` so mutations are visible
+  through all modules referring to the same dict object (identity-preserving).
+- A stray `@classmethod` was incorrectly attached to `save_full` after
+  extraction — removed; `simulate` retains its correct `@classmethod`.
+- Missing `import random` / `import GAME_CONFIG` / `CITY_NAMES` / `TERRAIN_MOVE_COST`
+  imports detected in mixin files via static analysis and added.
+- **Pre-existing recursion bug** found and fixed in `_advance_turn`: when
+  the sole human player died, the mutual `end_turn ↔ _advance_turn`
+  recursion kept cycling through alive AIs with no stopping condition,
+  blowing the stack after ~500 turns. Fix: detect "no living human" and
+  set `game_over = True` (winner = highest-scoring alive AI).
+
+**Verification:**
+- All objects identical between `game_engine.X` and `civgame.X` (tested via `is`).
+- MRO order verified (GameState → 10 mixins → object).
+- 100-turn full AI simulation runs, save/load roundtrip succeeds, classmethod
+  `GameState.simulate()` works, `sim_report.py` and `run_sim.py` import fine.
+- `config_loader` hot-reload continues to work (dicts mutated in place).
+- Server starts and `/api/version` returns correct data.
+
+Largest file now: 423 lines (simulation.py). Most mixin files 150-350 lines.
+
+## Session: 2026-04-20 | Goto preview + road cost fix
+
+### Road/railroad movement bug fix
+- **Bug:** Road/railroad cost multipliers used `max(1, int(cost * 0.4))` — on cost-1 terrain (grass/plains/desert) roads gave **zero** speed-up because `int(0.4) = 0 → max(1, 0) = 1`. Only forest/hills benefited, and even there railroad was no faster than road.
+- **Fix:** Switched move costs to **float**. Road halves cost (× 0.5), railroad quarters it (× 0.25), floor at 0.25.
+  - Grass/plains/desert (base 1) → road 0.5, railroad 0.25
+  - Forest/hills (base 2) → road 1.0, railroad 0.5
+  - A warrior (mov=2) now covers **4 grass road tiles** or **8 railroad tiles** per turn (was 2).
+- Affected: `move_unit()` (line 1050), `_compute_path()` (A* for preview/render), `_find_path_next()` (A* for actual movement). A* now genuinely prefers roads.
+- Frontend: `Moves` display trims trailing zeros for fractional MP (`1.5/2`, `0.25/2`).
+
+## Session: 2026-04-20 | Goto preview + confirm
+
+### Goto preview mechanic
+- Holding left mouse button 400ms on a target hex now shows a **cyan dashed preview path** (instead of immediately setting goto)
+- Click again on the same target hex to **confirm** — goto is set and unit starts moving
+- Click anywhere else to **cancel** the preview
+- `Esc` also clears the preview
+- Preview shows pulsing cyan target ring with `Nt ?` distance indicator (distinct from confirmed golden goto)
+- New backend endpoint `POST /api/game/{id}/path_preview {unit_id, q, r}` — read-only A* path, no state mutation
+
 ## Session: 2026-04-10/11 | v0.9.5 — Unit food, city management, Earth maps, full manual
 
 ### Latest Fixes (v0.9.5)

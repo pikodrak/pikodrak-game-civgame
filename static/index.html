@@ -774,16 +774,23 @@ else{const d=await api(`/api/game/${gameId}/save`,'POST');if(d.ok)showEvent('Sav
 if(mode==='quit'){gameId=null;state=null;selectedUnit=selectedCity=null;document.getElementById('game-screen').style.display='none';document.getElementById('menu-screen').style.display='flex'}}
 function doQuitNoSave(){closeProdModal();gameId=null;state=null;selectedUnit=selectedCity=null;document.getElementById('game-screen').style.display='none';document.getElementById('menu-screen').style.display='flex'}
 let holdTimer=null,isHold=false;
+window._pendingGoto=null; // {uid,q,r,path} — preview awaiting confirmation
+async function previewGoto(uid,q,r){
+    try{const d=await api(`/api/game/${gameId}/path_preview`,'POST',{unit_id:uid,q,r});
+    if(d.ok&&d.path&&d.path.length>0){window._pendingGoto={uid,q,r,path:d.path,turns:d.turns||d.path.length};showEvent('Goto preview — click again to confirm')}
+    else{window._pendingGoto=null;showEvent('No path')}}
+    catch(err){window._pendingGoto=null}
+}
 function initCanvas(){const c=document.getElementById('map-container');canvas.width=c.clientWidth;canvas.height=c.clientHeight;
 canvas.onmousedown=e=>{isDragging=true;isHold=false;dragStartX=e.clientX;dragStartY=e.clientY;dragCamX=camX;dragCamY=camY;
-    // Start hold timer for goto
-    if(selectedUnit&&e.button===0){holdTimer=setTimeout(()=>{isHold=true;const r=canvas.getBoundingClientRect();const[q,r2]=p2h(e.clientX-r.left,e.clientY-r.top);if(selectedUnit&&state.tiles[`${q},${r2}`]){const u=state.units.find(u=>u.id===selectedUnit);if(u&&!(u.q===q&&u.r===r2)){gotoUnit(selectedUnit,q,r2);showEvent('Goto set')}}},400)}};
+    // Start hold timer for goto preview
+    if(selectedUnit&&e.button===0){holdTimer=setTimeout(()=>{isHold=true;const r=canvas.getBoundingClientRect();const[q,r2]=p2h(e.clientX-r.left,e.clientY-r.top);if(selectedUnit&&state.tiles[`${q},${r2}`]){const u=state.units.find(u=>u.id===selectedUnit);if(u&&!(u.q===q&&u.r===r2)){previewGoto(selectedUnit,q,r2)}}},400)}};
 canvas.onmousemove=e=>{if(isDragging){const dx=Math.abs(e.clientX-dragStartX),dy=Math.abs(e.clientY-dragStartY);if(dx>5||dy>5){clearTimeout(holdTimer);holdTimer=null}camX=dragCamX-(e.clientX-dragStartX);camY=dragCamY-(e.clientY-dragStartY)}};
 canvas.onmouseup=e=>{clearTimeout(holdTimer);holdTimer=null;if(!isHold&&Math.abs(e.clientX-dragStartX)<5&&Math.abs(e.clientY-dragStartY)<5){const r=canvas.getBoundingClientRect();handleClick(...p2h(e.clientX-r.left,e.clientY-r.top),e.button===2)}isDragging=false;isHold=false};
 canvas.onwheel=e=>{e.preventDefault();const o=camZoom;camZoom=Math.max(.3,Math.min(3,camZoom*(e.deltaY>0?.9:1.1)));const r=canvas.getBoundingClientRect(),mx=e.clientX-r.left,my=e.clientY-r.top;camX=(camX+mx)*(camZoom/o)-mx;camY=(camY+my)*(camZoom/o)-my};canvas.oncontextmenu=e=>e.preventDefault();document.onkeydown=onKey;onresize=()=>{canvas.width=document.getElementById('map-container').clientWidth;canvas.height=document.getElementById('map-container').clientHeight}}
 function centerOn(){const u=state.units.find(u=>u.player===0)||state.cities.find(c=>c.player===0);if(!u)return;const[px,py]=h2p(u.q,u.r);camX=px-canvas.width/2;camY=py-canvas.height/2}
 function loop(t){T=t*.001;try{render()}catch(e){console.error('render error:',e);ctx.fillStyle='red';ctx.font='16px sans-serif';ctx.fillText('RENDER ERROR: '+e.message,10,50)}requestAnimationFrame(loop)}
-function onKey(e){if(e.key==='Escape'){rangedMode=false;selectedUnit=selectedCity=null;closeTechTree();closeDiplomacy();closeLoadDialog();closeCityDialog();closeProdModal();closeAccount();updatePanel()}
+function onKey(e){if(e.key==='Escape'){rangedMode=false;window._pendingGoto=null;selectedUnit=selectedCity=null;closeTechTree();closeDiplomacy();closeLoadDialog();closeCityDialog();closeProdModal();closeAccount();updatePanel()}
 if(!selectedUnit){if(e.key===' '&&!isM()){e.preventDefault();spaceAction()}if((e.key==='Enter'||e.key==='e')&&!isM())endTurn();if(e.key==='s'&&e.ctrlKey){e.preventDefault();saveGame()}return}
 const su=state.units.find(u=>u.id===selectedUnit);if(!su)return;
 const isWorker=su.type==='worker';
@@ -804,7 +811,10 @@ if(e.key===' '&&!isM()){e.preventDefault();spaceAction()}
 if((e.key==='Enter'||e.key==='e')&&!isM())endTurn();
 if(e.key==='s'&&e.ctrlKey){e.preventDefault();saveGame()}}
 function isM(){return['tech-modal','diplo-modal','load-modal','prod-modal','account-modal'].some(id=>document.getElementById(id).classList.contains('active'))||document.getElementById('city-name-dialog').style.display==='block'}
-function handleClick(q,r,right){if(!state)return;if(rangedMode&&selectedUnit&&!right){doRangedAttack(q,r);return}if(selectedUnit&&!right){const u=state.units.find(u=>u.id===selectedUnit);if(u){const adj=hNb(u.q,u.r).some(([a,b])=>a===q&&b===r);if(adj&&u.moves_left>0){moveUnit(selectedUnit,q,r);return}}}const cu=state.units.find(u=>u.q===q&&u.r===r&&u.player===0);if(cu){selectedUnit=cu.id;selectedCity=null;updatePanel();return}const cc=state.cities.find(c=>c.q===q&&c.r===r&&c.player===0);if(cc){selectedCity=cc.id;selectedUnit=null;updatePanel();return}selectedUnit=selectedCity=null;updatePanel()}
+function handleClick(q,r,right){if(!state)return;
+// Pending goto preview: click on same hex confirms, click elsewhere cancels
+if(window._pendingGoto&&!right){const p=window._pendingGoto;if(p.uid===selectedUnit&&p.q===q&&p.r===r){window._pendingGoto=null;gotoUnit(p.uid,q,r);return}window._pendingGoto=null}
+if(rangedMode&&selectedUnit&&!right){doRangedAttack(q,r);return}if(selectedUnit&&!right){const u=state.units.find(u=>u.id===selectedUnit);if(u){const adj=hNb(u.q,u.r).some(([a,b])=>a===q&&b===r);if(adj&&u.moves_left>0){moveUnit(selectedUnit,q,r);return}}}const cu=state.units.find(u=>u.q===q&&u.r===r&&u.player===0);if(cu){selectedUnit=cu.id;selectedCity=null;updatePanel();return}const cc=state.cities.find(c=>c.q===q&&c.r===r&&c.player===0);if(cc){selectedCity=cc.id;selectedUnit=null;updatePanel();return}selectedUnit=selectedCity=null;updatePanel()}
 
 if(!window._unitAnims)window._unitAnims={};
 async function moveUnit(uid,q,r){
@@ -935,7 +945,7 @@ ${activeCount>1?`<button class="action-btn" onclick="cycleNextUnit()" style="mar
 <div class="hp-bar-bg"><div class="hp-bar-fill" style="width:${u.hp}%;background:${hc}"></div></div>
 <div class="info-row"><span class="info-label">Attack</span><span class="info-value" style="color:#ff8060">${u.atk}</span></div>
 <div class="info-row"><span class="info-label">Defense</span><span class="info-value" style="color:#60a0ff">${u.def}</span></div>
-<div class="info-row"><span class="info-label">Moves</span><span class="info-value">${u.moves_left}/${u.mov}</span></div>
+<div class="info-row"><span class="info-label">Moves</span><span class="info-value">${(+u.moves_left).toFixed(2).replace(/\.?0+$/,'')}/${u.mov}</span></div>
 ${UNIT_RANGES[u.type]?`<div class="info-row"><span class="info-label">Range</span><span class="info-value" style="color:#ff6b35">${UNIT_RANGES[u.type]}</span></div>`:''}
 ${u.fortified?'<div style="color:#60a0ff;font-size:.83rem">Fortified +25%</div>':''}
 ${u.sentry?'<div style="color:#f1c40f;font-size:.83rem">Sentry</div>':''}
@@ -1195,12 +1205,33 @@ function render(){
             ctx.globalAlpha=pulse;ctx.fillStyle='#ffd700';
             ctx.beginPath();ctx.moveTo(tx,ty-S*.35);ctx.lineTo(tx+S*.2,ty);ctx.lineTo(tx,ty+S*.35);ctx.lineTo(tx-S*.2,ty);ctx.closePath();ctx.fill();
             ctx.strokeStyle='#b8860b';ctx.lineWidth=1.5;ctx.stroke();
-            // Distance text
-            const dist=u.goto_path.length;
+            // Turns text (actual turns based on road-discounted cost)
+            const turns=u.goto_turns||u.goto_path.length;
             ctx.globalAlpha=.9;ctx.fillStyle='#fff';ctx.font='bold 10px sans-serif';ctx.textAlign='center';
-            ctx.fillText(dist+'t',tx,ty+S*.55);
+            ctx.fillText(turns+'t',tx,ty+S*.55);
         }
         ctx.restore();
+    }
+
+    // PENDING GOTO PREVIEW — cyan dashed line awaiting confirmation click
+    if(window._pendingGoto&&window._pendingGoto.uid===selectedUnit){
+        const pg=window._pendingGoto;
+        const pu=state.units.find(u=>u.id===pg.uid);
+        if(pu&&pg.path&&pg.path.length>0){
+            ctx.save();ctx.strokeStyle='#4fd4ff';ctx.lineWidth=3;ctx.globalAlpha=.55+Math.sin(T*4)*.25;ctx.setLineDash([8,5]);
+            ctx.beginPath();
+            const[ux,uy]=h2p(pu.q,pu.r);ctx.moveTo(ux-ox,uy-oy);
+            for(const p of pg.path){const[hx,hy]=h2p(p[0],p[1]);ctx.lineTo(hx-ox,hy-oy)}
+            ctx.stroke();ctx.setLineDash([]);
+            // Target ring (pulsing cyan)
+            const[gx,gy]=h2p(pg.q,pg.r);const tx=gx-ox,ty=gy-oy;
+            ctx.globalAlpha=.8;ctx.strokeStyle='#4fd4ff';ctx.lineWidth=2.5;
+            ctx.beginPath();ctx.arc(tx,ty,S*.42,0,Math.PI*2);ctx.stroke();
+            // Turns + "?" confirm hint
+            ctx.globalAlpha=1;ctx.fillStyle='#fff';ctx.font='bold 11px sans-serif';ctx.textAlign='center';
+            ctx.fillText((pg.turns||pg.path.length)+'t ?',tx,ty+S*.6);
+            ctx.restore();
+        }
     }
 
     ctx.restore();

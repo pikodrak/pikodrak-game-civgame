@@ -182,11 +182,13 @@ def apply_config(data):
             except ValueError:
                 pass
 
-    # Store game settings for access
-    game_engine.GAME_CONFIG = data.get("game", {})
+    # Mutate in place so all modules referencing these dicts see the update.
+    game_engine.GAME_CONFIG.clear()
+    game_engine.GAME_CONFIG.update(data.get("game", {}))
 
     if data["city_names"]:
-        game_engine.CITY_NAMES = data["city_names"]
+        game_engine.CITY_NAMES.clear()
+        game_engine.CITY_NAMES.update(data["city_names"])
 
 
 def check_and_reload():

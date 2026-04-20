@@ -1044,6 +1044,44 @@ def goto_unit(game_id: int, req: GotoRequest):
     return result
 
 
+@app.post("/api/game/{game_id}/path_preview")
+def path_preview(game_id: int, req: GotoRequest):
+    """Return the full path for a unit without setting goto (read-only preview).
+
+    Iterates _find_path_next to mirror the exact movement rules (naval/air,
+    foreign territory, roads), so the preview matches what the unit will actually do.
+    """
+    game = games.get(game_id)
+    if not game:
+        raise HTTPException(404, "Game not found")
+    unit = game.units.get(req.unit_id)
+    if not unit:
+        raise HTTPException(404, "Unit not found")
+    tq, tr = req.q, req.r
+    if (unit["q"], unit["r"]) == (tq, tr):
+        return {"ok": True, "path": [], "dist": 0, "cost": 0.0, "turns": 0}
+    sim = dict(unit)
+    path = []
+    total_cost = 0.0
+    seen = {(sim["q"], sim["r"])}
+    for _ in range(200):
+        nxt = game._find_path_next(sim, tq, tr)
+        if not nxt:
+            break
+        total_cost += game._hex_move_cost(nxt[0], nxt[1])
+        path.append([nxt[0], nxt[1]])
+        sim["q"], sim["r"] = nxt[0], nxt[1]
+        if (sim["q"], sim["r"]) == (tq, tr):
+            break
+        if (sim["q"], sim["r"]) in seen:
+            break
+        seen.add((sim["q"], sim["r"]))
+    import math
+    mov = max(1, unit.get("mov", 1))
+    turns = max(1, math.ceil(total_cost / mov)) if path else 0
+    return {"ok": True, "path": path, "dist": len(path), "cost": total_cost, "turns": turns}
+
+
 @app.post("/api/game/{game_id}/move")
 def move_unit(game_id: int, req: MoveRequest):
     game = games.get(game_id)

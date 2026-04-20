@@ -1,0 +1,25 @@
+"""Unit type definitions: combat stats, move, cost, tech prereq, category."""
+
+UNIT_TYPES = {
+    "settler":       {"atk": 0,  "def": 1,  "mov": 2, "cost": 40, "tech": None,              "cat": "civilian"},
+    "worker":        {"atk": 0,  "def": 0,  "mov": 2, "cost": 25, "tech": None,              "cat": "civilian"},
+    "spy":           {"atk": 0,  "def": 0,  "mov": 3, "cost": 40, "tech": "writing",         "cat": "civilian"},
+    "caravan":       {"atk": 0,  "def": 0,  "mov": 3, "cost": 30, "tech": "currency",        "cat": "civilian"},
+    "warrior":       {"atk": 2,  "def": 1,  "mov": 2, "cost": 15, "tech": None,              "cat": "melee"},
+    "spearman":      {"atk": 2,  "def": 3,  "mov": 2, "cost": 20, "tech": "bronze_working",  "cat": "melee"},
+    "archer":        {"atk": 3,  "def": 1,  "mov": 2, "cost": 20, "tech": "archery",         "cat": "ranged", "range": 2},
+    "horseman":      {"atk": 4,  "def": 2,  "mov": 3, "cost": 30, "tech": "horseback",       "cat": "mounted"},
+    "swordsman":     {"atk": 5,  "def": 3,  "mov": 2, "cost": 30, "tech": "iron_working",    "cat": "melee"},
+    "catapult":      {"atk": 6,  "def": 1,  "mov": 1, "cost": 35, "tech": "mathematics",     "cat": "siege",  "range": 2},
+    "knight":        {"atk": 7,  "def": 4,  "mov": 3, "cost": 45, "tech": "feudalism",       "cat": "mounted"},
+    "musketman":     {"atk": 8,  "def": 5,  "mov": 2, "cost": 50, "tech": "gunpowder",       "cat": "melee"},
+    "rifleman":      {"atk": 12, "def": 8,  "mov": 2, "cost": 60, "tech": "industrialization","cat": "melee"},
+    "artillery":     {"atk": 14, "def": 2,  "mov": 1, "cost": 55, "tech": "dynamite",        "cat": "siege",  "range": 3},
+    "infantry":      {"atk": 16, "def": 12, "mov": 2, "cost": 70, "tech": "dynamite",        "cat": "melee"},
+    "tank":          {"atk": 24, "def": 15, "mov": 3, "cost": 90, "tech": "rocketry",        "cat": "mounted"},
+    "fighter":       {"atk": 18, "def": 10, "mov": 5, "cost": 80, "tech": "flight",          "cat": "air"},
+    "bomber":        {"atk": 25, "def": 5,  "mov": 5, "cost": 90, "tech": "flight",          "cat": "air",    "range": 3},
+    "galley":        {"atk": 2,  "def": 2,  "mov": 3, "cost": 25, "tech": "sailing",         "cat": "naval"},
+    "caravel":       {"atk": 4,  "def": 3,  "mov": 4, "cost": 40, "tech": "navigation",      "cat": "naval"},
+    "ironclad":      {"atk": 10, "def": 8,  "mov": 4, "cost": 60, "tech": "steam_power",     "cat": "naval"},
+}

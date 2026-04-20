@@ -1,0 +1,67 @@
+"""Diplomacy: war, peace, alliances."""
+import random
+from civgame.constants import GAME_CONFIG
+
+class DiplomacyMixin:
+    def declare_war(self, player_a, player_b):
+        # Check cooldown
+        cd_a = self.players[player_a].get("diplo_cooldown", {}).get(player_b, 0)
+        if cd_a > 0:
+            return  # can't change diplomacy yet
+        self.players[player_a]["diplomacy"][player_b] = "war"
+        self.players[player_b]["diplomacy"][player_a] = "war"
+        cd = GAME_CONFIG.get("diplo_war_cooldown", 10)
+        self.players[player_a].setdefault("diplo_cooldown", {})[player_b] = cd
+        self.players[player_b].setdefault("diplo_cooldown", {})[player_a] = cd
+        # Relations drop
+        self.players[player_a].setdefault("relations", {})[player_b] = \
+            min(-50, self.players[player_a].get("relations", {}).get(player_b, 0) - 50)
+        self.players[player_b].setdefault("relations", {})[player_a] = \
+            min(-50, self.players[player_b].get("relations", {}).get(player_a, 0) - 50)
+        # Alliance auto-war: allies of player_b may join (loyalty-based)
+        for p in self.players:
+            if p["id"] == player_a or p["id"] == player_b or not p["alive"]:
+                continue
+            if p["diplomacy"].get(player_b) == "alliance" and p["diplomacy"].get(player_a) != "war":
+                # Higher loyalty = more likely to honor alliance (min 50%, max 90%)
+                join_chance = min(0.9, 0.5 + p.get("loyalty", 0.5) * 0.4)
+                if random.random() < join_chance:
+                    p["diplomacy"][player_a] = "war"
+                    self.players[player_a]["diplomacy"][p["id"]] = "war"
+                    p.setdefault("diplo_cooldown", {})[player_a] = cd
+                    self.players[player_a].setdefault("diplo_cooldown", {})[p["id"]] = cd
+                    self._log_ai(p["id"], f"ALLIANCE WAR: joined war against {self.players[player_a]['name']} (ally {self.players[player_b]['name']} attacked)")
+
+    def make_peace(self, player_a, player_b):
+        # Check cooldown
+        cd_a = self.players[player_a].get("diplo_cooldown", {}).get(player_b, 0)
+        cd_b = self.players[player_b].get("diplo_cooldown", {}).get(player_a, 0)
+        if cd_a > 0 or cd_b > 0:
+            return  # can't make peace yet
+        self.players[player_a]["diplomacy"][player_b] = "peace"
+        self.players[player_b]["diplomacy"][player_a] = "peace"
+        cd = GAME_CONFIG.get("diplo_peace_cooldown", 15)
+        self.players[player_a].setdefault("diplo_cooldown", {})[player_b] = cd
+        self.players[player_b].setdefault("diplo_cooldown", {})[player_a] = cd
+
+    def form_alliance(self, player_a, player_b):
+        """Form alliance — mutual free passage + shared vision."""
+        # Must be at peace first
+        rel_a = self.players[player_a]["diplomacy"].get(player_b, "peace")
+        if rel_a == "war":
+            return
+        self.players[player_a]["diplomacy"][player_b] = "alliance"
+        self.players[player_b]["diplomacy"][player_a] = "alliance"
+
+    def break_alliance(self, player_a, player_b):
+        """Break alliance — reverts to peace."""
+        self.players[player_a]["diplomacy"][player_b] = "peace"
+        self.players[player_b]["diplomacy"][player_a] = "peace"
+        cd = GAME_CONFIG.get("diplo_peace_cooldown", 15)
+        self.players[player_a].setdefault("diplo_cooldown", {})[player_b] = cd
+        self.players[player_b].setdefault("diplo_cooldown", {})[player_a] = cd
+
+    # --------------------------------------------------------
+    # END TURN
+    # --------------------------------------------------------
+
