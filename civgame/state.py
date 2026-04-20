@@ -3,7 +3,7 @@ import random
 
 from civgame.constants import Terrain, TERRAIN_YIELDS, GAME_CONFIG
 from civgame.hex import hex_neighbors, hex_distance
-from civgame.data import CIVILIZATIONS, UNIT_TYPES
+from civgame.data import CIVILIZATIONS, UNIT_TYPES, RESOURCES
 from civgame.mapgen import generate_earth_map, generate_map
 from civgame.mixins import (
     VisibilityMixin,
@@ -12,6 +12,7 @@ from civgame.mixins import (
     CombatMixin,
     ActionsMixin,
     DiplomacyMixin,
+    DealsMixin,
     TurnMixin,
     ResearchMixin,
     SerializationMixin,
@@ -27,6 +28,7 @@ class GameState(
     CombatMixin,
     ActionsMixin,
     DiplomacyMixin,
+    DealsMixin,
     ResearchMixin,
     TurnMixin,
     SerializationMixin,
@@ -105,6 +107,14 @@ class GameState(
         self.roads = {}
         self.explored = {i: set() for i in range(num_players)}
 
+        # Resources: (q, r) -> resource_key (name).
+        self.resources = {}
+        self._place_resources(seed)
+
+        # Diplomacy extras: agreements list and per-player memory/grievances.
+        self.agreements = []   # list of {type, players, turns_left, params}
+        self.pending_deals = []  # list of proposals awaiting decision
+
         self._place_starting_units()
 
     def _find_good_start(self, taken_positions):
@@ -165,6 +175,35 @@ class GameState(
         if getattr(self, "wrap", False):
             return q % self.width
         return q
+
+    def _place_resources(self, seed=None):
+        """Procedurally place resources on matching terrain.
+
+        Each tile has a small chance (~3%) of getting a resource, weighted by
+        whether its terrain is valid for any resource. Bonus resources are
+        slightly more common than strategic/luxury.
+        """
+        import random as _r
+        rng = _r.Random(seed if seed is not None else self.width * self.height)
+        # Build terrain -> possible resources index
+        by_terrain = {}
+        for rname, rdata in RESOURCES.items():
+            for t in rdata["terrain"]:
+                by_terrain.setdefault(t, []).append((rname, rdata))
+        spawn_chance = GAME_CONFIG.get("resource_spawn_chance", 0.035)
+        for (q, r), terrain in list(self.tiles.items()):
+            if rng.random() > spawn_chance:
+                continue
+            t_val = terrain.value
+            candidates = by_terrain.get(t_val, [])
+            if not candidates:
+                continue
+            # Weight bonus twice as likely as strategic/luxury
+            weighted = []
+            for name, data in candidates:
+                w = 2 if data["type"] == "bonus" else 1
+                weighted.extend([name] * w)
+            self.resources[(q, r)] = rng.choice(weighted)
 
     def _create_unit(self, player_id, unit_type, q, r):
         uid = self.next_unit_id

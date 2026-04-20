@@ -1289,6 +1289,75 @@ def diplomacy(game_id: int, req: DiplomacyRequest):
     return {"ok": True, "state": game.to_dict(for_player=0)}
 
 
+class DealRequest(BaseModel):
+    target_player: int
+    give: list
+    ask: list
+
+
+class DealDecisionRequest(BaseModel):
+    deal_id: int
+
+
+@app.post("/api/game/{game_id}/deal/propose")
+def api_deal_propose(game_id: int, req: DealRequest):
+    game = games.get(game_id)
+    if not game:
+        raise HTTPException(404, "Game not found")
+    r = game.propose_deal(0, req.target_player, req.give, req.ask)
+    # If target is AI, let them decide immediately
+    if r.get("ok") and not game.players[req.target_player].get("is_human"):
+        game._ai_respond_to_deal(r["deal_id"], req.target_player)
+    r["state"] = game.to_dict(for_player=0)
+    return r
+
+
+@app.post("/api/game/{game_id}/deal/accept")
+def api_deal_accept(game_id: int, req: DealDecisionRequest):
+    game = games.get(game_id)
+    if not game:
+        raise HTTPException(404, "Game not found")
+    r = game.accept_deal(req.deal_id, accepting_pid=0)
+    r["state"] = game.to_dict(for_player=0)
+    return r
+
+
+@app.post("/api/game/{game_id}/deal/reject")
+def api_deal_reject(game_id: int, req: DealDecisionRequest):
+    game = games.get(game_id)
+    if not game:
+        raise HTTPException(404, "Game not found")
+    r = game.reject_deal(req.deal_id, rejecting_pid=0)
+    r["state"] = game.to_dict(for_player=0)
+    return r
+
+
+@app.get("/api/game/{game_id}/diplomacy/info")
+def api_diplomacy_info(game_id: int):
+    """Return opinion matrix, active agreements, pending deals for player 0."""
+    game = games.get(game_id)
+    if not game:
+        raise HTTPException(404, "Game not found")
+    me = 0
+    opinions = {}
+    breakdowns = {}
+    for p in game.players:
+        if p["id"] == me:
+            continue
+        opinions[p["id"]] = game.get_opinion(me, p["id"])
+        breakdowns[p["id"]] = game.get_opinion_breakdown(me, p["id"])
+    return {
+        "opinions": opinions,
+        "breakdowns": breakdowns,
+        "agreements": game.get_active_agreements(me),
+        "incoming": game.incoming_deals(me),
+        "outgoing": game.outgoing_deals(me),
+        "my_techs": game.players[me]["techs"],
+        "my_gold": game.players[me]["gold"],
+        "my_resources": game.get_player_resources(me),
+    }
+
+
 @app.post("/api/simulate")
 def simulate(req: SimulateRequest):
     log = GameState.simulate(

@@ -149,6 +149,9 @@ class AICoreMixin:
                 self.break_alliance(pid, other["id"])
                 self._log_ai(pid, f"DIPLO: broke alliance with {other['name']} (disloyal)")
 
+        # Diplomacy: propose deals to other civs
+        self._ai_propose_deals(pid)
+
         # Upgrade obsolete units
         self._ai_upgrade_units(pid)
 

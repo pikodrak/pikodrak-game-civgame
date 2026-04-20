@@ -349,6 +349,10 @@ class TurnMixin:
             self.winner = best_pid
             events.append(f"Turn limit reached! {self.players[best_pid]['name']} wins by SCORE ({self._calc_score(best_pid)})!")
 
+        # Tick diplomatic agreements once per round (on player 0's turn end).
+        if pid == 0:
+            self._tick_agreements(events)
+
         # Advance to next player
         self._advance_turn()
 

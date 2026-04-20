@@ -1,9 +1,63 @@
 """City founding, yields, defense, and production targeting."""
 from civgame.hex import hex_neighbors, hex_distance
 from civgame.constants import Terrain, TERRAIN_YIELDS, TERRAIN_DEFENSE, CITY_NAMES, GAME_CONFIG
-from civgame.data import BUILDINGS, UNIT_TYPES, IMPROVEMENTS, TECHNOLOGIES, CIVILIZATIONS
+from civgame.data import (BUILDINGS, UNIT_TYPES, IMPROVEMENTS, TECHNOLOGIES, CIVILIZATIONS,
+                          RESOURCES, LUXURY_HAPPINESS_PER_TYPE)
 
 class CityMixin:
+    def get_player_resources(self, pid):
+        """Return {resource_name: count} for resources accessible to player pid.
+
+        A resource is accessible if it sits on a tile the player owns (city hex
+        or within a city's border_radius). Trades add resources via deal effects
+        — we include those here too via self._bonus_resources.
+        """
+        counts = {}
+        my_cities = [c for c in self.cities.values() if c["player"] == pid]
+        seen = set()
+        for c in my_cities:
+            brd = c.get("border_radius", 1)
+            for dq in range(-brd, brd + 1):
+                for dr in range(-brd, brd + 1):
+                    tq, tr = c["q"] + dq, c["r"] + dr
+                    if hex_distance(c["q"], c["r"], tq, tr) > brd:
+                        continue
+                    if (tq, tr) in seen:
+                        continue
+                    seen.add((tq, tr))
+                    res = self.resources.get((tq, tr))
+                    if res is None:
+                        continue
+                    rdata = RESOURCES.get(res, {})
+                    # Need required tech to access? (e.g. gems need mining)
+                    tech_req = rdata.get("tech")
+                    if tech_req and tech_req not in self.players[pid]["techs"]:
+                        continue
+                    counts[res] = counts.get(res, 0) + 1
+        # Extra resources granted by active trade agreements
+        for ag in getattr(self, "agreements", []):
+            if ag["type"] == "resource_trade" and pid in ag["params"].get("receivers", []):
+                res = ag["params"].get("resource")
+                if res:
+                    counts[res] = counts.get(res, 0) + 1
+        return counts
+
+    def _count_unique_luxuries(self, pid):
+        """Number of distinct luxury resources the player can benefit from."""
+        counts = self.get_player_resources(pid)
+        return sum(1 for r in counts if RESOURCES.get(r, {}).get("type") == "luxury")
+
+    def player_can_build_unit(self, pid, unit_type):
+        """Check strategic-resource gating. Returns (ok, missing_resource_or_None)."""
+        from civgame.data import strategic_units_requirement
+        req = strategic_units_requirement(unit_type)
+        if req is None:
+            return True, None
+        counts = self.get_player_resources(pid)
+        if counts.get(req, 0) > 0:
+            return True, None
+        return False, req
+
     def is_connected_to_capital(self, city_id):
         """Check if city is connected to player's capital via roads/railroads.
         Uses cached result per turn to avoid repeated BFS."""
@@ -105,6 +159,18 @@ class CityMixin:
                             tp += idata.get("prod", 0)
                             tg += idata.get("gold", 0)
                             imp_name = imp["type"]
+                        # Resource bonus: bonus resources always boost yield.
+                        # Strategic/luxury add small gold when worked.
+                        res_name = self.resources.get((tq, tr))
+                        if res_name:
+                            rdata = RESOURCES.get(res_name, {})
+                            if rdata.get("type") == "bonus":
+                                ry = rdata.get("yield", {})
+                                tf += ry.get("food", 0)
+                                tp += ry.get("prod", 0)
+                                tg += ry.get("gold", 0)
+                            else:
+                                tg += 1  # strategic/luxury small gold when worked
                         road = self.roads.get((tq, tr))
                         road_name = road["type"] if road else None
                         if road and road["type"] == "railroad":
@@ -116,6 +182,7 @@ class CityMixin:
                             "total": tf + tp + tg,
                             "improvement": imp_name,
                             "road": road_name,
+                            "resource": res_name,
                         })
 
         # Sort by total value, best tiles first
@@ -179,6 +246,16 @@ class CityMixin:
         for bname in city["buildings"]:
             happiness += BUILDINGS.get(bname, {}).get("happiness", 0)
         happiness -= max(0, city["population"] - 4)
+        # Luxury resources: each unique accessible luxury gives +happy per type.
+        # Cached per (player, turn) to avoid recomputation across all cities.
+        cache_key = (city["player"], self.turn)
+        lux_cache = getattr(self, "_lux_cache", None)
+        if lux_cache is None or lux_cache[0] != cache_key:
+            unique_lux = self._count_unique_luxuries(city["player"])
+            self._lux_cache = (cache_key, unique_lux)
+        else:
+            unique_lux = lux_cache[1]
+        happiness += unique_lux * LUXURY_HAPPINESS_PER_TYPE
 
         if happiness < 0:
             prod = max(1, int(prod * 0.75))

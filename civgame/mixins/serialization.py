@@ -89,6 +89,8 @@ class SerializationMixin:
             "winner": self.winner,
             "tiles": tiles_data,
             "tile_owners": tile_owners,
+            "resources": {f"{q},{r}": v for (q, r), v in self.resources.items()
+                          if visible is None or (q, r) in visible or (explored and (q, r) in explored)},
             "visible": visible_keys,
             "improvements": {f"{q},{r}": v for (q, r), v in self.improvements.items()
                              if visible is None or (q, r) in visible or (explored and (q, r) in explored)},
@@ -116,6 +118,10 @@ class SerializationMixin:
             if not udata["tech"] or udata["tech"] in player["techs"]:
                 # Naval units only in coastal cities
                 if udata["cat"] == "naval" and not has_water:
+                    continue
+                # Strategic resource gating
+                ok, missing = self.player_can_build_unit(city["player"], uname)
+                if not ok:
                     continue
                 units.append({"name": uname, "cost": udata["cost"], "atk": udata["atk"],
                             "def": udata["def"], "mov": udata["mov"], "cat": udata["cat"]})
@@ -177,6 +183,9 @@ class SerializationMixin:
             "explored": {str(k): [f"{q},{r}" for q, r in v] for k, v in self.explored.items()},
             "improvements": {f"{q},{r}": v for (q, r), v in self.improvements.items()},
             "roads": {f"{q},{r}": v for (q, r), v in self.roads.items()},
+            "resources": {f"{q},{r}": v for (q, r), v in getattr(self, "resources", {}).items()},
+            "agreements": list(getattr(self, "agreements", [])),
+            "pending_deals": list(getattr(self, "pending_deals", [])),
         }
 
     @classmethod
@@ -238,6 +247,17 @@ class SerializationMixin:
             for key, val in data["roads"].items():
                 q, r = map(int, key.split(","))
                 g.roads[(q, r)] = val
+
+        # Restore resources (optional for older saves)
+        g.resources = {}
+        if "resources" in data:
+            for key, val in data["resources"].items():
+                q, r = map(int, key.split(","))
+                g.resources[(q, r)] = val
+
+        # Restore diplomatic state (optional for older saves)
+        g.agreements = list(data.get("agreements", []))
+        g.pending_deals = list(data.get("pending_deals", []))
 
         return g
 

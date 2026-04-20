@@ -118,7 +118,7 @@ body{background:#1a1408;color:#e0e0e0;font-family:'Inter',system-ui,sans-serif;o
 <div class="resource-item"><span class="resource-icon" style="color:#ff6060">&#9876;</span><div><span class="resource-val" id="res-military">0</span><div class="resource-label" data-t="army">Army</div></div></div>
 <div style="display:flex;gap:4px">
 <button class="top-btn" style="color:#60a0ff;border-color:rgba(96,160,255,.3)" onclick="openTechTree()" data-t="research">Research</button>
-<button class="top-btn" style="color:#c490ff;border-color:rgba(196,144,255,.3)" onclick="openDiplomacy()" data-t="diplomacy">Diplomacy</button>
+<button id="btn-diplo" class="top-btn" style="color:#c490ff;border-color:rgba(196,144,255,.3)" onclick="openDiplomacy()" data-t="diplomacy">Diplomacy</button>
 <button class="top-btn" style="color:#60c080;border-color:rgba(96,192,128,.3)" onclick="saveGame()" data-t="save">Save</button>
 <button class="top-btn" style="color:#e07050;border-color:rgba(224,112,80,.3)" onclick="quitGame()" data-t="quit">Quit</button>
 <button class="top-btn" style="color:#888;border-color:rgba(136,136,136,.3);font-size:.7rem" onclick="logout()" data-t="logout">Logout</button>
@@ -138,6 +138,8 @@ body{background:#1a1408;color:#e0e0e0;font-family:'Inter',system-ui,sans-serif;o
 'use strict';
 let gameId,state,selectedUnit,selectedCity,pendingSettler,camX=0,camY=0,camZoom=1,isDragging=false,dragStartX=0,dragStartY=0,dragCamX=0,dragCamY=0,T=0;
 const UNIT_RANGES={archer:2,catapult:2,artillery:3,bomber:3};
+const RES_ICON={iron:'Fe',horse:'Hr',coal:'Cl',oil:'Ol',uranium:'U',wine:'W',silk:'S',gems:'G',gold_ore:'Au',incense:'In',spices:'Sp',ivory:'Iv',dyes:'Dy',wheat:'Wh',cattle:'Ca',fish:'Fi',deer:'De',stone:'St'};
+const RES_COLOR={iron:'#8a8a8a',horse:'#c88540',coal:'#a0a0a0',oil:'#4a2a2a',uranium:'#5ee65e',wine:'#d4407a',silk:'#c77ed9',gems:'#e05eb0',gold_ore:'#ffd700',incense:'#c9a872',spices:'#d06020',ivory:'#eee2c0',dyes:'#7040aa',wheat:'#e4c664',cattle:'#b07030',fish:'#4fb0ff',deer:'#9c6030',stone:'#909090'};
 
 // ======== i18n LOCALIZATION ========
 const LANG={};
@@ -848,7 +850,7 @@ async function endTurn(){
         if(typeof e==='string'&&(e.includes(' produced ')||e.includes(' built '))){lastProduced=e}}}
     // Show last production in top bar
     if(lastProduced){const lp=document.getElementById('last-produced');if(lp)lp.textContent=lastProduced}
-    updateUI();updatePanel();drawMini();autoSave();if(state.game_over){showGameOver();return}
+    updateUI();updatePanel();drawMini();autoSave();refreshDiploBadge();if(state.game_over){showGameOver();return}
     const me=state.players.find(p=>p.id===0);if(me&&!me.researching&&state.cities.some(c=>c.player===0)){showEvent('Choose research!');openTechTree();return}focusNextNeed()}
 async function focusNextNeed(){
 // Show what was just produced (from last turn events)
@@ -1086,8 +1088,201 @@ const prereqStr=t.prereqs?.length?`<div style="font-size:.65rem;color:#888">Requ
 const descStr=desc[t.name]?`<div style="font-size:.65rem;color:#a0b0c0;margin-top:2px">${desc[t.name]}</div>`:'';
 h+=`<div class="tech-card ${cl}" ${oc}><div class="tech-name">${t.name.replace(/_/g,' ')}${d?' \u2713':''}</div><div class="tech-cost">${d?'Done':c?`${me.researching.progress}/${t.cost}`:`${t.cost}`}</div><div class="tech-unlocks">\u2192 ${t.unlocks.join(', ').replace(/_/g,' ')}</div>${prereqStr}${descStr}</div>`}h+='</div></div>'}document.getElementById('tech-tree-content').innerHTML=h;document.getElementById('tech-modal').classList.add('active')}
 function closeTechTree(){document.getElementById('tech-modal').classList.remove('active')}
-function openDiplomacy(){const me=state.players.find(p=>p.id===0);let h='';for(const p of state.players){if(p.id===0)continue;const r=me.diplomacy?.[p.id]||'peace';const sc=r==='alliance'?'color:#3498db':r==='war'?'color:#e74c3c':r==='peace'?'color:#2ecc71':'color:#f1c40f';h+=`<div class="diplo-player"><div class="diplo-color" style="background:${p.color}"></div><div><b style="color:#c0c8e0">${p.name}</b><div style="font-size:.8rem;color:#5060a0">${p.leader} | ${p.score}</div></div><div class="diplo-status" style="${sc}">${r.toUpperCase()}</div>${p.alive?`<div style="display:flex;gap:3px">${r!=='war'?`<button class="diplo-btn" style="color:#e74c3c;border-color:#e74c3c" onclick="doDiplomacy(${p.id},'war')">War</button>`:''}${r==='war'?`<button class="diplo-btn" style="color:#2ecc71;border-color:#2ecc71" onclick="doDiplomacy(${p.id},'peace')">Peace</button>`:''}${r==='peace'?`<button class="diplo-btn" style="color:#3498db;border-color:#3498db" onclick="doDiplomacy(${p.id},'alliance')">Alliance</button>`:''}${r==='alliance'?`<button class="diplo-btn" style="color:#f1c40f;border-color:#f1c40f" onclick="doDiplomacy(${p.id},'break_alliance')">Break</button>`:''}</div>`:''}</div>`}document.getElementById('diplo-content').innerHTML=h;document.getElementById('diplo-modal').classList.add('active')}
+async function openDiplomacy(){
+    const me=state.players.find(p=>p.id===0);
+    let info=null;
+    try{info=await api(`/api/game/${gameId}/diplomacy/info`,'GET');}catch(e){info={opinions:{},breakdowns:{},agreements:[],incoming:[],outgoing:[],my_techs:[],my_gold:0,my_resources:{}}}
+    window._diploInfo=info;
+    let h='';
+    // Incoming deals section
+    if(info.incoming&&info.incoming.length){
+        h+='<h3 style="color:#ffd700;font-family:Cinzel,serif;margin-bottom:.5rem">Incoming proposals</h3>';
+        for(const d of info.incoming){
+            const from=state.players[d.offer_by];
+            const giveStr=d.give.map(it=>formatItem(it)).join(', ')||'(nothing)';
+            const askStr=d.ask.map(it=>formatItem(it)).join(', ')||'(nothing)';
+            h+=`<div class="diplo-player" style="flex-direction:column;align-items:stretch;gap:.3rem">
+                <div style="color:#ffd700;font-weight:600">${from.name} offers:</div>
+                <div style="color:#c0c8e0;font-size:.9rem">They give: ${giveStr}</div>
+                <div style="color:#c0c8e0;font-size:.9rem">In return you give: ${askStr}</div>
+                <div style="display:flex;gap:.5rem;margin-top:.3rem">
+                    <button class="diplo-btn" style="color:#2ecc71;border-color:#2ecc71" onclick="dealAccept(${d.id})">Accept</button>
+                    <button class="diplo-btn" style="color:#e74c3c;border-color:#e74c3c" onclick="dealReject(${d.id})">Reject</button>
+                </div>
+            </div>`;
+        }
+        h+='<hr style="border-color:rgba(255,255,255,.1);margin:1rem 0">';
+    }
+    // Active agreements
+    if(info.agreements&&info.agreements.length){
+        h+='<h3 style="color:#ffd700;font-family:Cinzel,serif;margin-bottom:.5rem">Active agreements</h3>';
+        for(const ag of info.agreements){
+            const other=ag.players.find(p=>p!==0);
+            const op=state.players[other];
+            h+=`<div style="padding:.4rem .6rem;margin:.2rem 0;background:rgba(46,204,113,.08);border:1px solid rgba(46,204,113,.25);border-radius:6px;font-size:.85rem;color:#c0e8d0">${ag.type.replace(/_/g,' ')} with ${op?op.name:'P'+other} — ${ag.turns_left}t left</div>`;
+        }
+        h+='<hr style="border-color:rgba(255,255,255,.1);margin:1rem 0">';
+    }
+    // Civ list with opinion + actions
+    h+='<h3 style="color:#ffd700;font-family:Cinzel,serif;margin-bottom:.5rem">Other civilizations</h3>';
+    for(const p of state.players){
+        if(p.id===0)continue;
+        const r=me.diplomacy?.[p.id]||'peace';
+        const sc=r==='alliance'?'color:#3498db':r==='war'?'color:#e74c3c':r==='peace'?'color:#2ecc71':'color:#f1c40f';
+        const op=info.opinions?.[p.id]||0;
+        const opColor=op>20?'#2ecc71':op<-20?'#e74c3c':'#c0c8e0';
+        const bdStr=(info.breakdowns?.[p.id]||[]).map(b=>`${b.value>0?'+':''}${b.value} ${b.source.replace(/_/g,' ')}`).join(', ')||'neutral';
+        h+=`<div class="diplo-player">
+            <div class="diplo-color" style="background:${p.color}"></div>
+            <div style="flex:1">
+                <b style="color:#c0c8e0">${p.name}</b>
+                <div style="font-size:.8rem;color:#5060a0">${p.leader} | ${p.score} score</div>
+                <div style="font-size:.75rem;color:${opColor}" title="${bdStr}">Opinion: ${op}</div>
+            </div>
+            <div class="diplo-status" style="${sc}">${r.toUpperCase()}</div>
+            ${p.alive?`<div style="display:flex;gap:3px;flex-wrap:wrap">
+                ${r!=='war'?`<button class="diplo-btn" style="color:#e74c3c;border-color:#e74c3c" onclick="doDiplomacy(${p.id},'war')">War</button>`:''}
+                ${r==='war'?`<button class="diplo-btn" style="color:#2ecc71;border-color:#2ecc71" onclick="doDiplomacy(${p.id},'peace')">Peace</button>`:''}
+                ${r!=='war'?`<button class="diplo-btn" style="color:#ffd700;border-color:#ffd700" onclick="openDealBuilder(${p.id})">Deal...</button>`:''}
+            </div>`:''}
+        </div>`;
+    }
+    document.getElementById('diplo-content').innerHTML=h;
+    document.getElementById('diplo-modal').classList.add('active');
+}
+
+function formatItem(it){
+    if(it.type==='gold')return`${it.amount}g`;
+    if(it.type==='gold_per_turn')return`${it.amount}g/turn`;
+    if(it.type==='tech')return`tech: ${it.name.replace(/_/g,' ')}`;
+    if(it.type==='map')return'world map';
+    if(it.type==='city')return`city ${it.city_id}`;
+    if(it.type==='open_borders')return'open borders';
+    if(it.type==='defensive_pact')return'defensive pact';
+    if(it.type==='declaration_of_friendship')return'declaration of friendship';
+    if(it.type==='research_agreement')return'research agreement';
+    if(it.type==='trade_route')return'trade route';
+    if(it.type==='resource_trade')return`resource: ${it.resource}`;
+    if(it.type==='luxury_trade')return`luxury: ${it.resource}`;
+    if(it.type==='tribute')return`tribute ${it.amount||5}g/turn`;
+    if(it.type==='peace_treaty')return'peace treaty';
+    if(it.type==='denounce')return'denounce';
+    return it.type;
+}
+
+async function dealAccept(id){await api(`/api/game/${gameId}/deal/accept`,'POST',{deal_id:id});const d=await api(`/api/game/${gameId}`,'GET');state=d;await openDiplomacy();updateUI();updatePanel();drawMini();showEvent('Deal accepted')}
+async function dealReject(id){await api(`/api/game/${gameId}/deal/reject`,'POST',{deal_id:id});await openDiplomacy();showEvent('Deal rejected')}
+
+// Deal builder — two columns: I give (left), They give (right)
+window._dealGive=[];
+window._dealAsk=[];
+window._dealTarget=null;
+function openDealBuilder(targetPid){
+    window._dealTarget=targetPid;
+    window._dealGive=[];
+    window._dealAsk=[];
+    renderDealBuilder();
+}
+function renderDealBuilder(){
+    const info=window._diploInfo||{};
+    const me=state.players[0];
+    const them=state.players[window._dealTarget];
+    const myItems=buildAvailableItems(0,info);
+    const theirItems=buildAvailableItems(window._dealTarget,null);
+    let h=`<h2 style="font-family:Cinzel,serif;color:#ffd700">Propose deal to ${them.name}</h2>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:1rem">
+        <div><h3 style="color:#e8c040;font-family:Cinzel,serif;font-size:.9rem;margin-bottom:.3rem">I give</h3>
+            <div id="deal-give-list" style="min-height:60px;padding:.4rem;background:rgba(46,204,113,.05);border:1px dashed rgba(46,204,113,.3);border-radius:6px;margin-bottom:.4rem">${renderDealItems(window._dealGive,'give')}</div>
+            <div style="font-size:.75rem;color:#8090b0;margin-bottom:.3rem">Available (click to add):</div>
+            <div style="display:flex;flex-wrap:wrap;gap:.3rem">${myItems.map(it=>`<button class="diplo-btn" onclick='dealAdd("give",${JSON.stringify(it.item).replace(/'/g,"&#39;")})' style="font-size:.75rem">${it.label}</button>`).join('')}</div>
+        </div>
+        <div><h3 style="color:#e8c040;font-family:Cinzel,serif;font-size:.9rem;margin-bottom:.3rem">They give</h3>
+            <div id="deal-ask-list" style="min-height:60px;padding:.4rem;background:rgba(52,152,219,.05);border:1px dashed rgba(52,152,219,.3);border-radius:6px;margin-bottom:.4rem">${renderDealItems(window._dealAsk,'ask')}</div>
+            <div style="font-size:.75rem;color:#8090b0;margin-bottom:.3rem">Available (click to add):</div>
+            <div style="display:flex;flex-wrap:wrap;gap:.3rem">${theirItems.map(it=>`<button class="diplo-btn" onclick='dealAdd("ask",${JSON.stringify(it.item).replace(/'/g,"&#39;")})' style="font-size:.75rem">${it.label}</button>`).join('')}</div>
+        </div>
+    </div>
+    <div style="margin-top:1.2rem;display:flex;gap:.5rem;justify-content:flex-end">
+        <button class="diplo-btn" onclick="closeDealBuilder()">Cancel</button>
+        <button class="diplo-btn" style="color:#ffd700;border-color:#ffd700;background:rgba(255,215,0,.1)" onclick="dealPropose()">Propose</button>
+    </div>`;
+    document.getElementById('diplo-content').innerHTML=h;
+}
+function renderDealItems(arr,col){
+    if(!arr.length)return`<div style="color:#6070a0;font-size:.8rem;font-style:italic">(nothing yet)</div>`;
+    return arr.map((it,i)=>`<div style="display:inline-block;padding:.25rem .5rem;margin:.2rem;background:rgba(255,255,255,.08);border-radius:4px;font-size:.8rem;cursor:pointer" onclick="dealRemove('${col}',${i})">${formatItem(it)} ×</div>`).join('');
+}
+function buildAvailableItems(pid,info){
+    const p=state.players[pid];
+    const items=[];
+    // Gold options
+    const gold=pid===0?(info?info.my_gold:p.gold):p.gold||100;
+    if(gold>=20)items.push({label:`20g`,item:{type:'gold',amount:20}});
+    if(gold>=100)items.push({label:`100g`,item:{type:'gold',amount:100}});
+    if(gold>=500)items.push({label:`500g`,item:{type:'gold',amount:500}});
+    items.push({label:'5g/turn',item:{type:'gold_per_turn',amount:5}});
+    // Tech list
+    const techs=pid===0?(info?info.my_techs:p.techs):p.techs||[];
+    for(const t of techs){items.push({label:'tech: '+t.replace(/_/g,' '),item:{type:'tech',name:t}})}
+    // Agreements
+    items.push({label:'open borders',item:{type:'open_borders'}});
+    items.push({label:'DoF',item:{type:'declaration_of_friendship'}});
+    items.push({label:'def pact',item:{type:'defensive_pact'}});
+    items.push({label:'research agr',item:{type:'research_agreement'}});
+    items.push({label:'trade route',item:{type:'trade_route'}});
+    items.push({label:'world map',item:{type:'map'}});
+    // Luxuries owned
+    if(pid===0&&info&&info.my_resources){
+        for(const r in info.my_resources){
+            items.push({label:'lux '+r,item:{type:'luxury_trade',resource:r}});
+            items.push({label:'resource '+r,item:{type:'resource_trade',resource:r}});
+        }
+    }
+    return items;
+}
+function dealAdd(col,it){(col==='give'?window._dealGive:window._dealAsk).push(it);renderDealBuilder()}
+function dealRemove(col,i){(col==='give'?window._dealGive:window._dealAsk).splice(i,1);renderDealBuilder()}
+function closeDealBuilder(){openDiplomacy()}
+async function dealPropose(){
+    const r=await api(`/api/game/${gameId}/deal/propose`,'POST',{
+        target_player:window._dealTarget,
+        give:window._dealGive,
+        ask:window._dealAsk});
+    if(r.ok){
+        state=r.state;
+        showEvent('Deal proposed');
+        // If AI auto-responded, the deal is already applied — show current state
+        await openDiplomacy();
+        updateUI();updatePanel();drawMini();
+    }else{
+        showEvent('Failed: '+(r.msg||'?'));
+    }
+}
 function closeDiplomacy(){document.getElementById('diplo-modal').classList.remove('active')}
+
+async function refreshDiploBadge(){
+    if(!gameId)return;
+    try{
+        const info=await api(`/api/game/${gameId}/diplomacy/info`,'GET');
+        const btn=document.getElementById('btn-diplo');
+        if(btn){
+            const n=(info.incoming||[]).length;
+            btn.textContent=_t('diplomacy')+(n?` (${n})`:'');
+            if(n>0){
+                btn.style.background='rgba(255,215,0,.15)';
+                btn.style.borderColor='rgba(255,215,0,.6)';
+                if(!window._lastIncomingCount||window._lastIncomingCount<n){
+                    showEvent(`${n} diplomatic proposal${n>1?'s':''} received`);
+                }
+                window._lastIncomingCount=n;
+            }else{
+                btn.style.background='';
+                btn.style.borderColor='rgba(196,144,255,.3)';
+                window._lastIncomingCount=0;
+            }
+        }
+    }catch(e){}
+}
 function showGameOver(){const s=document.getElementById('game-over-screen'),t=document.getElementById('game-over-title'),m=document.getElementById('game-over-msg');if(state.winner===0){t.className='victory';t.textContent=_t('victory');m.textContent=_t('your_civ_triumphed')}else{t.className='defeat';t.textContent=_t('defeat');m.textContent=`${state.players.find(p=>p.id===state.winner)?.name||'?'} ${_t('won')}`}s.classList.add('active')}
 
 // ============================================================
@@ -1172,6 +1367,27 @@ function render(){
     if(selectedUnit){const u=state.units.find(u=>u.id===selectedUnit);if(u){const[px,py]=h2p(u.q,u.r),sx=px-ox,sy=py-oy;ctx.save();ctx.globalAlpha=.1+Math.sin(T*5)*.07;hexP(ctx,sx,sy,S+3);ctx.strokeStyle='#fff';ctx.lineWidth=3;ctx.stroke();hexP(ctx,sx,sy,S);ctx.fillStyle='#fff';ctx.fill();ctx.restore();if(u.moves_left>0)for(const[nq,nr]of hNb(u.q,u.r)){const k=`${nq},${nr}`;if(!tiles[k])continue;const t=tiles[k];if((t==='water'||t==='coast')&&u.cat!=='naval'&&u.cat!=='air')continue;if(t==='mountain'&&u.cat!=='air')continue;const[np,ny]=h2p(nq,nr),nx=np-ox,ns=ny-oy;const en=state.units.some(x=>x.q===nq&&x.r===nr&&x.player!==0)||state.cities.some(c=>c.q===nq&&c.r===nr&&c.player!==0);ctx.save();ctx.globalAlpha=.15+Math.sin(T*3)*.05;hexP(ctx,nx,ns,S);ctx.fillStyle=en?'#ff3030':'#30ff70';ctx.fill();ctx.globalAlpha=.5;hexP(ctx,nx,ns,S);ctx.strokeStyle=en?'#ff3030':'#30ff70';ctx.lineWidth=2;ctx.setLineDash([5,4]);ctx.stroke();ctx.setLineDash([]);ctx.restore()}
     if(rangedMode){const ur=u.range||UNIT_RANGES[u.type]||0;if(ur>0)for(let dq=-ur;dq<=ur;dq++)for(let dr=-ur;dr<=ur;dr++){if(hD(0,0,dq,dr)>ur||hD(0,0,dq,dr)<1)continue;const tq=u.q+dq,tr=u.r+dr;const[tp,ty]=h2p(tq,tr),tx=tp-ox,ts=ty-oy;const hasEnemy=state.units.some(x=>x.q===tq&&x.r===tr&&x.player!==0)||state.cities.some(c=>c.q===tq&&c.r===tr&&c.player!==0);ctx.save();ctx.globalAlpha=hasEnemy?.3+Math.sin(T*4)*.1:.08;hexP(ctx,tx,ts,S);ctx.fillStyle=hasEnemy?'#ff6b35':'#ff6b35';ctx.fill();if(hasEnemy){ctx.globalAlpha=.7;hexP(ctx,tx,ts,S);ctx.strokeStyle='#ff6b35';ctx.lineWidth=2;ctx.stroke()}ctx.restore()}}}}
     if(selectedCity){const c=state.cities.find(c=>c.id===selectedCity);if(c){const br=c.border_radius||1;for(let dq=-br;dq<=br;dq++)for(let dr=-br;dr<=br;dr++){if(hD(0,0,dq,dr)>br)continue;const[px,py]=h2p(c.q+dq,c.r+dr);ctx.save();ctx.globalAlpha=.06+Math.sin(T*2+dq)*.03;hexP(ctx,px-ox,py-oy,S);ctx.fillStyle='#ffd700';ctx.fill();ctx.restore()}}}
+
+    // RESOURCES — small icon on hex corner
+    if(state.resources){
+        for(const k in state.resources){
+            const [q,r]=k.split(',').map(Number);
+            const res=state.resources[k];
+            const[px,py]=h2p(q,r);const sx=px-ox,sy=py-oy;
+            if(sx<-pad||sx>W/camZoom+pad||sy<-pad||sy>H/camZoom+pad)continue;
+            const icon=RES_ICON[res]||'?';
+            const color=RES_COLOR[res]||'#ffd700';
+            ctx.save();
+            ctx.fillStyle='rgba(5,10,25,.75)';
+            ctx.beginPath();ctx.arc(sx+S*.35,sy-S*.35,S*.22,0,Math.PI*2);ctx.fill();
+            ctx.strokeStyle=color;ctx.lineWidth=1.5;ctx.stroke();
+            ctx.fillStyle=color;
+            ctx.font=`bold ${Math.max(8,S*.22)|0}px sans-serif`;
+            ctx.textAlign='center';ctx.textBaseline='middle';
+            ctx.fillText(icon,sx+S*.35,sy-S*.33);
+            ctx.restore();
+        }
+    }
 
     // CITIES
     for(const c of state.cities){const[px,py]=h2p(c.q,c.r),sx=px-ox,sy=py-oy;if(sx<-pad||sx>W/camZoom+pad||sy<-pad||sy>H/camZoom+pad)continue;drawCity(sx,sy,c,state.players.find(p=>p.id===c.player)?.color||'#888')}

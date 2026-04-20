@@ -5,6 +5,7 @@ from .civilian import AICivilianMixin
 from .worker import AIWorkerMixin
 from .settler import AISettlerMixin
 from .military import AIMilitaryMixin
+from .diplomacy import AIDiplomacyMixin
 
 
 class AIMixin(
@@ -14,6 +15,7 @@ class AIMixin(
     AISettlerMixin,
     AIMilitaryMixin,
     AICivilianMixin,
+    AIDiplomacyMixin,
 ):
     """Aggregates all per-domain AI mixins."""
     pass
@@ -26,5 +28,6 @@ __all__ = [
     "AISettlerMixin",
     "AIMilitaryMixin",
     "AICivilianMixin",
+    "AIDiplomacyMixin",
     "AIMixin",
 ]

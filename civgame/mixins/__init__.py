@@ -5,6 +5,7 @@ from .movement import MovementMixin
 from .combat import CombatMixin
 from .actions import ActionsMixin
 from .diplomacy import DiplomacyMixin
+from .deals import DealsMixin
 from .turn import TurnMixin
 from .research import ResearchMixin
 from .serialization import SerializationMixin
@@ -17,6 +18,7 @@ __all__ = [
     "CombatMixin",
     "ActionsMixin",
     "DiplomacyMixin",
+    "DealsMixin",
     "TurnMixin",
     "ResearchMixin",
     "SerializationMixin",

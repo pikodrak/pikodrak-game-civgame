@@ -321,11 +321,14 @@ class AIProductionMixin:
         self.current_player = saved
 
     def _ai_best_military(self, player):
-        """Pick best available military unit."""
+        """Pick best available military unit (respects strategic resource gating)."""
+        pid = player["id"]
         for uname in ["infantry", "rifleman", "musketman", "knight", "swordsman", "spearman", "archer", "warrior"]:
             udata = UNIT_TYPES[uname]
             if not udata["tech"] or udata["tech"] in player["techs"]:
-                return uname
+                ok, _missing = self.player_can_build_unit(pid, uname)
+                if ok:
+                    return uname
         return "warrior"
 
     def _ai_upgrade_units(self, pid):

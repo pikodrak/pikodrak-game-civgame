@@ -1,5 +1,90 @@
 # CivGame AI Development Changelog
 
+## Session: 2026-04-20 | Rich diplomacy system + resources
+
+Big-feature release: added resources (strategic/luxury/bonus) and a proposal-
+based deal system with 13 deal types that works AI-to-AI and human-to-AI.
+
+### Resources
+- `civgame/data/resources.py` defines 18 resources in three classes:
+  - **Strategic** (iron, horse, coal, oil, uranium) — gate advanced units
+    (swordsman needs iron, knight needs horse, tank needs oil, etc.).
+  - **Luxury** (wine, silk, gems, gold_ore, incense, spices, ivory, dyes) —
+    each unique type accessible to a civ gives +2 happiness to every city.
+  - **Bonus** (wheat, cattle, fish, deer, stone) — passive tile yield boost.
+- Placed procedurally at 5% of tiles, matching terrain requirements.
+- `get_player_resources(pid)` sums resources on tiles within any city's
+  work radius. `player_can_build_unit(pid, type)` gates production.
+- Frontend renders a small icon circle on resource tiles.
+
+### Deal framework (`civgame/mixins/deals.py`)
+- `propose_deal(offer_by, offer_to, give, ask)` — creates a pending deal.
+- `accept_deal` / `reject_deal` — apply effects or drop.
+- Items: `gold`, `gold_per_turn`, `tech`, `map`, `city`, `open_borders`,
+  `defensive_pact`, `declaration_of_friendship`, `research_agreement`,
+  `trade_route`, `resource_trade`, `luxury_trade`, `tribute`,
+  `peace_treaty`, `denounce`.
+- Agreements tick each round in `_tick_agreements`: gold-per-turn and
+  tribute transfer gold, trade-route gives +3g to both sides, research-
+  agreement accumulates contributions and delivers a tech on expiry.
+- `opinion_modifiers` list per player (source/value/expires) compound with
+  the legacy `relations` score. `get_opinion_breakdown` enumerates reasons.
+- `memory` counters per other civ: broken_promises, trades_completed, …
+- DoF adds +15 opinion for 30 turns to both sides. Denounce adds -20 to the
+  target and +3 to third parties who dislike the denounced civ.
+
+### AI diplomacy engine (`civgame/ai/diplomacy.py`)
+- `_ai_value_item` returns gold-equivalent value per item, considering
+  whether the receiver already has the thing (duplicate luxuries worthless).
+- `_ai_evaluate_deal` adjusts the accept threshold by opinion: friends
+  accept 15% unfavourable, enemies require 30% surplus.
+- `_ai_propose_deals` generates up to `max_proposals_per_turn=2` per civ
+  per turn, prioritized by opinion. Skips civs flagged "leave me alone".
+- Candidate templates per strategy/relation: DoF, tech swaps, tech-for-gold,
+  open borders, research agreements, defensive pacts, luxury swaps,
+  strategic-resource sales, trade routes, and peace/tribute during war.
+- AI-to-AI: when an AI proposes to an AI, the receiver immediately decides
+  via `_ai_respond_to_deal`. Tested: ~10 deals per 100 turns in 5-civ sims.
+
+### Endpoints
+- `POST /api/game/{id}/deal/propose {target_player, give, ask}`
+- `POST /api/game/{id}/deal/accept {deal_id}`
+- `POST /api/game/{id}/deal/reject {deal_id}`
+- `GET  /api/game/{id}/diplomacy/info` — opinions, breakdowns, active
+  agreements, incoming/outgoing deals.
+
+### Frontend
+- Diplomacy modal rebuilt: **Incoming proposals** section with Accept/Reject,
+  **Active agreements** list with turns-left, civ rows show opinion number
+  and a `title` tooltip listing modifier sources.
+- **Deal builder** ("Deal..." button per civ): two-column I-give / They-give
+  layout, click-to-add from available items (gold buckets, techs, agreements,
+  resources). Real items removed by click. Propose button → API.
+- Top-bar Diplomacy button shows `(N)` badge + event toast when new AI
+  proposals arrive; refreshed every turn-end.
+- Resource icons rendered on hex (small colored disc with letter code).
+
+### Config (game_config.ini)
+```
+resource_spawn_chance = 0.05
+max_proposals_per_turn = 2
+deal_open_borders_duration = 20
+deal_def_pact_duration = 30
+deal_dof_duration = 30
+deal_research_duration = 20
+deal_trade_route_duration = 20
+deal_resource_trade_duration = 20
+deal_tribute_duration = 10
+deal_gold_pt_duration = 10
+denounce_duration = 30
+research_agreement_cost = 100
+luxury_happiness = 2
+```
+
+### Persistence
+- Save/load serializes `resources`, `agreements`, `pending_deals`. Older
+  saves load with defaults (empty).
+
 ## Session: 2026-04-20 | AI balance tuning from simulation data
 
 Ran 5 simulations (5 civs, 25×18, 150 turns, seeds 1-5) and identified

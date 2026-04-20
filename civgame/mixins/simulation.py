@@ -155,6 +155,13 @@ class SimulationMixin:
                 if result.get("events"):
                     turn_log["events"].extend([f"[{pname}] {e}" for e in result["events"]])
 
+            # End-of-round diplomatic tick
+            dip_events = []
+            if hasattr(game, "_tick_agreements"):
+                game._tick_agreements(dip_events)
+            if dip_events:
+                turn_log["events"].extend(dip_events)
+
             game.turn += 1
 
         # Score victory — if no winner, highest score wins
