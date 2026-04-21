@@ -63,19 +63,25 @@ class DealsMixin:
         rec[key] = rec.get(key, 0) + delta
 
     def _victory_progress_pct(self, pid):
-        """Best victory progress (0-100) for player pid across all 3 paths."""
+        """Best victory progress (0-100) for player pid across all 3 paths.
+
+        Uses scaled thresholds so the percentage is meaningful on any map size.
+        """
         p = self.players[pid]
+        thresholds = self._victory_thresholds() if hasattr(self, "_victory_thresholds") else None
+        space_threshold = (thresholds["space"] if thresholds else GAME_CONFIG.get("space_victory_production", 50000))
+        culture_threshold = (thresholds["culture"] if thresholds else GAME_CONFIG.get("culture_victory_threshold", 8000))
+        dom_need = (thresholds["domination"] if thresholds else GAME_CONFIG.get("domination_city_percent", 0.65))
         space_techs = ["space_program", "rocketry", "nuclear_fission"]
         done = sum(1 for t in space_techs if t in p.get("techs", []))
         if done >= 3:
-            sp_pct = 100 * p.get("space_progress", 0) / max(1, GAME_CONFIG.get("space_victory_production", 50000))
+            sp_pct = 100 * p.get("space_progress", 0) / max(1, space_threshold)
         else:
-            sp_pct = 25 * done  # pre-modern partial credit (0/3=0, 1/3=25, 2/3=50, but cap at 75 pre-done)
+            sp_pct = 25 * done
             sp_pct = min(sp_pct, 75)
-        cult_pct = 100 * p.get("culture_pool", 0) / max(1, GAME_CONFIG.get("culture_victory_threshold", 8000))
+        cult_pct = 100 * p.get("culture_pool", 0) / max(1, culture_threshold)
         my_cities = sum(1 for c in self.cities.values() if c["player"] == pid)
         total = max(1, len(self.cities))
-        dom_need = GAME_CONFIG.get("domination_city_percent", 0.65)
         dom_pct = 100 * (my_cities / total) / max(0.1, dom_need)
         return max(sp_pct, cult_pct, dom_pct)
 

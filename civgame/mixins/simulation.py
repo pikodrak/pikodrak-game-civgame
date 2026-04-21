@@ -402,16 +402,17 @@ class SimulationMixin:
 
         player["score"] = self._calc_score(pid)
 
+        thresholds = self._victory_thresholds()
         space_techs = ["space_program", "rocketry", "nuclear_fission"]
         if all(t in player["techs"] for t in space_techs):
             player["space_progress"] = player.get("space_progress", 0) + sum(
                 self.get_city_yields(c["id"])["prod"] for c in self.cities.values() if c["player"] == pid)
-            if player.get("space_progress", 0) >= GAME_CONFIG.get("space_victory_production", 5000):
+            if player.get("space_progress", 0) >= thresholds["space"]:
                 self.game_over = True
                 self.winner = pid
                 self.victory_type = "space"
                 events.append(f"{player['name']} achieves SPACE victory!")
-        if not self.game_over and player["culture_pool"] >= GAME_CONFIG.get("culture_victory_threshold", 8000):
+        if not self.game_over and player["culture_pool"] >= thresholds["culture"]:
             self.game_over = True
             self.winner = pid
             self.victory_type = "culture"
@@ -419,7 +420,7 @@ class SimulationMixin:
         if not self.game_over:
             total_cities = len(self.cities)
             my_city_count = len([c for c in self.cities.values() if c["player"] == pid])
-            if total_cities >= 4 and my_city_count >= total_cities * GAME_CONFIG.get("domination_city_percent", 0.6):
+            if total_cities >= 4 and my_city_count >= total_cities * thresholds["domination"]:
                 self.game_over = True
                 self.winner = pid
                 self.victory_type = "domination"

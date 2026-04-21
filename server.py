@@ -1602,10 +1602,11 @@ def api_diplomacy_info(game_id: int):
     opinions = {}
     breakdowns = {}
     victory_progress = {}
-    from civgame.constants import GAME_CONFIG as _GC
-    space_threshold = _GC.get("space_victory_production", 50000)
-    culture_threshold = _GC.get("culture_victory_threshold", 8000)
-    domination_pct = _GC.get("domination_city_percent", 0.65)
+    # Use scaled thresholds (grow with num_players + map size)
+    thr = game._victory_thresholds() if hasattr(game, "_victory_thresholds") else {}
+    space_threshold = thr.get("space", 50000)
+    culture_threshold = thr.get("culture", 8000)
+    domination_pct = thr.get("domination", 0.65)
     total_cities = max(1, len(game.cities))
     space_techs_needed = ["space_program", "rocketry", "nuclear_fission"]
     for p in game.players:

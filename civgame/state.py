@@ -178,6 +178,21 @@ class GameState(
             return q % self.width
         return q
 
+    def _victory_thresholds(self):
+        """Per-game victory thresholds scaled by active player count.
+
+        Base config values are tuned for 5 civs. Threshold = base × (alive/5),
+        so 10 civs double it, 20 civs quadruple it. Domination is already
+        percentage-based so it doesn't scale.
+        """
+        alive = max(1, sum(1 for p in self.players if p.get("alive", True)))
+        scale = max(1.0, alive / 5.0)
+        return {
+            "culture": int(GAME_CONFIG.get("culture_victory_threshold", 8000) * scale),
+            "space": int(GAME_CONFIG.get("space_victory_production", 50000) * scale),
+            "domination": GAME_CONFIG.get("domination_city_percent", 0.65),
+        }
+
     def _place_resources(self, seed=None):
         """Procedurally place resources on matching terrain.
 
