@@ -1250,8 +1250,14 @@ async function dealPropose(){
         ask:window._dealAsk});
     if(r.ok){
         state=r.state;
-        showEvent('Deal proposed');
-        // If AI auto-responded, the deal is already applied — show current state
+        const them=state.players[window._dealTarget]?.name||'AI';
+        if(r.ai_decision==='accepted'){
+            showEvent(`✓ ${them} ACCEPTED the deal`);
+        }else if(r.ai_decision==='rejected'){
+            showEvent(`✗ ${them} REJECTED the deal`);
+        }else{
+            showEvent(`Deal sent to ${them}`);
+        }
         await openDiplomacy();
         updateUI();updatePanel();drawMini();
     }else{

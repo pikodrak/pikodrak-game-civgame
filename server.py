@@ -1305,9 +1305,34 @@ def api_deal_propose(game_id: int, req: DealRequest):
     if not game:
         raise HTTPException(404, "Game not found")
     r = game.propose_deal(0, req.target_player, req.give, req.ask)
-    # If target is AI, let them decide immediately
+    # If target is AI, let them decide immediately and report the outcome
+    # so the frontend can show "accepted" or "rejected" right away.
     if r.get("ok") and not game.players[req.target_player].get("is_human"):
-        game._ai_respond_to_deal(r["deal_id"], req.target_player)
+        deal_id = r["deal_id"]
+        existed_before = any(d["id"] == deal_id for d in game.pending_deals)
+        game._ai_respond_to_deal(deal_id, req.target_player)
+        # If the deal is no longer pending, it was resolved (accept or reject).
+        still_pending = any(d["id"] == deal_id for d in game.pending_deals)
+        if not still_pending and existed_before:
+            # Did the agreement list grow or did items move? Easiest signal:
+            # active agreements involving both players indicates accept.
+            new_agreement = any(
+                ag.get("players") and 0 in ag["players"] and req.target_player in ag["players"]
+                and ag.get("turns_left", 0) > 0
+                for ag in game.agreements
+            )
+            # Also immediate deals (gold/tech) don't leave an agreement but do
+            # trigger opinion bump via trade memory — easier: check ai_log tail.
+            accepted_flag = False
+            for msg in reversed(game.ai_log[-20:]) if hasattr(game, "ai_log") else []:
+                if "DEAL: accepted" in msg and game.players[req.target_player]["name"] in msg:
+                    accepted_flag = True
+                    break
+                if "DEAL: rejected" in msg and game.players[req.target_player]["name"] in msg:
+                    break
+            r["ai_decision"] = "accepted" if (accepted_flag or new_agreement) else "rejected"
+        else:
+            r["ai_decision"] = "pending"
     r["state"] = game.to_dict(for_player=0)
     return r
 
