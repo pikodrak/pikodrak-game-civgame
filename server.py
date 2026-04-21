@@ -1333,6 +1333,81 @@ def api_deal_propose(game_id: int, req: DealRequest):
     return r
 
 
+class DemandRequest(BaseModel):
+    target_player: int
+    ask: list
+
+
+@app.post("/api/game/{game_id}/deal/demand")
+def api_deal_demand(game_id: int, req: DemandRequest):
+    """Player demands items from an AI. AI evaluates based on military
+    strength and opinion. Outcomes:
+      - accepted: items transfer, big opinion hit on target
+      - rejected_war: target declares war immediately
+      - rejected: target refuses, big opinion hit on player
+    """
+    game = games.get(game_id)
+    if not game:
+        raise HTTPException(404, "Game not found")
+    me = 0
+    ai = req.target_player
+    if ai >= len(game.players):
+        raise HTTPException(400, "Invalid target")
+
+    def military(pid):
+        return sum(1 for u in game.units.values()
+                   if u["player"] == pid and u["cat"] != "civilian")
+    my_mil = military(me)
+    their_mil = military(ai)
+    power_ratio = my_mil / max(1, their_mil)
+
+    demand_value = sum(game._ai_value_item(it, ai) for it in req.ask)
+    opinion = game.get_opinion(ai, me)
+    aggression = game.players[ai].get("aggression", 0.5)
+
+    # Accept threshold: must be clearly stronger AND demand reasonably sized
+    result = {"state": None, "outcome": None}
+    if my_mil == 0 or their_mil == 0:
+        # No armies → no intimidation
+        outcome = "rejected"
+    elif power_ratio >= 2.0 and demand_value < 500:
+        outcome = "accepted"
+    elif power_ratio >= 1.3 and demand_value < 200:
+        outcome = "accepted"
+    elif power_ratio < 1.0:
+        # We're weaker than them — they may declare war for the insult
+        war_chance = aggression * 0.6
+        import random as _r
+        outcome = "rejected_war" if _r.random() < war_chance else "rejected"
+    else:
+        outcome = "rejected"
+
+    result["outcome"] = outcome
+    result["power_ratio"] = round(power_ratio, 2)
+    result["demand_value"] = demand_value
+
+    if outcome == "accepted":
+        # Transfer items from AI to player
+        for item in req.ask:
+            game._apply_item(item, ai, me)
+        # Target resents it — big opinion hit and memory mark
+        game._add_opinion(ai, me, "demanded_from_us", -30, turns=40)
+        game._bump_memory(ai, me, "broken_promises")
+        game.ai_log.append(f"[{game.players[ai]['name']}] paid demand from {game.players[me]['name']}")
+    elif outcome == "rejected":
+        # AI refuses — player's reputation with target tanks
+        game._add_opinion(ai, me, "insulted_us", -20, turns=30)
+        game.ai_log.append(f"[{game.players[ai]['name']}] refused demand from {game.players[me]['name']}")
+    elif outcome == "rejected_war":
+        game._add_opinion(ai, me, "insulted_us", -30, turns=30)
+        game.declare_war(ai, me)
+        game.ai_log.append(f"[{game.players[ai]['name']}] declared WAR after {game.players[me]['name']} made demands")
+
+    result["state"] = game.to_dict(for_player=0)
+    result["ok"] = True
+    return result
+
+
 @app.post("/api/game/{game_id}/deal/ai_counter")
 def api_deal_ai_counter(game_id: int, req: DealRequest):
     """Player offers items; AI suggests what it would give in return.

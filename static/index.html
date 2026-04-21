@@ -1211,9 +1211,10 @@ function renderDealBuilder(){
             <div style="display:flex;flex-wrap:wrap;gap:.3rem">${theirItems.map(it=>`<button class="diplo-btn" onclick='dealAdd("ask",${JSON.stringify(it.item).replace(/'/g,"&#39;")})' style="font-size:.75rem">${it.label}</button>`).join('')}</div>
         </div>
     </div>
-    <div style="margin-top:1.2rem;display:flex;gap:.5rem;justify-content:flex-end">
+    <div style="margin-top:1.2rem;display:flex;gap:.5rem;justify-content:flex-end;flex-wrap:wrap">
         <button class="diplo-btn" onclick="closeDealBuilder()">Cancel</button>
         <button class="diplo-btn" style="color:#4fd4ff;border-color:#4fd4ff" onclick="dealAskCounter()" title="Fill the 'They give' column with what AI would offer for your stuff">Ask AI what they'd offer</button>
+        <button class="diplo-btn" style="color:#e74c3c;border-color:#e74c3c" onclick="dealDemand()" title="Threaten: demand items from 'They give' column without giving anything. Needs military superiority. Weaker civs pay; equal civs may refuse; you-are-weaker can trigger WAR.">Demand (threaten)</button>
         <button class="diplo-btn" style="color:#ffd700;border-color:#ffd700;background:rgba(255,215,0,.1)" onclick="dealPropose()">Propose</button>
     </div>`;
     document.getElementById('diplo-content').innerHTML=h;
@@ -1253,6 +1254,30 @@ function buildAvailableItems(pid,info){
 function dealAdd(col,it){(col==='give'?window._dealGive:window._dealAsk).push(it);renderDealBuilder()}
 function dealRemove(col,i){(col==='give'?window._dealGive:window._dealAsk).splice(i,1);renderDealBuilder()}
 function closeDealBuilder(){openDiplomacy()}
+async function dealDemand(){
+    if(!window._dealAsk.length){showEvent('Add what you DEMAND to the right column first');return}
+    const them=state.players[window._dealTarget]?.name||'AI';
+    if(!await gameConfirm('Threaten '+them,`You demand ${window._dealAsk.length} item(s) without offering anything. If you're not clearly stronger, this may backfire — the target could declare war. Continue?`))return;
+    const r=await api(`/api/game/${gameId}/deal/demand`,'POST',{
+        target_player:window._dealTarget,
+        ask:window._dealAsk});
+    if(r.ok){
+        state=r.state;
+        if(r.outcome==='accepted'){
+            showEvent(`✓ ${them} surrendered to demands (power ${r.power_ratio}×)`);
+            await openDiplomacy();
+        }else if(r.outcome==='rejected_war'){
+            showEvent(`⚔ ${them} declared WAR in response to your threats!`);
+            await openDiplomacy();
+        }else{
+            showEvent(`✗ ${them} refused the demand (power ${r.power_ratio}×)`);
+            // stay in builder to retry
+        }
+        updateUI();updatePanel();drawMini();
+    }else{
+        showEvent('Failed: '+(r.msg||'?'));
+    }
+}
 async function dealAskCounter(){
     if(!window._dealGive.length){showEvent('Offer something first');return}
     const r=await api(`/api/game/${gameId}/deal/ai_counter`,'POST',{
