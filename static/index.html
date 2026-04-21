@@ -1272,13 +1272,20 @@ async function dealPropose(){
         const them=state.players[window._dealTarget]?.name||'AI';
         if(r.ai_decision==='accepted'){
             showEvent(`✓ ${them} ACCEPTED the deal`);
+            await openDiplomacy();  // close builder, show diplomacy
+            updateUI();updatePanel();drawMini();
         }else if(r.ai_decision==='rejected'){
-            showEvent(`✗ ${them} REJECTED the deal`);
+            const reason=(r.ai_gain!=null&&r.ai_loss!=null)
+                ? ` (they value your offer ~${r.ai_gain}g but want ~${r.ai_loss}g worth)`
+                : '';
+            showEvent(`✗ ${them} REJECTED${reason} — adjust and retry`);
+            // Keep builder open so player can modify and retry
+            updateUI();updatePanel();drawMini();
         }else{
-            showEvent(`Deal sent to ${them}`);
+            showEvent(`Deal sent to ${them} (awaiting decision)`);
+            await openDiplomacy();
+            updateUI();updatePanel();drawMini();
         }
-        await openDiplomacy();
-        updateUI();updatePanel();drawMini();
     }else{
         showEvent('Failed: '+(r.msg||'?'));
     }

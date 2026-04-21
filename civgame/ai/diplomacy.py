@@ -136,6 +136,9 @@ class AIDiplomacyMixin:
         The asymmetric multiplier is small (1.08) so symmetric agreements
         (DoF↔DoF, OB↔OB) can still pass — but lopsided gold-for-tech deals
         where proposer overvalues what they're offering will be rejected.
+
+        Human proposers get a small goodwill bonus (+10 opinion equivalent)
+        so the player isn't rejected on razor-thin margins.
         """
         receiver = deal["offer_to"]
         proposer = deal["offer_by"]
@@ -145,6 +148,9 @@ class AIDiplomacyMixin:
         loss = int(loss * 1.08)
         # Opinion-weighted threshold: -100 → 1.35×, 0 → 1.0×, +100 → 0.75×
         op = self.get_opinion(receiver, proposer)
+        # Human-bonus: players get some goodwill to compensate slower valuation
+        if self.players[proposer].get("is_human"):
+            op += 10
         threshold = max(0.75, min(1.35, 1.0 - op / 400))
         return gain >= loss * threshold
 
