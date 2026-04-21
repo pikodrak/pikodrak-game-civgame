@@ -173,8 +173,12 @@ class CityMixin:
                                 tg += 1  # strategic/luxury small gold when worked
                         road = self.roads.get((tq, tr))
                         road_name = road["type"] if road else None
-                        if road and road["type"] == "railroad":
-                            tp += 1
+                        if road:
+                            # Road: +1 gold on the tile (trade route bonus).
+                            # Railroad: +1 gold and +1 production.
+                            tg += 1
+                            if road["type"] == "railroad":
+                                tp += 1
                         tiles_detail.append({
                             "q": tq, "r": tr,
                             "terrain": t.value,
