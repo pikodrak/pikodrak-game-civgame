@@ -144,6 +144,22 @@ class AICoreMixin:
                     self._log_ai(pid, f"DIPLO: anti-warmonger WAR on {other['name']} ({active_wars} active wars)")
                     break  # only one gang-up per turn
 
+        # Anti-victor coalition — if any civ is >60% toward any victory,
+        # trigger a panic war declaration from fellow non-allies. Chance
+        # scales with progress: 60% → small nudge, 90% → very likely.
+        for other in alive_players:
+            rel = player["diplomacy"].get(other["id"], "peace")
+            if rel in ("war", "alliance"):
+                continue
+            prog = self._victory_progress_pct(other["id"])
+            if prog >= 60:
+                # Chance scales (prog-60)/30 * 0.4 → 0% at 60%, 40% at 90%, 53% at 100%
+                chance = max(0, (prog - 60) / 30) * 0.4
+                if random.random() < chance:
+                    self.declare_war(pid, other["id"])
+                    self._log_ai(pid, f"DIPLO: anti-victor WAR on {other['name']} ({prog}% toward victory)")
+                    break
+
         # Alliance AI — loyal/peaceful civs seek alliances against common enemies
         current_alliances = sum(1 for p in self.players if p["alive"] and player["diplomacy"].get(p["id"]) == "alliance")
         max_alliances = 2  # max 2 alliances per player to prevent web of obligations

@@ -133,15 +133,20 @@ class AIDiplomacyMixin:
     def _ai_evaluate_deal(self, deal):
         """Return True if offer_to (receiver) would accept.
 
-        The asymmetric multiplier is small (1.08) so symmetric agreements
-        (DoF↔DoF, OB↔OB) can still pass — but lopsided gold-for-tech deals
-        where proposer overvalues what they're offering will be rejected.
-
-        Human proposers get a small goodwill bonus (+10 opinion equivalent)
-        so the player isn't rejected on razor-thin margins.
+        Rejects deals outright when the proposer is >70% toward winning — the
+        receiver isn't going to help the leader win. Tech sales to a leader
+        get a hard-stop even below the threshold.
         """
         receiver = deal["offer_to"]
         proposer = deal["offer_by"]
+        # Anti-victor guard: don't help the leader cement their victory.
+        proposer_progress = self._victory_progress_pct(proposer)
+        if proposer_progress >= 70:
+            # High-leverage items (tech, research agreement) are hard-no.
+            for it in deal["ask"]:  # items proposer wants FROM receiver
+                if it["type"] in ("tech", "research_agreement", "resource_trade",
+                                   "luxury_trade", "city"):
+                    return False
         gain = self._ai_deal_total(deal["give"], receiver)
         loss = self._ai_deal_total(deal["ask"], receiver)
         # Light asymmetry: receiver thinks own stuff ~8% more valuable.
@@ -151,7 +156,10 @@ class AIDiplomacyMixin:
         # Human-bonus: players get some goodwill to compensate slower valuation
         if self.players[proposer].get("is_human"):
             op += 10
-        threshold = max(0.75, min(1.35, 1.0 - op / 400))
+        # Victor penalty: deals with near-victors need better terms
+        if proposer_progress >= 60:
+            op -= int((proposer_progress - 60) * 1.5)
+        threshold = max(0.75, min(1.5, 1.0 - op / 400))
         return gain >= loss * threshold
 
     # ------------------------------------------------------------------
