@@ -1204,6 +1204,7 @@ function renderDealBuilder(){
     </div>
     <div style="margin-top:1.2rem;display:flex;gap:.5rem;justify-content:flex-end">
         <button class="diplo-btn" onclick="closeDealBuilder()">Cancel</button>
+        <button class="diplo-btn" style="color:#4fd4ff;border-color:#4fd4ff" onclick="dealAskCounter()" title="Fill the 'They give' column with what AI would offer for your stuff">Ask AI what they'd offer</button>
         <button class="diplo-btn" style="color:#ffd700;border-color:#ffd700;background:rgba(255,215,0,.1)" onclick="dealPropose()">Propose</button>
     </div>`;
     document.getElementById('diplo-content').innerHTML=h;
@@ -1243,6 +1244,24 @@ function buildAvailableItems(pid,info){
 function dealAdd(col,it){(col==='give'?window._dealGive:window._dealAsk).push(it);renderDealBuilder()}
 function dealRemove(col,i){(col==='give'?window._dealGive:window._dealAsk).splice(i,1);renderDealBuilder()}
 function closeDealBuilder(){openDiplomacy()}
+async function dealAskCounter(){
+    if(!window._dealGive.length){showEvent('Offer something first');return}
+    const r=await api(`/api/game/${gameId}/deal/ai_counter`,'POST',{
+        target_player:window._dealTarget,
+        give:window._dealGive,
+        ask:[]});
+    if(r.ok){
+        if(r.suggested&&r.suggested.length){
+            window._dealAsk=r.suggested;
+            renderDealBuilder();
+            showEvent(`${r.ai_name} would offer ${r.suggested.length} item(s) for your offer (value ~${r.offer_value}g)`);
+        }else{
+            showEvent(`${r.ai_name} has nothing worth offering for this`);
+        }
+    }else{
+        showEvent('Failed: '+(r.msg||'?'));
+    }
+}
 async function dealPropose(){
     const r=await api(`/api/game/${gameId}/deal/propose`,'POST',{
         target_player:window._dealTarget,

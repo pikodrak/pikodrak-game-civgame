@@ -1337,6 +1337,103 @@ def api_deal_propose(game_id: int, req: DealRequest):
     return r
 
 
+@app.post("/api/game/{game_id}/deal/ai_counter")
+def api_deal_ai_counter(game_id: int, req: DealRequest):
+    """Player offers items; AI suggests what it would give in return.
+
+    Computes the gold-equivalent value of the player's offer, then picks a
+    set of items the AI has available that roughly matches that value.
+    Returns the suggested "ask" list — player can accept, modify, or discard.
+    """
+    game = games.get(game_id)
+    if not game:
+        raise HTTPException(404, "Game not found")
+    if req.target_player >= len(game.players):
+        raise HTTPException(400, "Invalid target")
+    me = 0
+    ai = req.target_player
+    # Value of what player offers, from AI receiver's perspective
+    offer_value = sum(game._ai_value_item(it, ai) for it in req.give)
+    if offer_value <= 0:
+        return {"ok": False, "msg": "Your offer has no value to them", "suggested": []}
+
+    player_ai = game.players[ai]
+    player_me = game.players[me]
+    # Candidate items AI could give, scored by value to me (the proposer)
+    candidates = []
+
+    # Gold buckets AI could pay
+    for amt in (30, 60, 120, 250, 500):
+        if player_ai["gold"] >= amt:
+            candidates.append({"type": "gold", "amount": amt})
+
+    # Techs AI has that I don't
+    for t in player_ai["techs"]:
+        if t in player_me["techs"]:
+            continue
+        from civgame.data import TECHNOLOGIES
+        tdata = TECHNOLOGIES.get(t)
+        if not tdata:
+            continue
+        if all(pr in player_me["techs"] for pr in tdata.get("prereqs", [])):
+            candidates.append({"type": "tech", "name": t})
+
+    # World map
+    candidates.append({"type": "map"})
+    # Open borders etc — always possible offers
+    for agr in ("open_borders", "trade_route", "declaration_of_friendship",
+                 "defensive_pact", "research_agreement"):
+        if not game.has_active(me, ai, agr):
+            candidates.append({"type": agr})
+
+    # Luxuries AI has
+    ai_res = game.get_player_resources(ai)
+    my_res = game.get_player_resources(me)
+    for r_name in ai_res:
+        from civgame.data import RESOURCES
+        if RESOURCES.get(r_name, {}).get("type") == "luxury" and r_name not in my_res:
+            candidates.append({"type": "luxury_trade", "resource": r_name})
+        if RESOURCES.get(r_name, {}).get("type") == "strategic" and r_name not in my_res:
+            candidates.append({"type": "resource_trade", "resource": r_name})
+
+    # Pick items whose *total* value (from my perspective as proposer) best
+    # matches `offer_value`. Greedy fit — take most valuable items up to budget.
+    # But value should be close to what AI views as equivalent — use AI's
+    # view of cost (asymmetric 1.08×) to simulate what AI would actually
+    # give up.
+    scored = []
+    for item in candidates:
+        my_gain = game._ai_value_item(item, me)
+        ai_cost = int(game._ai_value_item(item, ai) * 1.08)
+        if ai_cost <= 0:
+            continue
+        scored.append((item, my_gain, ai_cost))
+    # Sort by ai_cost descending so we fit larger items first
+    scored.sort(key=lambda x: -x[2])
+
+    budget = offer_value
+    suggested = []
+    used_types = set()  # avoid duplicate categories (don't suggest two gold buckets)
+    for item, my_gain, ai_cost in scored:
+        if ai_cost > budget * 1.2:
+            continue  # way too big
+        cat_key = item["type"] + "|" + str(item.get("resource", ""))
+        if cat_key in used_types:
+            continue
+        used_types.add(cat_key)
+        suggested.append(item)
+        budget -= ai_cost
+        if budget <= offer_value * 0.1:
+            break
+
+    return {
+        "ok": True,
+        "offer_value": offer_value,
+        "suggested": suggested,
+        "ai_name": player_ai["name"],
+    }
+
+
 @app.post("/api/game/{game_id}/deal/accept")
 def api_deal_accept(game_id: int, req: DealDecisionRequest):
     game = games.get(game_id)
