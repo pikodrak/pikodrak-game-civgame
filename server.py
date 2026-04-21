@@ -1544,14 +1544,42 @@ def api_diplomacy_info(game_id: int):
     me = 0
     opinions = {}
     breakdowns = {}
+    victory_progress = {}
+    from civgame.constants import GAME_CONFIG as _GC
+    space_threshold = _GC.get("space_victory_production", 50000)
+    culture_threshold = _GC.get("culture_victory_threshold", 8000)
+    domination_pct = _GC.get("domination_city_percent", 0.65)
+    total_cities = max(1, len(game.cities))
+    space_techs_needed = ["space_program", "rocketry", "nuclear_fission"]
     for p in game.players:
-        if p["id"] == me:
-            continue
-        opinions[p["id"]] = game.get_opinion(me, p["id"])
-        breakdowns[p["id"]] = game.get_opinion_breakdown(me, p["id"])
+        if p["id"] != me:
+            opinions[p["id"]] = game.get_opinion(me, p["id"])
+            breakdowns[p["id"]] = game.get_opinion_breakdown(me, p["id"])
+        # Per-civ victory progress — visible for ALL players (espionage-free)
+        space_techs_done = sum(1 for t in space_techs_needed if t in p.get("techs", []))
+        space_prog = p.get("space_progress", 0)
+        culture = p.get("culture_pool", 0)
+        my_cities = sum(1 for c in game.cities.values() if c["player"] == p["id"])
+        victory_progress[p["id"]] = {
+            "space_techs": space_techs_done,  # 0-3
+            "space_progress": space_prog,
+            "space_pct": int(100 * space_prog / space_threshold) if space_techs_done == 3 else 0,
+            "culture_pool": culture,
+            "culture_pct": int(100 * culture / culture_threshold),
+            "domination_pct": int(100 * my_cities / total_cities),
+            "domination_needed_pct": int(100 * domination_pct),
+            "cities": my_cities,
+            "total_cities": total_cities,
+        }
     return {
         "opinions": opinions,
         "breakdowns": breakdowns,
+        "victory_progress": victory_progress,
+        "thresholds": {
+            "space_production": space_threshold,
+            "culture": culture_threshold,
+            "domination_pct": domination_pct,
+        },
         "agreements": game.get_active_agreements(me),
         "incoming": game.incoming_deals(me),
         "outgoing": game.outgoing_deals(me),
