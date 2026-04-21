@@ -1130,21 +1130,30 @@ async function openDiplomacy(){
         const r=me.diplomacy?.[p.id]||'peace';
         const sc=r==='alliance'?'color:#3498db':r==='war'?'color:#e74c3c':r==='peace'?'color:#2ecc71':'color:#f1c40f';
         const op=info.opinions?.[p.id]||0;
-        const opColor=op>20?'#2ecc71':op<-20?'#e74c3c':'#c0c8e0';
-        const bdStr=(info.breakdowns?.[p.id]||[]).map(b=>`${b.value>0?'+':''}${b.value} ${b.source.replace(/_/g,' ')}`).join(', ')||'neutral';
-        h+=`<div class="diplo-player">
-            <div class="diplo-color" style="background:${p.color}"></div>
-            <div style="flex:1">
-                <b style="color:#c0c8e0">${p.name}</b>
-                <div style="font-size:.8rem;color:#5060a0">${p.leader} | ${p.score} score</div>
-                <div style="font-size:.75rem;color:${opColor}" title="${bdStr}">Opinion: ${op}</div>
+        const opColor=op>20?'#2ecc71':op<-20?'#e74c3c':op<0?'#f1c40f':'#c0c8e0';
+        const opLabel=op>40?'Friendly':op>10?'Warm':op>-10?'Neutral':op>-40?'Wary':'Hostile';
+        const bd=info.breakdowns?.[p.id]||[];
+        const bdHtml=bd.length
+            ? bd.map(b=>{const c=b.value>0?'#60d080':b.value<0?'#e06060':'#a0a0a0';return `<span style="color:${c};font-size:.72rem;margin-right:.5rem">${b.value>0?'+':''}${b.value} ${b.source.replace(/_/g,' ')}</span>`}).join('')
+            : '<span style="color:#6070a0;font-size:.72rem">no active modifiers</span>';
+        h+=`<div class="diplo-player" style="flex-direction:column;align-items:stretch">
+            <div style="display:flex;align-items:center;gap:.8rem">
+                <div class="diplo-color" style="background:${p.color}"></div>
+                <div style="flex:1">
+                    <b style="color:#c0c8e0">${p.name}</b>
+                    <div style="font-size:.8rem;color:#5060a0">${p.leader} | ${p.score} score</div>
+                </div>
+                <div style="text-align:right">
+                    <div class="diplo-status" style="${sc}">${r.toUpperCase()}</div>
+                    <div style="font-size:.8rem;color:${opColor};font-weight:600">${opLabel} (${op>0?'+':''}${op})</div>
+                </div>
+                ${p.alive?`<div style="display:flex;gap:3px;flex-wrap:wrap">
+                    ${r!=='war'?`<button class="diplo-btn" style="color:#e74c3c;border-color:#e74c3c" onclick="doDiplomacy(${p.id},'war')">War</button>`:''}
+                    ${r==='war'?`<button class="diplo-btn" style="color:#2ecc71;border-color:#2ecc71" onclick="doDiplomacy(${p.id},'peace')">Peace</button>`:''}
+                    ${r!=='war'?`<button class="diplo-btn" style="color:#ffd700;border-color:#ffd700" onclick="openDealBuilder(${p.id})">Deal...</button>`:''}
+                </div>`:''}
             </div>
-            <div class="diplo-status" style="${sc}">${r.toUpperCase()}</div>
-            ${p.alive?`<div style="display:flex;gap:3px;flex-wrap:wrap">
-                ${r!=='war'?`<button class="diplo-btn" style="color:#e74c3c;border-color:#e74c3c" onclick="doDiplomacy(${p.id},'war')">War</button>`:''}
-                ${r==='war'?`<button class="diplo-btn" style="color:#2ecc71;border-color:#2ecc71" onclick="doDiplomacy(${p.id},'peace')">Peace</button>`:''}
-                ${r!=='war'?`<button class="diplo-btn" style="color:#ffd700;border-color:#ffd700" onclick="openDealBuilder(${p.id})">Deal...</button>`:''}
-            </div>`:''}
+            <div style="padding:.25rem .5rem;margin-top:.35rem;background:rgba(255,255,255,.03);border-radius:4px">${bdHtml}</div>
         </div>`;
     }
     document.getElementById('diplo-content').innerHTML=h;
