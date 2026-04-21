@@ -923,8 +923,8 @@ async function autoWorker(){if(!selectedUnit)return;const d=await api(`/api/game
 async function sentryUnit(){if(!selectedUnit)return;const d=await api(`/api/game/${gameId}/sentry/${selectedUnit}`,'POST');if(d.ok){state=d.state;showEvent(d.msg)}selectedUnit=null;selectNextUnit();updateUI();updatePanel()}
 let rangedMode=false;
 let roadTrailMode=false;
-function startRangedAttack(){if(!selectedUnit)return;rangedMode=true;showEvent('Select target for ranged attack (click hex within range, ESC to cancel)')}
-function startRoadTrail(){if(!selectedUnit)return;roadTrailMode=true;showEvent('Click target hex — worker will build a road trail there (ESC to cancel)')}
+function startRangedAttack(){if(!selectedUnit)return;rangedMode=true;roadTrailMode=false;window._pendingGoto=null;window._pendingRoadTrail=null;showEvent('Select target for ranged attack (click hex within range, ESC to cancel)')}
+function startRoadTrail(){if(!selectedUnit)return;roadTrailMode=true;rangedMode=false;window._pendingGoto=null;window._pendingRoadTrail=null;showEvent('Hold click on target hex to preview a road trail, click again to confirm (ESC to cancel)')}
 async function setRoadTo(uid,q,r){
     const d=await api(`/api/game/${gameId}/worker/road_to`,'POST',{unit_id:uid,q,r});
     if(d.ok){state=d.state;showEvent(d.msg);selectedUnit=null;selectNextUnit()}
@@ -1144,9 +1144,16 @@ const descStr=desc[t.name]?`<div style="font-size:.65rem;color:#a0b0c0;margin-to
 h+=`<div class="tech-card ${cl}" ${oc}><div class="tech-name">${t.name.replace(/_/g,' ')}${d?' \u2713':''}</div><div class="tech-cost">${d?'Done':c?`${me.researching.progress}/${t.cost}`:`${t.cost}`}</div><div class="tech-unlocks">\u2192 ${t.unlocks.join(', ').replace(/_/g,' ')}</div>${prereqStr}${descStr}</div>`}h+='</div></div>'}document.getElementById('tech-tree-content').innerHTML=h;document.getElementById('tech-modal').classList.add('active')}
 function closeTechTree(){document.getElementById('tech-modal').classList.remove('active')}
 async function openDiplomacy(){
+    if(!state||!state.players){return}  // guard: no active game
     const me=state.players.find(p=>p.id===0);
+    if(!me){return}
     let info=null;
-    try{info=await api(`/api/game/${gameId}/diplomacy/info`,'GET');}catch(e){info={opinions:{},breakdowns:{},agreements:[],incoming:[],outgoing:[],my_techs:[],my_gold:0,my_resources:{}}}
+    try{info=await api(`/api/game/${gameId}/diplomacy/info`,'GET');}catch(e){}
+    if(!info||typeof info!=='object'){
+        info={opinions:{},breakdowns:{},agreements:[],incoming:[],outgoing:[],
+              my_techs:[],my_gold:0,my_resources:{},victory_progress:{},
+              thresholds:{culture:8000,space_production:50000,domination_pct:0.65}};
+    }
     window._diploInfo=info;
     let h='';
     // Incoming deals section
@@ -1287,6 +1294,12 @@ function renderDealBuilder(){
     const info=window._diploInfo||{};
     const me=state.players[0];
     const them=state.players[window._dealTarget];
+    if(!them||!them.alive){
+        // Target was eliminated mid-negotiation — abort to diplomacy list
+        showEvent('Target civ no longer available');
+        openDiplomacy();
+        return;
+    }
     const myItems=buildAvailableItems(0,info);
     const theirItems=buildAvailableItems(window._dealTarget,null);
     let h=`<h2 style="font-family:Cinzel,serif;color:#ffd700">Propose deal to ${them.name}</h2>

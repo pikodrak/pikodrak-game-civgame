@@ -1621,7 +1621,7 @@ def api_diplomacy_info(game_id: int):
         victory_progress[p["id"]] = {
             "space_techs": space_techs_done,  # 0-3
             "space_progress": space_prog,
-            "space_pct": int(100 * space_prog / space_threshold) if space_techs_done == 3 else 0,
+            "space_pct": int(100 * space_prog / space_threshold) if space_techs_done == 3 else min(75, space_techs_done * 25),
             "culture_pool": culture,
             "culture_pct": int(100 * culture / culture_threshold),
             "domination_pct": int(100 * my_cities / total_cities),
