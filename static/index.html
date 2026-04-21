@@ -777,22 +777,29 @@ if(mode==='quit'){gameId=null;state=null;selectedUnit=selectedCity=null;document
 function doQuitNoSave(){closeProdModal();gameId=null;state=null;selectedUnit=selectedCity=null;document.getElementById('game-screen').style.display='none';document.getElementById('menu-screen').style.display='flex'}
 let holdTimer=null,isHold=false;
 window._pendingGoto=null; // {uid,q,r,path} — preview awaiting confirmation
+window._pendingRoadTrail=null; // same shape, for Road to... confirmation
 async function previewGoto(uid,q,r){
     try{const d=await api(`/api/game/${gameId}/path_preview`,'POST',{unit_id:uid,q,r});
     if(d.ok&&d.path&&d.path.length>0){window._pendingGoto={uid,q,r,path:d.path,turns:d.turns||d.path.length};showEvent('Goto preview — click again to confirm')}
     else{window._pendingGoto=null;showEvent('No path')}}
     catch(err){window._pendingGoto=null}
 }
+async function previewRoadTrail(uid,q,r){
+    try{const d=await api(`/api/game/${gameId}/path_preview`,'POST',{unit_id:uid,q,r});
+    if(d.ok&&d.path&&d.path.length>0){window._pendingRoadTrail={uid,q,r,path:d.path,turns:d.turns||d.path.length};showEvent('Road trail preview — click again to confirm')}
+    else{window._pendingRoadTrail=null;showEvent('No path')}}
+    catch(err){window._pendingRoadTrail=null}
+}
 function initCanvas(){const c=document.getElementById('map-container');canvas.width=c.clientWidth;canvas.height=c.clientHeight;
 canvas.onmousedown=e=>{isDragging=true;isHold=false;dragStartX=e.clientX;dragStartY=e.clientY;dragCamX=camX;dragCamY=camY;
-    // Start hold timer for goto preview
-    if(selectedUnit&&e.button===0){holdTimer=setTimeout(()=>{isHold=true;const r=canvas.getBoundingClientRect();const[q,r2]=p2h(e.clientX-r.left,e.clientY-r.top);if(selectedUnit&&state.tiles[`${q},${r2}`]){const u=state.units.find(u=>u.id===selectedUnit);if(u&&!(u.q===q&&u.r===r2)){previewGoto(selectedUnit,q,r2)}}},400)}};
+    // Start hold timer for goto/road-trail preview
+    if(selectedUnit&&e.button===0){holdTimer=setTimeout(()=>{isHold=true;const r=canvas.getBoundingClientRect();const[q,r2]=p2h(e.clientX-r.left,e.clientY-r.top);if(selectedUnit&&state.tiles[`${q},${r2}`]){const u=state.units.find(u=>u.id===selectedUnit);if(u&&!(u.q===q&&u.r===r2)){if(roadTrailMode){previewRoadTrail(selectedUnit,q,r2)}else{previewGoto(selectedUnit,q,r2)}}}},400)}};
 canvas.onmousemove=e=>{if(isDragging){const dx=Math.abs(e.clientX-dragStartX),dy=Math.abs(e.clientY-dragStartY);if(dx>5||dy>5){clearTimeout(holdTimer);holdTimer=null}camX=dragCamX-(e.clientX-dragStartX);camY=dragCamY-(e.clientY-dragStartY)}};
 canvas.onmouseup=e=>{clearTimeout(holdTimer);holdTimer=null;if(!isHold&&Math.abs(e.clientX-dragStartX)<5&&Math.abs(e.clientY-dragStartY)<5){const r=canvas.getBoundingClientRect();handleClick(...p2h(e.clientX-r.left,e.clientY-r.top),e.button===2)}isDragging=false;isHold=false};
 canvas.onwheel=e=>{e.preventDefault();const o=camZoom;camZoom=Math.max(.3,Math.min(3,camZoom*(e.deltaY>0?.9:1.1)));const r=canvas.getBoundingClientRect(),mx=e.clientX-r.left,my=e.clientY-r.top;camX=(camX+mx)*(camZoom/o)-mx;camY=(camY+my)*(camZoom/o)-my};canvas.oncontextmenu=e=>e.preventDefault();document.onkeydown=onKey;onresize=()=>{canvas.width=document.getElementById('map-container').clientWidth;canvas.height=document.getElementById('map-container').clientHeight}}
 function centerOn(){const u=state.units.find(u=>u.player===0)||state.cities.find(c=>c.player===0);if(!u)return;const[px,py]=h2p(u.q,u.r);camX=px-canvas.width/2;camY=py-canvas.height/2}
 function loop(t){T=t*.001;try{render()}catch(e){console.error('render error:',e);ctx.fillStyle='red';ctx.font='16px sans-serif';ctx.fillText('RENDER ERROR: '+e.message,10,50)}requestAnimationFrame(loop)}
-function onKey(e){if(e.key==='Escape'){rangedMode=false;roadTrailMode=false;window._pendingGoto=null;selectedUnit=selectedCity=null;closeTechTree();closeDiplomacy();closeLoadDialog();closeCityDialog();closeProdModal();closeAccount();updatePanel()}
+function onKey(e){if(e.key==='Escape'){rangedMode=false;roadTrailMode=false;window._pendingGoto=null;window._pendingRoadTrail=null;selectedUnit=selectedCity=null;closeTechTree();closeDiplomacy();closeLoadDialog();closeCityDialog();closeProdModal();closeAccount();updatePanel()}
 if(!selectedUnit){if(e.key===' '&&!isM()){e.preventDefault();spaceAction()}if((e.key==='Enter'||e.key==='e')&&!isM())endTurn();if(e.key==='s'&&e.ctrlKey){e.preventDefault();saveGame()}return}
 const su=state.units.find(u=>u.id===selectedUnit);if(!su)return;
 const isWorker=su.type==='worker';
@@ -817,7 +824,8 @@ function isM(){return['tech-modal','diplo-modal','load-modal','prod-modal','acco
 function handleClick(q,r,right){if(!state)return;
 // Pending goto preview: click on same hex confirms, click elsewhere cancels
 if(window._pendingGoto&&!right){const p=window._pendingGoto;if(p.uid===selectedUnit&&p.q===q&&p.r===r){window._pendingGoto=null;gotoUnit(p.uid,q,r);return}window._pendingGoto=null}
-if(roadTrailMode&&selectedUnit&&!right){roadTrailMode=false;setRoadTo(selectedUnit,q,r);return}
+// Pending road-trail preview: same pattern — second click on same hex confirms
+if(window._pendingRoadTrail&&!right){const p=window._pendingRoadTrail;if(p.uid===selectedUnit&&p.q===q&&p.r===r){window._pendingRoadTrail=null;roadTrailMode=false;setRoadTo(p.uid,q,r);return}window._pendingRoadTrail=null}
 if(rangedMode&&selectedUnit&&!right){doRangedAttack(q,r);return}if(selectedUnit&&!right){const u=state.units.find(u=>u.id===selectedUnit);if(u){const adj=hNb(u.q,u.r).some(([a,b])=>a===q&&b===r);if(adj&&u.moves_left>0){moveUnit(selectedUnit,q,r);return}}}const cu=state.units.find(u=>u.q===q&&u.r===r&&u.player===0);if(cu){selectedUnit=cu.id;selectedCity=null;updatePanel();return}const cc=state.cities.find(c=>c.q===q&&c.r===r&&c.player===0);if(cc){selectedCity=cc.id;selectedUnit=null;updatePanel();return}selectedUnit=selectedCity=null;updatePanel()}
 
 if(!window._unitAnims)window._unitAnims={};
@@ -846,24 +854,38 @@ async function endTurn(){
         showEvent(`${idle.length} unit(s) without orders!`);
         if(!await gameConfirm(_t('units_without_orders'),`${idle.length} ${_t('end_turn_confirm')}`))return}}
     const d=await api(`/api/game/${gameId}/end_turn`,'POST');state=d.state;selectedUnit=selectedCity=null;
-    // Show events and detect completed production
+    // Show events and collect ALL produced/built events, keyed by city name
+    const producedByCity={};  // cityName -> last message for that city
     let lastProduced=null;
     if(d.events){for(const e of d.events){showEvent(e);
-        if(typeof e==='string'&&(e.includes(' produced ')||e.includes(' built '))){lastProduced=e}}}
-    // Show last production in top bar
+        if(typeof e==='string'&&(e.includes(' produced ')||e.includes(' built '))){
+            lastProduced=e;
+            // Extract city name (event format: "CityName produced X" / "CityName built X")
+            const m=e.match(/^(.+?) (produced|built) /);
+            if(m){producedByCity[m[1]]=e;}
+        }
+    }}
+    // Stash for focusNextNeed to iterate through
+    window._pendingProdPopups=producedByCity;
     if(lastProduced){const lp=document.getElementById('last-produced');if(lp)lp.textContent=lastProduced}
     updateUI();updatePanel();drawMini();autoSave();refreshDiploBadge();if(state.game_over){showGameOver();return}
     const me=state.players.find(p=>p.id===0);if(me&&!me.researching&&state.cities.some(c=>c.player===0)){showEvent('Choose research!');openTechTree();return}focusNextNeed()}
 async function focusNextNeed(){
-// Show what was just produced (from last turn events)
-const lp=document.getElementById('last-produced');
-const lastMsg=lp?.textContent;
-const idle=state.cities.find(c=>c.player===0&&!c.producing);
-if(idle){
+// Iterate through ALL idle cities that just produced something, one at a time.
+const pending=window._pendingProdPopups||{};
+const idleCities=state.cities.filter(c=>c.player===0&&!c.producing);
+// Prioritize idle cities that appear in producedByCity (they just finished)
+idleCities.sort((a,b)=>{
+    const pa=pending[a.name]?1:0, pb=pending[b.name]?1:0;
+    return pb-pa;
+});
+if(idleCities.length){
+    const idle=idleCities[0];
     selectedCity=idle.id;selectedUnit=null;centerOnTile(idle.q,idle.r);updatePanel();
-    if(lastMsg&&lastMsg.length>3){
-        await gameAlert('Production Complete',lastMsg);
-        if(lp)lp.textContent='';
+    const msg=pending[idle.name];
+    if(msg){
+        await gameAlert('Production Complete',msg);
+        delete pending[idle.name];
     }
     openProdModal(idle.id);return}
 selectNextUnit()}
@@ -1084,7 +1106,14 @@ ph+=`<div style="margin-top:.6rem;border-top:1px solid rgba(255,255,255,.1);padd
 </div>`;
 document.getElementById('prod-modal-content').innerHTML=ph;document.getElementById('prod-modal').classList.add('active')}
 async function setAutoMode(cid,mode){const d=await api(`/api/game/${gameId}/production/auto`,'POST',{city_id:cid,mode});if(d.ok){state=d.state;showEvent(d.msg);openProdModal(cid)}}
-function closeProdModal(){document.getElementById('prod-modal').classList.remove('active')}
+function closeProdModal(){
+    document.getElementById('prod-modal').classList.remove('active');
+    // If there are more cities awaiting their production popup, jump to the next one
+    const pending=window._pendingProdPopups||{};
+    if(Object.keys(pending).length>0){
+        setTimeout(()=>focusNextNeed(), 100);
+    }
+}
 async function setProductionModal(cid,t,n,e){
 // Shift+click = add to queue instead of setting production
 if(e&&e.shiftKey){
@@ -1514,6 +1543,25 @@ function render(){
             ctx.fillText(turns+'t',tx,ty+S*.55);
         }
         ctx.restore();
+    }
+
+    // PENDING ROAD TRAIL PREVIEW — same pattern as pending goto
+    if(window._pendingRoadTrail&&window._pendingRoadTrail.uid===selectedUnit){
+        const pg=window._pendingRoadTrail;
+        const pu=state.units.find(u=>u.id===pg.uid);
+        if(pu&&pg.path&&pg.path.length>0){
+            ctx.save();ctx.strokeStyle='#d08040';ctx.lineWidth=3;ctx.globalAlpha=.55+Math.sin(T*4)*.25;ctx.setLineDash([4,3]);
+            ctx.beginPath();
+            const[ux,uy]=h2p(pu.q,pu.r);ctx.moveTo(ux-ox,uy-oy);
+            for(const p of pg.path){const[hx,hy]=h2p(p[0],p[1]);ctx.lineTo(hx-ox,hy-oy)}
+            ctx.stroke();ctx.setLineDash([]);
+            const[gx,gy]=h2p(pg.q,pg.r);const tx=gx-ox,ty=gy-oy;
+            ctx.globalAlpha=.8;ctx.strokeStyle='#d08040';ctx.lineWidth=2.5;
+            ctx.beginPath();ctx.arc(tx,ty,S*.42,0,Math.PI*2);ctx.stroke();
+            ctx.globalAlpha=1;ctx.fillStyle='#fff';ctx.font='bold 11px sans-serif';ctx.textAlign='center';
+            ctx.fillText('ROAD ?',tx,ty+S*.6);
+            ctx.restore();
+        }
     }
 
     // ROAD TRAIL — brown dashed marker for selected worker with road_to target
