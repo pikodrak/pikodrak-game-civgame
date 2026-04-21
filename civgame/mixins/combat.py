@@ -92,7 +92,10 @@ class CombatMixin:
 
         if city["hp"] <= 0:
             # City captured!
-            old_owner = self.players[city["player"]]["name"]
+            old_pid = city["player"]
+            old_owner = self.players[old_pid]["name"]
+            if hasattr(self, "_bump_memory"):
+                self._bump_memory(old_pid, attacker["player"], "cities_taken_from_me")
             city["player"] = attacker["player"]
             city["hp"] = city["max_hp"] // 2
             if city["population"] > 1:

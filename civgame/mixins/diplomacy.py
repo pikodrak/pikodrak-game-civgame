@@ -8,6 +8,18 @@ class DiplomacyMixin:
         cd_a = self.players[player_a].get("diplo_cooldown", {}).get(player_b, 0)
         if cd_a > 0:
             return  # can't change diplomacy yet
+        # Check for betrayal: breaking DoF/alliance to attack?
+        rel_before = self.players[player_a]["diplomacy"].get(player_b, "peace")
+        was_dof = any(ag["type"] == "declaration_of_friendship"
+                      and player_a in ag["players"] and player_b in ag["players"]
+                      for ag in getattr(self, "agreements", []))
+        if rel_before == "alliance" or was_dof:
+            # Record betrayal in both sides' memory
+            if hasattr(self, "_bump_memory"):
+                self._bump_memory(player_b, player_a, "betrayals")
+        # Memory: the victim remembers who declared on them
+        if hasattr(self, "_bump_memory"):
+            self._bump_memory(player_b, player_a, "wars_declared_on_me")
         self.players[player_a]["diplomacy"][player_b] = "war"
         self.players[player_b]["diplomacy"][player_a] = "war"
         cd = GAME_CONFIG.get("diplo_war_cooldown", 10)

@@ -63,11 +63,27 @@ class DealsMixin:
         rec[key] = rec.get(key, 0) + delta
 
     def get_opinion(self, pid, target):
-        """Compound opinion score (-100..+100) including legacy `relations` field."""
+        """Compound opinion score (-100..+100).
+
+        Components:
+        - Legacy `relations` score (trade + time drift)
+        - Active opinion_modifiers (DoF, denounce, trade boost, broken promise)
+        - Persistent memory penalties: broken promises, betrayals, stolen cities
+        """
         p = self._ensure_memory(pid)
         base = p.get("relations", {}).get(target, 0)
         mods = sum(m["value"] for m in p["opinion_modifiers"] if m["target"] == target)
-        return max(-100, min(100, base + mods))
+        mem = p["memory"].get(target, {})
+        # Memory penalties (permanent)
+        penalty = (
+            mem.get("broken_promises", 0) * -20
+            + mem.get("cities_taken_from_me", 0) * -15
+            + mem.get("betrayals", 0) * -25
+            + mem.get("wars_declared_on_me", 0) * -10
+            + mem.get("trades_completed", 0) * +2    # small long-term bonus
+            + mem.get("gifts_received", 0) * +5
+        )
+        return max(-100, min(100, base + mods + penalty))
 
     def get_opinion_breakdown(self, pid, target):
         """Human-readable list of reasons affecting opinion for UI tooltips."""
@@ -327,18 +343,30 @@ class DealsMixin:
                                            if m.get("expires") is None or m["expires"] > self.turn]
 
     def _deliver_research_agreement(self, a, b, events):
-        """Grant each side a random undiscovered tech they could currently research."""
+        """Grant each side a currently-researchable tech. Capped to one tech
+        below Modern era — Industrial techs are allowed (gunpowder chain),
+        Modern space-race techs are off-limits.
+
+        20% chance of failure to model research setbacks.
+        """
+        BLOCKED_ERAS = {"Modern"}  # rocketry, nuclear_fission, space_program, etc.
         for pid in (a, b):
+            if random.random() < 0.2:
+                events.append(f"{self.players[pid]['name']}: research agreement yielded no breakthrough")
+                continue
             player = self.players[pid]
             avail = [t for t, d in TECHNOLOGIES.items()
                      if t not in player["techs"]
-                     and all(p in player["techs"] for p in d["prereqs"])]
+                     and d.get("era") not in BLOCKED_ERAS
+                     and all(pr in player["techs"] for pr in d["prereqs"])]
             if avail:
-                # Prefer cheaper techs
                 avail.sort(key=lambda t: TECHNOLOGIES[t]["cost"])
-                granted = avail[0]
+                candidates = avail[:3]
+                granted = random.choice(candidates)
                 player["techs"].append(granted)
                 events.append(f"{player['name']} gained {granted} from research agreement")
+            else:
+                events.append(f"{self.players[pid]['name']}: research agreement yielded no new tech")
 
     # ------------------------------------------------------------------
     # Queries

@@ -1,5 +1,55 @@
 # CivGame AI Development Changelog
 
+## Session: 2026-04-21 | Diplomacy balance tuning (10+5+5 sims)
+
+Tuned all knobs uncovered by simulation batches:
+
+**AI diplomacy (`civgame/ai/diplomacy.py`):**
+- Tech values scale by era (Ancient 1.0× → Modern 2.0×). Near-finished
+  research discounts the tech's value (already halfway done = half price).
+- Asymmetric valuation reduced 1.15 → 1.08 — symmetric agreements (DoF↔DoF,
+  research↔research) can still pass but lopsided gold-for-tech is rejected.
+- Opinion-weighted threshold smoothed (−100 → 1.35×, +100 → 0.75×).
+- New `deal_pair_cooldown=5`: no repeat deals with same civ for 5 turns,
+  prevents spam.
+- Tribute/tech demands by aggressive civs (aggression≥0.6) who are ≥1.5×
+  stronger in military. Target accepts to avoid war.
+- Denounce loop: aggressive civs denounce public enemies (opinion≤−40).
+- Strategy-diff templates: builder/culturalist/turtle get research
+  agreements; aggressive/conqueror push demands; financial pushes trade
+  routes; only non-conqueror trades luxuries.
+- 15% chance to send "trial balloon" deal target would reject — realistic
+  occasional failed negotiation.
+
+**Deal framework (`civgame/mixins/deals.py`):**
+- Research agreements now deliver a tech capped at non-Modern era (no free
+  rocketry/nuclear_fission/space_program). 20% chance per side of yielding
+  no breakthrough.
+- Agreement cost raised 100g → 200g per side.
+- Memory system: `broken_promises` × −20, `cities_taken_from_me` × −15,
+  `betrayals` × −25, `wars_declared_on_me` × −10 (permanent opinion).
+  Trades completed give +2 permanent; gifts +5.
+- Declaring war on a DoF/alliance partner now bumps `betrayals` in victim's
+  memory. Capturing a city bumps `cities_taken_from_me` on the ex-owner.
+
+**Config (game_config.ini):**
+- `space_victory_production`: 25000 → 80000 (harder to rush)
+- `culture_victory_threshold`: 40000 → 12000 (achievable for culturalists)
+- `domination_city_percent`: 0.75 → 0.55 (aggressive civs can win faster)
+- `deal_pair_cooldown = 5`, `research_agreement_cost = 200`
+
+**Sim results (10 sims, 5 civs, 30×20, 250t):**
+- Reject rate: 45-50% across iterations (healthy friction)
+- Game length: 110-251 turns (diverse, no forced turn-limit stalemates)
+- Winner civs: 8 different across 10 games (Germany, Egypt, Viking, France,
+  Inca, Russia, Siam, Roman in first batch)
+- Victory types: 9 space + 1 domination. Culture still untriggered (AI
+  doesn't yet prioritize culture buildings aggressively — flagged as
+  future-AI work, not diplomacy bug).
+- Per sim averages: 320 proposals, 162 accepted, 160 rejected, 19 demands,
+  5 denounces, 37 peace deals, 1.5 civs eliminated, 0 broken-promise
+  defaults.
+
 ## Session: 2026-04-20 | Rich diplomacy system + resources
 
 Big-feature release: added resources (strategic/luxury/bonus) and a proposal-
