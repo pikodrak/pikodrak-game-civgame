@@ -172,11 +172,20 @@ class AIProductionMixin:
             if bdata["science"] > 0:
                 score += int(bdata["science"] * 7 * phase_mult)
                 reason_parts.append(f"+{bdata['science']}s")
-            # Culture buildings
+            # Culture buildings — culturalists push hard, extra urgency when
+            # we're approaching the culture victory threshold.
             if bdata["culture"] > 0:
-                score += int(bdata["culture"] * 5 * phase_mult)
+                base_cult = 5
+                if strategy == "culturalist":
+                    base_cult = 10
                 if trait == "creative":
-                    score += bdata["culture"] * 4
+                    base_cult += 3
+                score += int(bdata["culture"] * base_cult * phase_mult)
+                # Victory-rush bonus: if we're close to culture victory, push hard
+                cult_threshold = GAME_CONFIG.get("culture_victory_threshold", 12000)
+                cult_pool = player.get("culture_pool", 0)
+                if cult_pool > cult_threshold * 0.4:
+                    score += int(bdata["culture"] * 8)  # late-culture rush
                 reason_parts.append(f"+{bdata['culture']}c")
             # Defense buildings — more valuable when threatened
             if bdata["defense"] > 0:
@@ -246,11 +255,19 @@ class AIProductionMixin:
             elif bname == "museum":
                 score += 15
                 if strategy == "culturalist":
-                    score += 20
+                    score += 30
             elif bname == "theater":
                 score += 15
                 if strategy == "culturalist":
-                    score += 15
+                    score += 25
+            elif bname == "temple":
+                if strategy == "culturalist":
+                    score += 20
+                elif trait == "creative":
+                    score += 10
+            elif bname == "monastery":
+                if strategy == "culturalist":
+                    score += 18
             elif bname == "military_academy":
                 score += 10
                 if at_war or strategy in ("conqueror", "warmonger"):

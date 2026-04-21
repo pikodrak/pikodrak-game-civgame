@@ -173,16 +173,17 @@ class SimulationMixin:
                 game.winner = best["id"]
                 log["turns"][-1]["events"].append(f"{best['name']} achieves SCORE victory! ({best['score']} pts)")
 
-        # Final result
-        victory_type = None
-        if game.winner is not None:
+        # Use victory_type recorded by turn.py when the condition actually fired.
+        victory_type = getattr(game, "victory_type", None)
+        if victory_type is None and game.winner is not None:
+            # Fallback for older saves / partial games — infer from state
             wp = game.players[game.winner]
-            space_techs = ["space_program", "rocketry", "nuclear_fission"]
-            if all(t in wp["techs"] for t in space_techs):
+            if all(t in wp["techs"] for t in ("space_program", "rocketry", "nuclear_fission")):
                 victory_type = "space"
             elif wp["culture_pool"] >= GAME_CONFIG.get("culture_victory_threshold", 8000):
                 victory_type = "culture"
-            elif len([c for c in game.cities.values() if c["player"] == game.winner]) / max(1, len(game.cities)) >= GAME_CONFIG.get("domination_city_percent", 0.75):
+            elif (len([c for c in game.cities.values() if c["player"] == game.winner])
+                  / max(1, len(game.cities))) >= GAME_CONFIG.get("domination_city_percent", 0.75):
                 victory_type = "domination"
             else:
                 victory_type = "score"
@@ -408,10 +409,12 @@ class SimulationMixin:
             if player.get("space_progress", 0) >= GAME_CONFIG.get("space_victory_production", 5000):
                 self.game_over = True
                 self.winner = pid
+                self.victory_type = "space"
                 events.append(f"{player['name']} achieves SPACE victory!")
         if not self.game_over and player["culture_pool"] >= GAME_CONFIG.get("culture_victory_threshold", 8000):
             self.game_over = True
             self.winner = pid
+            self.victory_type = "culture"
             events.append(f"{player['name']} achieves CULTURE victory!")
         if not self.game_over:
             total_cities = len(self.cities)
@@ -419,6 +422,7 @@ class SimulationMixin:
             if total_cities >= 4 and my_city_count >= total_cities * GAME_CONFIG.get("domination_city_percent", 0.6):
                 self.game_over = True
                 self.winner = pid
+                self.victory_type = "domination"
                 events.append(f"{player['name']} achieves DOMINATION victory!")
 
         self._check_elimination()

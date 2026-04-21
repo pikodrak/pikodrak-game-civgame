@@ -45,6 +45,7 @@ class GameState(
         self.ai_log = []  # Debug log for AI decisions
         self.game_over = False
         self.winner = None
+        self.victory_type = None
         self.next_unit_id = 1
         self.next_city_id = 1
 

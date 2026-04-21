@@ -313,7 +313,7 @@ class TurnMixin:
 
         # --- VICTORY CONDITIONS ---
 
-        # Space victory — 3 end-game techs + 2000 accumulated production
+        # Space victory — 3 end-game techs + accumulated production
         space_techs = ["space_program", "rocketry", "nuclear_fission"]
         if all(t in player["techs"] for t in space_techs):
             player["space_progress"] = player.get("space_progress", 0) + sum(
@@ -321,21 +321,24 @@ class TurnMixin:
             if player.get("space_progress", 0) >= GAME_CONFIG.get("space_victory_production", 5000):
                 self.game_over = True
                 self.winner = pid
+                self.victory_type = "space"
                 events.append(f"{player['name']} achieves SPACE victory!")
 
-        # Culture victory — accumulate 5000 culture
+        # Culture victory — accumulate threshold
         if not self.game_over and player["culture_pool"] >= GAME_CONFIG.get("culture_victory_threshold", 8000):
             self.game_over = True
             self.winner = pid
+            self.victory_type = "culture"
             events.append(f"{player['name']} achieves CULTURE victory!")
 
-        # Domination victory — control 60%+ of all cities
+        # Domination victory — control threshold% of all cities
         if not self.game_over:
             total_cities = len(self.cities)
             my_city_count = len([c for c in self.cities.values() if c["player"] == pid])
             if total_cities >= 4 and my_city_count >= total_cities * GAME_CONFIG.get("domination_city_percent", 0.6):
                 self.game_over = True
                 self.winner = pid
+                self.victory_type = "domination"
                 events.append(f"{player['name']} achieves DOMINATION victory!")
 
         # Turn limit — score victory
@@ -347,6 +350,7 @@ class TurnMixin:
                 key=lambda pid2: self._calc_score(pid2))
             self.game_over = True
             self.winner = best_pid
+            self.victory_type = "score"
             events.append(f"Turn limit reached! {self.players[best_pid]['name']} wins by SCORE ({self._calc_score(best_pid)})!")
 
         # Tick diplomatic agreements once per round (on player 0's turn end).
