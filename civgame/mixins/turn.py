@@ -173,6 +173,12 @@ class TurnMixin:
             city["border_radius"] = new_br
             if new_br > old_br:
                 events.append(f"{city['name']} borders expanded! (radius {new_br})")
+                # Expel foreign non-allied units trapped in the newly-owned ring
+                pushed, trapped = self._expel_foreign_units_from_city(city)
+                if pushed:
+                    events.append(f"  {len(pushed)} foreign unit(s) expelled from {city['name']}")
+                if trapped:
+                    events.append(f"  {len(trapped)} foreign unit(s) disbanded (trapped)")
 
             # City healing
             if city["hp"] < city["max_hp"]:

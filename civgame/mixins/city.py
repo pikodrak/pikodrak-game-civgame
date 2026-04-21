@@ -357,35 +357,77 @@ class CityMixin:
             return {"ok": False, "msg": "Cannot build city here"}
 
         cid = self._create_city(unit["player"], name, unit["q"], unit["r"])
-        city_player = unit["player"]
         del self.units[unit_id]
 
-        # Push foreign units out of new city borders
-        city = self.cities[cid]
-        br = city.get("border_radius", 1)
-        pushed = []
-        for uid, u in list(self.units.items()):
-            if u["player"] != city_player and hex_distance(city["q"], city["r"], u["q"], u["r"]) <= br:
-                # Find nearest tile outside borders
-                best_exit = None
-                best_d = 999
-                for nq, nr in hex_neighbors(u["q"], u["r"]):
-                    t = self.tiles.get((nq, nr))
-                    if not t or t in (Terrain.WATER, Terrain.COAST, Terrain.MOUNTAIN):
-                        continue
-                    if hex_distance(city["q"], city["r"], nq, nr) > br:
-                        d = hex_distance(u["q"], u["r"], nq, nr)
-                        if d < best_d:
-                            best_d = d
-                            best_exit = (nq, nr)
-                if best_exit:
-                    u["q"], u["r"] = best_exit
-                    pushed.append(u["type"])
+        # Push foreign units out of new city borders (unified helper)
+        pushed, trapped = self._expel_foreign_units_from_city(self.cities[cid])
 
         msg = f"City {name} founded!"
         if pushed:
             msg += f" ({len(pushed)} foreign unit(s) expelled)"
+        if trapped:
+            msg += f" ({len(trapped)} trapped foreign unit(s) disbanded)"
         return {"ok": True, "msg": msg, "city_id": cid}
+
+    def _expel_foreign_units_from_city(self, city):
+        """Push foreign non-allied units out of a city's borders.
+
+        Called on city founding, border expansion via culture, and city capture.
+        Units that can't find an exit inside alliance/own territory get
+        disbanded as 'trapped'.
+        """
+        pid = city["player"]
+        br = city.get("border_radius", 1)
+        pushed = []
+        trapped = []
+        for uid in list(self.units.keys()):
+            u = self.units.get(uid)
+            if not u or u["player"] == pid:
+                continue
+            if hex_distance(city["q"], city["r"], u["q"], u["r"]) > br:
+                continue
+            # Allies can stay (free passage)
+            rel = self.players[u["player"]]["diplomacy"].get(pid, "peace")
+            if rel == "alliance":
+                continue
+            # Find nearest outside tile (passable + not in this border, + not owned by
+            # a different hostile civ). Prefer own/allied territory.
+            best_exit = None
+            best_score = (999, 999)  # (is_hostile_foreign, dist)
+            for nq, nr in hex_neighbors(u["q"], u["r"]):
+                t = self.tiles.get((nq, nr))
+                if not t or t in (Terrain.WATER, Terrain.COAST, Terrain.MOUNTAIN):
+                    continue
+                if hex_distance(city["q"], city["r"], nq, nr) <= br:
+                    continue
+                tile_owner = self.get_tile_owner(nq, nr)
+                d = hex_distance(u["q"], u["r"], nq, nr)
+                # Score: prefer own → allied → neutral → hostile
+                if tile_owner is None:
+                    owner_cat = 1  # neutral — OK
+                elif tile_owner == u["player"]:
+                    owner_cat = 0  # home
+                else:
+                    owner_rel = self.players[u["player"]]["diplomacy"].get(tile_owner, "peace")
+                    if owner_rel == "alliance":
+                        owner_cat = 0
+                    elif owner_rel == "war":
+                        owner_cat = 3  # hostile — bad
+                    else:
+                        owner_cat = 2  # still foreign peaceful, awkward
+                score = (owner_cat, d)
+                if score < best_score:
+                    best_score = score
+                    best_exit = (nq, nr)
+            if best_exit:
+                u["q"], u["r"] = best_exit
+                u["moves_left"] = 0  # expulsion consumes movement
+                pushed.append(u["type"])
+            else:
+                # Truly trapped → disband (like captured-city behavior)
+                del self.units[uid]
+                trapped.append(u["type"])
+        return pushed, trapped
 
     def set_production(self, city_id, item_type, item_name):
         """Set what a city is producing. item_type: 'unit' or 'building'."""

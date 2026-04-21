@@ -296,7 +296,14 @@ class SimulationMixin:
                 if city["culture"] >= threshold:
                     new_br = radius
                     break
+            old_br_sim = city.get("border_radius", 1)
             city["border_radius"] = new_br
+            if new_br > old_br_sim:
+                pushed, trapped = self._expel_foreign_units_from_city(city)
+                if pushed:
+                    events.append(f"{city['name']} expanded, expelled {len(pushed)} foreign unit(s)")
+                if trapped:
+                    events.append(f"{city['name']} expanded, disbanded {len(trapped)} trapped foreign unit(s)")
 
             if city["hp"] < city["max_hp"]:
                 city["hp"] = min(city["max_hp"], city["hp"] + 10)
