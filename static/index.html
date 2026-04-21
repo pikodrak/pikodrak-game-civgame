@@ -351,11 +351,12 @@ document.getElementById('prod-modal-content').innerHTML=`<div style="max-height:
 
 <h3 style="color:#ffd700;margin:.8rem 0 .3rem">Victory Conditions</h3>
 <table style="width:100%;font-size:.78rem;border-collapse:collapse;margin-bottom:.4rem">
-<tr style="border-bottom:1px solid rgba(255,255,255,.1)"><td style="color:#60a0ff;padding:.3rem;width:90px"><b>Space</b></td><td>Research 3 end-game techs (space_program, rocketry, nuclear_fission) then accumulate 12,000 production across all cities</td></tr>
-<tr style="border-bottom:1px solid rgba(255,255,255,.1)"><td style="color:#c490ff;padding:.3rem"><b>Culture</b></td><td>Accumulate 20,000 culture points from temples, museums, theaters, and other culture buildings</td></tr>
-<tr style="border-bottom:1px solid rgba(255,255,255,.1)"><td style="color:#ff6060;padding:.3rem"><b>Domination</b></td><td>Control 75% or more of all cities on the map through conquest</td></tr>
-<tr><td style="color:#ffd700;padding:.3rem"><b>Score</b></td><td>Highest score when turn limit (300) is reached. Score = cities\u00d7100 + population\u00d720 + techs\u00d730 + culture/10</td></tr>
+<tr style="border-bottom:1px solid rgba(255,255,255,.1)"><td style="color:#60a0ff;padding:.3rem;width:90px"><b>Space</b></td><td>Research 3 end-game techs (space_program, rocketry, nuclear_fission) then accumulate 50,000 production</td></tr>
+<tr style="border-bottom:1px solid rgba(255,255,255,.1)"><td style="color:#c490ff;padding:.3rem"><b>Culture</b></td><td>Accumulate 8,000 culture points from temples, museums, theaters, and cultural buildings</td></tr>
+<tr style="border-bottom:1px solid rgba(255,255,255,.1)"><td style="color:#ff6060;padding:.3rem"><b>Domination</b></td><td>Control 65% or more of all cities on the map</td></tr>
+<tr><td style="color:#ffd700;padding:.3rem"><b>Score</b></td><td>Highest score at turn limit (300). Score = cities\u00d7100 + pop\u00d720 + techs\u00d730 + culture/10</td></tr>
 </table>
+<p style="font-size:.75rem;color:#a0a8c0">Progress of every civ is visible in the Diplomacy panel. Civs &gt;70% toward any victory get blocked from tech/resource trades; &gt;60% triggers anti-victor war declarations.</p>
 
 <h3 style="color:#ffd700;margin:.8rem 0 .3rem">Getting Started</h3>
 <p>1. <b>Found your first city</b> \u2014 select your settler, press <kbd>B</kbd><br>
@@ -458,12 +459,25 @@ document.getElementById('prod-modal-content').innerHTML=`<div style="max-height:
 <b>Trait bonuses:</b> Aggressive leaders +15% attack, Protective +15% defense near own cities.</p>
 
 <h3 style="color:#ffd700;margin:.8rem 0 .3rem">Diplomacy</h3>
-<p><b>Peace</b> \u2014 Default. Cannot enter each other's territory.<br>
-<b>War</b> \u2014 Triggered by entering territory, attacking, or declaration. Minimum 10 turns.<br>
-<b>Alliance</b> \u2014 Free passage through territory. If ally is attacked, you automatically join war. Max 2 alliances.<br>
-<b>Peace treaty</b> \u2014 After making peace, 15-turn cooldown before can declare war again.<br>
-<b>Territory:</b> Entering foreign territory without alliance = war. Culture pressure can take enemy tiles.<br>
-<b>Relations:</b> -100 to +100. City near border = -30 provocation. Drift toward 0 over time.</p>
+<p><b>States:</b> Peace (default) / War (10t min) / Alliance (auto-join allies' wars, max 2) / Denounced (30t cooldown).<br>
+<b>Opinion</b> (-100 to +100): driven by trades (+5 each), DoF (+15 for 30t), denounce (-20 for 30t), broken promises (-20 permanent), betrayals (-25), stolen cities (-15 per city), wars declared (-10 as victim permanent, -8 as world witness).<br>
+<b>Trait affinity:</b> similar temperaments +10, opposites -10, same strategy +5, conqueror vs culturalist -8.<br>
+<b>Axis of evil:</b> aggressive civs (aggression &gt;= 0.7) approve of each other's wars (+5 per war) and can sign axis DoFs.<br>
+<b>Axis of good:</b> civs that never declared war get +10 toward each other, true pacifists (aggression &le; 0.4) get +20 total.</p>
+
+<h3 style="color:#ffd700;margin:.8rem 0 .3rem">Deals (Diplomacy modal)</h3>
+<p><b>Deal builder</b> opens with "Deal..." button per civ. Two columns: "I give" / "They give". Click items to add.<br>
+<b>Propose:</b> AI responds instantly (✓ accepted or ✗ rejected with valuation hint).<br>
+<b>Ask AI what they'd offer (cyan):</b> fills "They give" with AI's counter-suggestion matching your offer's value.<br>
+<b>Demand (red):</b> threaten - demand items without offering. Need &ge;1.3\u00d7 military strength; weaker civs pay; stronger may declare war on you.<br>
+<b>Deal types:</b> gold (lump/per-turn), tech, world map, city, open borders, defensive pact, declaration of friendship, research agreement (invest 200g each, shared tech after 20t), trade route (+3g/turn), resource/luxury trade, tribute, peace treaty, denounce.<br>
+<b>Incoming proposals:</b> (N) badge on Diplomacy button when AI proposes. Click Accept or Reject.</p>
+
+<h3 style="color:#ffd700;margin:.8rem 0 .3rem">Resources</h3>
+<p><b>Strategic</b> (iron, horse, coal, oil, uranium): gate advanced units — can't build swordsman without iron, knight without horse, tank without oil, etc.<br>
+<b>Luxury</b> (wine, silk, gems, gold_ore, incense, spices, ivory, dyes): each unique type gives +2 happiness civ-wide.<br>
+<b>Bonus</b> (wheat, cattle, fish, deer, stone): passive tile yield boost. Not tradeable.<br>
+Spawn on ~5% of tiles matching terrain. Trade them via resource_trade / luxury_trade deals.</p>
 
 <h3 style="color:#ffd700;margin:.8rem 0 .3rem">Economy</h3>
 <p><b>Gold income:</b> Sum of city gold yields + trade route bonuses.<br>
@@ -503,6 +517,7 @@ document.getElementById('prod-modal-content').innerHTML=`<div style="max-height:
 <kbd>R</kbd><span>Ranged attack mode</span>
 <kbd>A</kbd><span>Auto-build (worker)</span>
 <kbd>1-6</kbd><span>Worker: Farm/Mine/Mill/Road/Rail/Trade</span>
+<kbd>Y</kbd><span>Worker: Road trail to target (hold hex to preview, click same hex to confirm)</span>
 <kbd>Tab</kbd><span>Cycle to next unit</span>
 <kbd>Space</kbd><span>Skip unit or end turn</span>
 <kbd>Enter</kbd><span>End turn</span>
