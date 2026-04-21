@@ -1044,6 +1044,16 @@ def goto_unit(game_id: int, req: GotoRequest):
     return result
 
 
+@app.post("/api/game/{game_id}/worker/road_to")
+def api_worker_road_to(game_id: int, req: GotoRequest):
+    game = games.get(game_id)
+    if not game:
+        raise HTTPException(404, "Game not found")
+    result = game.set_road_to(req.unit_id, req.q, req.r)
+    result["state"] = game.to_dict(for_player=0)
+    return result
+
+
 @app.post("/api/game/{game_id}/path_preview")
 def path_preview(game_id: int, req: GotoRequest):
     """Return the full path for a unit without setting goto (read-only preview).

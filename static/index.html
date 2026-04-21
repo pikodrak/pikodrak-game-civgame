@@ -792,7 +792,7 @@ canvas.onmouseup=e=>{clearTimeout(holdTimer);holdTimer=null;if(!isHold&&Math.abs
 canvas.onwheel=e=>{e.preventDefault();const o=camZoom;camZoom=Math.max(.3,Math.min(3,camZoom*(e.deltaY>0?.9:1.1)));const r=canvas.getBoundingClientRect(),mx=e.clientX-r.left,my=e.clientY-r.top;camX=(camX+mx)*(camZoom/o)-mx;camY=(camY+my)*(camZoom/o)-my};canvas.oncontextmenu=e=>e.preventDefault();document.onkeydown=onKey;onresize=()=>{canvas.width=document.getElementById('map-container').clientWidth;canvas.height=document.getElementById('map-container').clientHeight}}
 function centerOn(){const u=state.units.find(u=>u.player===0)||state.cities.find(c=>c.player===0);if(!u)return;const[px,py]=h2p(u.q,u.r);camX=px-canvas.width/2;camY=py-canvas.height/2}
 function loop(t){T=t*.001;try{render()}catch(e){console.error('render error:',e);ctx.fillStyle='red';ctx.font='16px sans-serif';ctx.fillText('RENDER ERROR: '+e.message,10,50)}requestAnimationFrame(loop)}
-function onKey(e){if(e.key==='Escape'){rangedMode=false;window._pendingGoto=null;selectedUnit=selectedCity=null;closeTechTree();closeDiplomacy();closeLoadDialog();closeCityDialog();closeProdModal();closeAccount();updatePanel()}
+function onKey(e){if(e.key==='Escape'){rangedMode=false;roadTrailMode=false;window._pendingGoto=null;selectedUnit=selectedCity=null;closeTechTree();closeDiplomacy();closeLoadDialog();closeCityDialog();closeProdModal();closeAccount();updatePanel()}
 if(!selectedUnit){if(e.key===' '&&!isM()){e.preventDefault();spaceAction()}if((e.key==='Enter'||e.key==='e')&&!isM())endTurn();if(e.key==='s'&&e.ctrlKey){e.preventDefault();saveGame()}return}
 const su=state.units.find(u=>u.id===selectedUnit);if(!su)return;
 const isWorker=su.type==='worker';
@@ -804,6 +804,7 @@ if(e.key==='m'&&isWorker)workerBuild('mine');
 if(e.key==='l'&&isWorker)workerBuild('lumber_mill');
 if(e.key==='i'&&isWorker)workerBuild('railroad');
 if(e.key==='t'&&isWorker)workerBuild('trading_post');
+if(e.key==='y'&&isWorker)startRoadTrail();
 if(e.key==='x')exploreUnit();
 if(e.key==='s'&&!e.ctrlKey)sentryUnit();
 if(e.key==='Delete')disbandUnit();
@@ -816,6 +817,7 @@ function isM(){return['tech-modal','diplo-modal','load-modal','prod-modal','acco
 function handleClick(q,r,right){if(!state)return;
 // Pending goto preview: click on same hex confirms, click elsewhere cancels
 if(window._pendingGoto&&!right){const p=window._pendingGoto;if(p.uid===selectedUnit&&p.q===q&&p.r===r){window._pendingGoto=null;gotoUnit(p.uid,q,r);return}window._pendingGoto=null}
+if(roadTrailMode&&selectedUnit&&!right){roadTrailMode=false;setRoadTo(selectedUnit,q,r);return}
 if(rangedMode&&selectedUnit&&!right){doRangedAttack(q,r);return}if(selectedUnit&&!right){const u=state.units.find(u=>u.id===selectedUnit);if(u){const adj=hNb(u.q,u.r).some(([a,b])=>a===q&&b===r);if(adj&&u.moves_left>0){moveUnit(selectedUnit,q,r);return}}}const cu=state.units.find(u=>u.q===q&&u.r===r&&u.player===0);if(cu){selectedUnit=cu.id;selectedCity=null;updatePanel();return}const cc=state.cities.find(c=>c.q===q&&c.r===r&&c.player===0);if(cc){selectedCity=cc.id;selectedUnit=null;updatePanel();return}selectedUnit=selectedCity=null;updatePanel()}
 
 if(!window._unitAnims)window._unitAnims={};
@@ -883,7 +885,15 @@ async function disbandUnit(){if(!selectedUnit)return;const u=state.units.find(u=
 async function autoWorker(){if(!selectedUnit)return;const d=await api(`/api/game/${gameId}/auto_worker/${selectedUnit}`,'POST');if(d.ok){state=d.state;showEvent(d.msg)}selectedUnit=null;selectNextUnit();updateUI();updatePanel()}
 async function sentryUnit(){if(!selectedUnit)return;const d=await api(`/api/game/${gameId}/sentry/${selectedUnit}`,'POST');if(d.ok){state=d.state;showEvent(d.msg)}selectedUnit=null;selectNextUnit();updateUI();updatePanel()}
 let rangedMode=false;
+let roadTrailMode=false;
 function startRangedAttack(){if(!selectedUnit)return;rangedMode=true;showEvent('Select target for ranged attack (click hex within range, ESC to cancel)')}
+function startRoadTrail(){if(!selectedUnit)return;roadTrailMode=true;showEvent('Click target hex — worker will build a road trail there (ESC to cancel)')}
+async function setRoadTo(uid,q,r){
+    const d=await api(`/api/game/${gameId}/worker/road_to`,'POST',{unit_id:uid,q,r});
+    if(d.ok){state=d.state;showEvent(d.msg);selectedUnit=null;selectNextUnit()}
+    else showEvent(d.msg);
+    updateUI();updatePanel();drawMini();
+}
 async function doRangedAttack(q,r){if(!selectedUnit||!rangedMode)return;rangedMode=false;const d=await api(`/api/game/${gameId}/ranged_attack`,'POST',{unit_id:selectedUnit,q,r});if(d.ok){state=d.state;showEvent(d.msg||'Ranged attack!');selectedUnit=null;selectNextUnit();updateUI();updatePanel()}else{showEvent(d.msg||'Cannot attack there')}}
 async function spaceAction(){if(selectedUnit){const d=await api(`/api/game/${gameId}/skip/${selectedUnit}`,'POST');if(d.ok)state=d.state;selectedUnit=null;if(!selectNextUnit()){endTurn()}}else if(!selectNextUnit()){endTurn()}}
 function selectNextUnit(){if(!state)return false;const u=state.units.find(u=>u.player===0&&u.moves_left>0&&!u.fortified&&!u.sentry&&!u.exploring&&!u.goto&&!u.building);if(u){selectedUnit=u.id;selectedCity=null;centerOnTile(u.q,u.r);updatePanel();return true}return false}
@@ -964,6 +974,7 @@ if(t.includes('agriculture')&&!hasImp&&['grass','plains','desert'].includes(terr
 if(t.includes('mining')&&!hasImp&&terrain==='hills')b+='<button class="action-btn" onclick="workerBuild(\'mine\')">Mine (M)</button>';
 if(t.includes('construction')&&!hasImp&&terrain==='forest')b+='<button class="action-btn" onclick="workerBuild(\'lumber_mill\')">Mill (L)</button>';
 if(!hasRoad)b+='<button class="action-btn" onclick="workerBuild(\'road\')">Road (R)</button>';
+b+='<button class="action-btn" style="color:#ffd700;border-color:#ffd700" onclick="startRoadTrail()" title="Click a target hex — worker will build road tiles along the path there">Road to... (Y)</button>';
 if(t.includes('railroad')&&hasRoad&&hasRoad.type==='road')b+='<button class="action-btn" onclick="workerBuild(\'railroad\')">Rail (I)</button>';
 if(t.includes('currency')&&!hasImp&&['grass','plains','forest'].includes(terrain))b+='<button class="action-btn" onclick="workerBuild(\'trading_post\')">Trade (T)</button>';
 return b})():''}
@@ -1502,6 +1513,22 @@ function render(){
             ctx.globalAlpha=.9;ctx.fillStyle='#fff';ctx.font='bold 10px sans-serif';ctx.textAlign='center';
             ctx.fillText(turns+'t',tx,ty+S*.55);
         }
+        ctx.restore();
+    }
+
+    // ROAD TRAIL — brown dashed marker for selected worker with road_to target
+    for(const u of state.units){
+        if(u.player!==0||!u.road_to||u.id!==selectedUnit)continue;
+        const[gx,gy]=h2p(u.road_to.q,u.road_to.r);const tx=gx-ox,ty=gy-oy;
+        const[ux,uy]=h2p(u.q,u.r);const sux=ux-ox,suy=uy-oy;
+        ctx.save();ctx.strokeStyle='#b87333';ctx.lineWidth=3;ctx.globalAlpha=.7;ctx.setLineDash([4,3]);
+        ctx.beginPath();ctx.moveTo(sux,suy);ctx.lineTo(tx,ty);ctx.stroke();ctx.setLineDash([]);
+        const pulse=.5+Math.sin(T*3)*.3;
+        ctx.globalAlpha=pulse;ctx.fillStyle='#d08040';
+        ctx.beginPath();ctx.arc(tx,ty,S*.25,0,Math.PI*2);ctx.fill();
+        ctx.globalAlpha=1;ctx.strokeStyle='#663300';ctx.lineWidth=1.5;ctx.stroke();
+        ctx.fillStyle='#fff';ctx.font='bold 10px sans-serif';ctx.textAlign='center';
+        ctx.fillText('ROAD',tx,ty+S*.55);
         ctx.restore();
     }
 

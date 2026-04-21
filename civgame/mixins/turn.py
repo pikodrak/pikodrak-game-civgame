@@ -192,6 +192,13 @@ class TurnMixin:
                     events.append(f"Worker built {imp_type}")
                     u["building"] = None
 
+        # Road-trail workers: after a completed build, resume moving/building
+        # toward the target. Also handle workers that just moved and now need
+        # to start building on the new tile.
+        for u in list(self.units.values()):
+            if u["player"] == pid and u.get("road_to") and not u.get("building"):
+                self.process_road_trail(u)
+
         # Spy actions — sabotage or steal tech if in enemy city
         for u in list(self.units.values()):
             if u["player"] == pid and u["type"] == "spy":

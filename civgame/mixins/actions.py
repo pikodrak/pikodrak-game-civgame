@@ -41,6 +41,58 @@ class ActionsMixin:
         unit["moves_left"] = 0
         return {"ok": True, "msg": f"Building {improvement_type} ({imp['turns']} turns)"}
 
+    def set_road_to(self, unit_id, q, r):
+        """Put a worker in 'road mode' — it will build a road trail from its
+        current tile to (q,r), one tile per turn."""
+        unit = self.units.get(unit_id)
+        if not unit or unit["player"] != self.current_player:
+            return {"ok": False, "msg": "Not your unit"}
+        if unit["type"] != "worker":
+            return {"ok": False, "msg": "Only workers can build road trails"}
+        if q < 0 or q >= self.width or r < 0 or r >= self.height:
+            return {"ok": False, "msg": "Target off map"}
+        if not self.tiles.get((q, r)):
+            return {"ok": False, "msg": "Invalid target"}
+        unit["road_to"] = {"q": q, "r": r}
+        unit["fortified"] = False
+        unit["sentry"] = False
+        unit["exploring"] = False
+        unit["goto"] = None
+        return {"ok": True, "msg": f"Road trail mode to ({q},{r})"}
+
+    def process_road_trail(self, unit):
+        """Per-turn worker tick: build or move along road_to target.
+
+        Priority: if current tile lacks a road and terrain allows one, start
+        building it. Otherwise step one hex toward target.
+        """
+        rt = unit.get("road_to")
+        if not rt or unit.get("building"):
+            return
+        pos = (unit["q"], unit["r"])
+        target = (rt["q"], rt["r"])
+        if pos == target:
+            unit["road_to"] = None
+            return
+        # Pick railroad if we have the tech, else road
+        player = self.players[unit["player"]]
+        imp = "railroad" if "railroad" in player.get("techs", []) else "road"
+        terrain = self.tiles.get(pos)
+        from civgame.data import IMPROVEMENTS
+        if terrain and terrain.value in IMPROVEMENTS[imp]["terrain"]:
+            existing = self.roads.get(pos)
+            if not existing or existing.get("type") != imp:
+                # Build here
+                self.current_player = unit["player"]
+                self.worker_build(unit["id"], imp)
+                return
+        # Otherwise move one step toward target
+        if unit["moves_left"] > 0:
+            nxt = self._find_path_next(unit, target[0], target[1])
+            if nxt:
+                self.current_player = unit["player"]
+                self.move_unit(unit["id"], nxt[0], nxt[1])
+
     def disband_unit(self, unit_id):
         """Disband (delete) a unit."""
         unit = self.units.get(unit_id)
