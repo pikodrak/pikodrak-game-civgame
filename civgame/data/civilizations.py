@@ -53,7 +53,7 @@ CIVILIZATIONS = {
     "russia":   {"name": "Russia",           "color": "#d42c2c", "bonus": "food",     "leader": "Catherine",
                  "trait": "expansive",  "aggression": 0.6, "loyalty": 0.65,"strategy": "expansionist"},
     "zulu":     {"name": "Zulu",             "color": "#2a2a2a", "bonus": "military", "leader": "Shaka",
-                 "trait": "aggressive", "aggression": 0.9, "loyalty": 0.3, "strategy": "conqueror"},
+                 "trait": "aggressive", "aggression": 1.0, "loyalty": 0.05, "strategy": "conqueror"},
     "inca":     {"name": "Inca",             "color": "#ad6f3f", "bonus": "prod",     "leader": "Pachacuti",
                  "trait": "industrious","aggression": 0.4, "loyalty": 0.85,"strategy": "builder"},
     "maya":     {"name": "Maya",             "color": "#2d5016", "bonus": "science",  "leader": "Pacal",
