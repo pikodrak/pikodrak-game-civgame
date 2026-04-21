@@ -116,16 +116,33 @@ class AICoreMixin:
 
         # Gang up on the leader — if someone is way ahead, declare war
         alive_players = [p for p in self.players if p["alive"] and p["id"] != pid]
+        gang_chance = GAME_CONFIG.get("gang_up_chance", 0.10)
         if alive_players:
             leader = max(alive_players, key=lambda p: p["score"])
             gang_ratio = GAME_CONFIG.get("gang_up_score_ratio", 1.5)
             gang_min = GAME_CONFIG.get("gang_up_min_score", 1000)
-            gang_chance = GAME_CONFIG.get("gang_up_chance", 0.10)
             if leader["score"] > player["score"] * gang_ratio and leader["score"] > gang_min:
                 rel = player["diplomacy"].get(leader["id"], "neutral")
                 if rel != "war" and random.random() < gang_chance:
                     self.declare_war(pid, leader["id"])
                     self._log_ai(pid, f"DIPLO: gang-up WAR on leader {leader['name']} (score {leader['score']} vs my {player['score']})")
+
+        # Anti-warmonger gang-up — target any civ with 2+ active wars.
+        # Chance scales with how many wars they've started; covers Shaka-type
+        # aggressors even when their score hasn't peaked yet.
+        for other in alive_players:
+            if player["diplomacy"].get(other["id"]) == "war":
+                continue
+            active_wars = sum(
+                1 for p in self.players
+                if p["id"] not in (pid, other["id"]) and p["alive"]
+                and other.get("diplomacy", {}).get(p["id"]) == "war"
+            )
+            if active_wars >= 2:
+                if random.random() < gang_chance * active_wars:
+                    self.declare_war(pid, other["id"])
+                    self._log_ai(pid, f"DIPLO: anti-warmonger WAR on {other['name']} ({active_wars} active wars)")
+                    break  # only one gang-up per turn
 
         # Alliance AI — loyal/peaceful civs seek alliances against common enemies
         current_alliances = sum(1 for p in self.players if p["alive"] and player["diplomacy"].get(p["id"]) == "alliance")

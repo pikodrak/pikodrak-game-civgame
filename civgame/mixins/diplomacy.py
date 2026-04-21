@@ -20,6 +20,12 @@ class DiplomacyMixin:
         # Memory: the victim remembers who declared on them
         if hasattr(self, "_bump_memory"):
             self._bump_memory(player_b, player_a, "wars_declared_on_me")
+            # Warmonger stigma: every other alive civ dislikes player_a more.
+            # Stacks permanently (−8 opinion per war declared).
+            for p in self.players:
+                if p["id"] == player_a or p["id"] == player_b or not p["alive"]:
+                    continue
+                self._bump_memory(p["id"], player_a, "warmonger_count")
         self.players[player_a]["diplomacy"][player_b] = "war"
         self.players[player_b]["diplomacy"][player_a] = "war"
         cd = GAME_CONFIG.get("diplo_war_cooldown", 10)

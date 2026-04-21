@@ -80,6 +80,7 @@ class DealsMixin:
             + mem.get("cities_taken_from_me", 0) * -15
             + mem.get("betrayals", 0) * -25
             + mem.get("wars_declared_on_me", 0) * -10
+            + mem.get("warmonger_count", 0) * -8     # stigma per war declared on anyone
             + mem.get("trades_completed", 0) * +2    # small long-term bonus
             + mem.get("gifts_received", 0) * +5
         )
