@@ -80,10 +80,35 @@ class DealsMixin:
             + mem.get("cities_taken_from_me", 0) * -15
             + mem.get("betrayals", 0) * -25
             + mem.get("wars_declared_on_me", 0) * -10
-            + mem.get("warmonger_count", 0) * -8     # stigma per war declared on anyone
+            + mem.get("warmonger_count", 0) * -8     # stigma per war (peaceful observer)
+            + mem.get("axis_approval", 0) * +5       # aggressive observers approve of wars
             + mem.get("trades_completed", 0) * +2    # small long-term bonus
             + mem.get("gifts_received", 0) * +5
         )
+        # Trait affinity: similar temperaments like each other, opposites clash.
+        target_player = self.players[target] if target < len(self.players) else None
+        if target_player:
+            my_agg = p.get("aggression", 0.5)
+            their_agg = target_player.get("aggression", 0.5)
+            agg_diff = abs(my_agg - their_agg)
+            if agg_diff < 0.2:  # similar temperament
+                penalty += 10
+            elif agg_diff > 0.5:  # polar opposites (pacifist vs warmonger)
+                penalty -= 10
+            # Same strategy: shared worldview
+            if p.get("strategy") == target_player.get("strategy"):
+                penalty += 5
+            # Conqueror vs culturalist: classic enemies
+            if {p.get("strategy"), target_player.get("strategy")} == {"conqueror", "culturalist"}:
+                penalty -= 8
+            # Peaceful bloc: civs that haven't started a single war bond.
+            # Two civs who've never declared war → +10; both also low-aggression → +20 total.
+            my_wars = p.get("wars_started", 0)
+            their_wars = target_player.get("wars_started", 0)
+            if my_wars == 0 and their_wars == 0:
+                penalty += 10
+                if my_agg <= 0.4 and their_agg <= 0.4:
+                    penalty += 10  # axis of good — true pacifists
         return max(-100, min(100, base + mods + penalty))
 
     def get_opinion_breakdown(self, pid, target):

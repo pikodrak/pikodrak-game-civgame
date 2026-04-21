@@ -89,6 +89,7 @@ class GameState(
                 "diplomacy": {},
                 "diplo_cooldown": {},
                 "relations": {},
+                "wars_started": 0,
                 "trait": CIVILIZATIONS[civ].get("trait", "aggressive"),
                 "aggression": CIVILIZATIONS[civ].get("aggression", 0.5),
                 "loyalty": CIVILIZATIONS[civ].get("loyalty", 0.5),

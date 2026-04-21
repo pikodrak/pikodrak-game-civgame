@@ -259,11 +259,17 @@ class AIDiplomacyMixin:
         # ---- Strategy-gated cooperative templates ----
         coop_ok = rel == "peace"
 
-        # 1. Declaration of Friendship (loyal civs, non-aggressive)
-        if coop_ok and opinion >= 10 and loyalty >= 0.5 and agg < 0.7 \
-                and not self.has_active(pid, other, "declaration_of_friendship"):
-            cands.append(([{"type": "declaration_of_friendship"}],
-                          [{"type": "declaration_of_friendship"}], "DoF"))
+        # 1. Declaration of Friendship
+        # Normal case: loyal non-aggressive civs.
+        # Axis case: two aggressive civs (agg >= 0.7) with high opinion also DoF —
+        # lets warmonger cabals form ("axis of evil").
+        other_agg = other_p.get("aggression", 0.5)
+        axis_dof = agg >= 0.7 and other_agg >= 0.7 and opinion >= 15
+        if coop_ok and not self.has_active(pid, other, "declaration_of_friendship"):
+            if axis_dof or (opinion >= 10 and loyalty >= 0.5 and agg < 0.7):
+                label = "axis DoF" if axis_dof else "DoF"
+                cands.append(([{"type": "declaration_of_friendship"}],
+                              [{"type": "declaration_of_friendship"}], label))
 
         # 2. Tech swap/sale
         my_techs = set(player["techs"])
