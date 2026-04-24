@@ -1,6 +1,7 @@
 """
 FastAPI server for Civilization-like web game
 """
+import html
 import json
 from pathlib import Path
 from fastapi import FastAPI, HTTPException, Request, Depends
@@ -30,35 +31,65 @@ games = {}
 
 
 class GameOwnershipMiddleware(BaseHTTPMiddleware):
-    """Block mutations to games owned by another authenticated user.
+    """Block access to games owned by another authenticated user.
 
     Anonymous games (created without auth) remain open to all callers.
     Owned games require the requesting user to match the owner or be admin.
+    Covers all mutations (POST/PUT/PATCH/DELETE) and GET on /ai/* sub-paths,
+    which expose full unfogged state and must not be readable by other users.
     """
     async def dispatch(self, request: Request, call_next):
-        if request.method in ("POST", "PUT", "PATCH", "DELETE"):
-            parts = request.url.path.strip("/").split("/")
-            # Matches /api/game/{game_id}/...
-            if len(parts) >= 3 and parts[0] == "api" and parts[1] == "game":
-                try:
-                    game_id = int(parts[2])
-                    owner_id = next(
-                        (uid for uid, g_map in user_games.items() if game_id in g_map),
-                        None,
-                    )
-                    if owner_id is not None:
-                        token = request.headers.get("Authorization", "").replace("Bearer ", "")
-                        user = auth.verify_token(token) if token else None
-                        if not user:
-                            return JSONResponse({"detail": "Not authenticated"}, status_code=401)
-                        if user["id"] != owner_id and not auth.is_admin(user.get("username", "")):
-                            return JSONResponse({"detail": "Not your game"}, status_code=403)
-                except (ValueError, IndexError):
-                    pass
+        parts = request.url.path.strip("/").split("/")
+        # Matches /api/game/{game_id}/...
+        is_game_path = len(parts) >= 3 and parts[0] == "api" and parts[1] == "game"
+        # GET /api/game/{id}/ai/* exposes full unfogged state — requires ownership check
+        is_ai_subpath = is_game_path and len(parts) >= 4 and parts[3] == "ai"
+
+        needs_check = (
+            (request.method in ("POST", "PUT", "PATCH", "DELETE") and is_game_path) or
+            (request.method == "GET" and is_ai_subpath)
+        )
+
+        if needs_check:
+            try:
+                game_id = int(parts[2])
+                owner_id = next(
+                    (uid for uid, g_map in user_games.items() if game_id in g_map),
+                    None,
+                )
+                if owner_id is not None:
+                    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+                    user = auth.verify_token(token) if token else None
+                    if not user:
+                        return JSONResponse({"detail": "Not authenticated"}, status_code=401)
+                    if user["id"] != owner_id and not auth.is_admin(user.get("username", "")):
+                        return JSONResponse({"detail": "Not your game"}, status_code=403)
+            except (ValueError, IndexError):
+                pass
         return await call_next(request)
 
 
 app.add_middleware(GameOwnershipMiddleware)
+
+
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    """Inject standard browser-security headers on every response."""
+
+    _HEADERS = {
+        "X-Content-Type-Options": "nosniff",
+        "X-Frame-Options": "DENY",
+        "Content-Security-Policy": "default-src 'self'",
+        "Referrer-Policy": "strict-origin-when-cross-origin",
+    }
+
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        for header, value in self._HEADERS.items():
+            response.headers[header] = value
+        return response
+
+
+app.add_middleware(SecurityHeadersMiddleware)
 
 
 def restore_active_games():
@@ -1040,7 +1071,7 @@ class GotoRequest(BaseModel):
 
 class FoundCityRequest(BaseModel):
     unit_id: int
-    name: str
+    name: str = Field(max_length=64)
 
 
 class WorkerBuildRequest(BaseModel):
@@ -1207,7 +1238,7 @@ def found_city(game_id: int, req: FoundCityRequest):
     game = games.get(game_id)
     if not game:
         raise HTTPException(404, "Game not found")
-    result = game.found_city(req.unit_id, req.name)
+    result = game.found_city(req.unit_id, html.escape(req.name))
     result["state"] = game.to_dict(for_player=0)
     return result
 
