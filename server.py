@@ -5,8 +5,9 @@ import json
 from pathlib import Path
 from fastapi import FastAPI, HTTPException, Request, Depends
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
-from pydantic import BaseModel
+from fastapi.responses import FileResponse, JSONResponse
+from pydantic import BaseModel, Field
+from starlette.middleware.base import BaseHTTPMiddleware
 from typing import Optional
 from game_engine import GameState, CIVILIZATIONS
 import config_loader
@@ -26,6 +27,38 @@ app = FastAPI(title="CivGame", version=GAME_VERSION)
 user_games = {}
 next_game_id = 1
 games = {}
+
+
+class GameOwnershipMiddleware(BaseHTTPMiddleware):
+    """Block mutations to games owned by another authenticated user.
+
+    Anonymous games (created without auth) remain open to all callers.
+    Owned games require the requesting user to match the owner or be admin.
+    """
+    async def dispatch(self, request: Request, call_next):
+        if request.method in ("POST", "PUT", "PATCH", "DELETE"):
+            parts = request.url.path.strip("/").split("/")
+            # Matches /api/game/{game_id}/...
+            if len(parts) >= 3 and parts[0] == "api" and parts[1] == "game":
+                try:
+                    game_id = int(parts[2])
+                    owner_id = next(
+                        (uid for uid, g_map in user_games.items() if game_id in g_map),
+                        None,
+                    )
+                    if owner_id is not None:
+                        token = request.headers.get("Authorization", "").replace("Bearer ", "")
+                        user = auth.verify_token(token) if token else None
+                        if not user:
+                            return JSONResponse({"detail": "Not authenticated"}, status_code=401)
+                        if user["id"] != owner_id and not auth.is_admin(user.get("username", "")):
+                            return JSONResponse({"detail": "Not your game"}, status_code=403)
+                except (ValueError, IndexError):
+                    pass
+        return await call_next(request)
+
+
+app.add_middleware(GameOwnershipMiddleware)
 
 
 def restore_active_games():
@@ -984,9 +1017,9 @@ def api_delete_save(save_id: int, request: Request):
 
 
 class NewGameRequest(BaseModel):
-    width: int = 40
-    height: int = 30
-    num_players: int = 4
+    width: int = Field(default=40, ge=10, le=200)
+    height: int = Field(default=30, ge=10, le=200)
+    num_players: int = Field(default=4, ge=2, le=12)
     seed: Optional[int] = None
     civ: str = "rome"
     map_type: str = "random"  # random / earth_s / earth_m / earth_l
@@ -1031,10 +1064,10 @@ class DiplomacyRequest(BaseModel):
 
 
 class SimulateRequest(BaseModel):
-    width: int = 40
-    height: int = 30
-    num_players: int = 4
-    num_turns: int = 100
+    width: int = Field(default=40, ge=10, le=100)
+    height: int = Field(default=30, ge=10, le=100)
+    num_players: int = Field(default=4, ge=2, le=8)
+    num_turns: int = Field(default=100, ge=1, le=500)
     seed: Optional[int] = None
 
 
@@ -1648,7 +1681,8 @@ def api_diplomacy_info(game_id: int):
 
 
 @app.post("/api/simulate")
-def simulate(req: SimulateRequest):
+def simulate(req: SimulateRequest, request: Request):
+    require_user(request)
     log = GameState.simulate(
         width=req.width, height=req.height,
         num_players=req.num_players, num_turns=req.num_turns,
@@ -1759,7 +1793,13 @@ def list_saves():
 
 @app.post("/api/load/{filename}")
 def load_game(filename: str):
-    filepath = SAVE_DIR / filename
+    # Resolve the path and verify it stays within SAVE_DIR to prevent traversal
+    save_dir_resolved = SAVE_DIR.resolve()
+    filepath = (SAVE_DIR / filename).resolve()
+    try:
+        filepath.relative_to(save_dir_resolved)
+    except ValueError:
+        raise HTTPException(404, "Save not found")
     if not filepath.exists() or not filepath.name.startswith("save_"):
         raise HTTPException(404, "Save not found")
     with open(filepath) as f:

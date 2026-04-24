@@ -8,9 +8,19 @@ import time
 import os
 from pathlib import Path
 
+import secrets as _secrets
+import sys as _sys
+
 DB_PATH = Path(__file__).parent / "civgame.db"
-JWT_SECRET = os.environ.get("JWT_SECRET", "civgame-secret-key-change-in-production")
-TOKEN_EXPIRY = 86400 * 30  # 30 days
+_env_secret = os.environ.get("JWT_SECRET")
+if _env_secret:
+    JWT_SECRET = _env_secret
+else:
+    # Generate a random secret at startup rather than using a hardcoded fallback.
+    # Sessions are lost on restart, but tokens cannot be forged from a known string.
+    JWT_SECRET = _secrets.token_hex(32)
+    print("[SECURITY WARNING] JWT_SECRET env var not set — using random secret; sessions will not survive restart", file=_sys.stderr)
+TOKEN_EXPIRY = 86400 * 7  # 7 days
 
 
 def get_db():
@@ -172,7 +182,6 @@ def list_api_tokens(user_id):
     conn.close()
     return [{"id": r["id"], "name": r["name"],
              "token": r["token"][:8] + "..." + r["token"][-4:],
-             "token_full": r["token"],
              "created_at": r["created_at"], "last_used": r["last_used"],
              "active": bool(r["active"])} for r in rows]
 
