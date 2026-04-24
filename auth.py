@@ -92,8 +92,8 @@ def register(username, password):
     """Register a new user. Returns user dict or raises."""
     if not username or len(username) < 2:
         raise ValueError("Username must be at least 2 characters")
-    if not password or len(password) < 4:
-        raise ValueError("Password must be at least 4 characters")
+    if not password or len(password) < 8:
+        raise ValueError("Password must be at least 8 characters")
 
     pw_hash = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
     conn = get_db()
